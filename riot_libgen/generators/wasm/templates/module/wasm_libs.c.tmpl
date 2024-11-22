@@ -1,0 +1,139 @@
+#include <string.h>
+#include "wasm_libs.h"
+
+{% for include in includes -%}
+#include "{{ include }}"
+{% endfor %}
+
+static wasm_module_inst_t wasm_module_inst = NULL;
+
+{% for handle in function_handles.values() -%}
+static char function_handle_next_function_name_{{ handle.name }}[256] = {'\0'};
+static {{ handle.return_type }} function_handle_internal_function_{{ handle.name }}(
+    {% if handle.parameters|length == 0 %}void{% endif %}
+    {% for parameter in handle.parameters.values() -%}
+    {{ parameter.type }} {{ parameter.name }}{% if not loop.last %}, {% endif %}
+    {%- endfor %}
+) {
+    //TODO check if wasm_module_inst is actually set
+
+    wasm_exec_env_t wasm_exec_env = wasm_runtime_get_exec_env_singleton(wasm_module_inst);
+
+    wasm_function_inst_t wasm_function_inst = wasm_runtime_lookup_function(
+        wasm_module_inst,
+        (const char*) function_handle_next_function_name_{{ handle.name }}
+    );
+    if (wasm_function_inst == NULL) {
+        //TODO error handling e.g. panic
+    }
+
+    size_t num_args = {{ handle.parameters|length }};
+    wasm_val_t args[{{ [handle.parameters|length, 1]|max }}];
+    {%- for param in handle.parameters.values() %}
+        {%- if param.get_wasm_runtime_signature() == 'i' %}
+    args[{{ loop.index0 }}].kind = WASM_I32;
+    args[{{ loop.index0 }}].of.i32 = (int32_t) {{ param.name }};
+        {%- elif param.get_wasm_runtime_signature() == 'I' %}
+    args[{{ loop.index0 }}].kind = WASM_I64;
+    args[{{ loop.index0 }}].of.i64 = (int64_t) {{ param.name }};
+        {%- elif param.get_wasm_runtime_signature() == 'f' %}
+    args[{{ loop.index0 }}].kind = WASM_f32;
+    args[{{ loop.index0 }}].of.f32 = (float) {{ param.name }};
+        {%- elif param.get_wasm_runtime_signature() == 'F' %}
+    args[{{ loop.index0 }}].kind = WASM_f64;
+    args[{{ loop.index0 }}].of.f64 = (double) {{ param.name }};
+        {%- else -%}
+            {{ "only native literal types supported for function handle parameters yet (e.g. strings not implemented yet)"/0 }}
+        {%- endif -%}
+    {%- endfor %}
+
+    size_t num_results = {% if handle.return_type == 'void' %}0{% else %}1{% endif %};
+    wasm_val_t results[1];
+
+    if (!wasm_runtime_call_wasm_a(wasm_exec_env, wasm_function_inst, num_results, results, num_args, args)) {
+        const char *exception = 0;
+        if ((exception = wasm_runtime_get_exception(wasm_module_inst))) {
+            puts(exception);
+            //TODO error handling e.g. panic
+        }
+    }
+
+    {% if handle.return_type != 'void' -%}
+        {%- if handle.get_wasm_runtime_signature_for_return_type() == 'i' -%}
+    return ({{ handle.return_type }}) results[0].of.i32;
+        {%- elif handle.get_wasm_runtime_signature_for_return_type() == 'I' -%}
+    return ({{ handle.return_type }}) results[0].of.i64;
+        {%- elif handle.get_wasm_runtime_signature_for_return_type() == 'f' -%}
+    return ({{ handle.return_type }}) results[0].of.f32;
+        {%- elif handle.get_wasm_runtime_signature_for_return_type() == 'F' -%}
+    return ({{ handle.return_type }}) results[0].of.f64;
+        {%- else -%}
+            {{ "only native literal types supported for function handle parameters yet (e.g. strings not implemented yet)"/0 }}
+        {%- endif -%}
+    {%- endif %}
+}
+{%- endfor %}
+
+{% for library in libraries.values() %}
+    {% for function in library.functions.values() %}
+{{ function.return_type }} {{ function.name }}_native(wasm_exec_env_t exec_env{% for parameter in function.parameters.values() %}, {% if parameter.is_function_handle() %}const char*{% else %}{{ parameter.type }}{% endif %} {{ parameter.name }}{% endfor %}) {
+    (void) exec_env;
+    {% for parameter in function.parameters.values() -%}
+        {% if parameter.is_function_handle() %}
+    strcpy(function_handle_next_function_name_{{ function_handles[parameter.type].name }}, {{ parameter.name }}); //TODO this is like next level unsafe :D
+        {% endif %}
+    {%- endfor %}
+
+    {% if function.return_type != 'void' %}{{ function.return_type }} res = {% endif %}{{ function.original_name }}(
+    {% for parameter in function.parameters.values() -%}
+        {% if parameter.is_function_handle() -%}
+        function_handle_internal_function_{{ function_handles[parameter.type].name }}{% if not loop.last %}, {% endif %}
+        {%- else %}
+        {{ parameter.name }}{% if not loop.last %}, {% endif %}
+        {%- endif %}
+    {%- endfor %}
+    );
+    {% if function.return_type != 'void' %}return res;{% endif %}
+}
+// union just to avoid ISO C warning when initializing void* with function pointer
+// (on some systems, function pointers may be different from data pointers so this might not be universal)
+static union {
+    void* void_ptr;
+    {{ function.return_type }} (*func_ptr)(wasm_exec_env_t{% for parameter in function.parameters.values() %}, {% if parameter.is_function_handle() %}const char*{% else %}{{ parameter.type }}{% endif %}{% endfor %});
+} {{ function.name }}_ptr = {
+    .func_ptr = {{ function.name }}_native
+};
+    {% endfor %}
+{% endfor %}
+
+{% for library in libraries.values() -%}
+static NativeSymbol native_symbols_{{ library.name }}_library[] = {
+    {% for function in library.functions.values() -%}
+    {
+        "{{ function.name }}",
+        NULL, // function pointer, will be set in `wasm_runtime_register_{{ library.name }}_natives()`
+        "{{ function.get_wasm_runtime_signature() }}", // {{ function.return_type }} {{ function.name }}({% for parameter in function.parameters.values() %}{{ parameter.name }}{% if not loop.last %}, {% endif %}{% endfor %})
+        NULL
+    }{% if not loop.last %},{% endif %}
+    {% endfor %}
+};
+static int num_native_symbols_{{ library.name }}_library = sizeof(native_symbols_{{ library.name }}_library) / sizeof(NativeSymbol);
+{% endfor %}
+
+{% for library in libraries.values() -%}
+int wasm_libs_register_{{ library.name }}_natives(const char* env) {
+    {% for function in library.functions.values() -%}
+    native_symbols_{{ library.name }}_library[{{ loop.index0 }}].func_ptr = {{ function.name }}_ptr.void_ptr;
+    {% endfor %}
+
+    if (!wasm_runtime_register_natives(env, native_symbols_{{ library.name }}_library, num_native_symbols_{{ library.name }}_library)) {
+        //TODO error handling
+        return 0;
+    }
+    return num_native_symbols_{{ library.name }}_library;
+}
+{% endfor %}
+
+void wasm_libs_set_wasm_module_inst(wasm_module_inst_t module_inst) {
+    wasm_module_inst = module_inst;
+}

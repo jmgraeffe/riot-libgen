@@ -1,0 +1,164 @@
+#include <stdlib.h>
+#include <string.h>
+#include "js_libs.h"
+
+{% for include in includes -%}
+#include "{{ include }}"
+{% endfor %}
+
+static jerry_value_t empty_constructor(const jerry_value_t func_val,
+                                       const jerry_value_t this_val,
+                                       const jerry_value_t argv[],
+                                       const jerry_length_t argc) {
+    (void) func_val;
+    (void) this_val;
+    (void) argv;
+    (void) argc;
+
+    return jerry_create_undefined();
+}
+
+{% for handle in function_handles.values() -%}
+static char function_handle_next_function_name_{{ handle.name }}[256] = {'\0'};
+static {{ handle.return_type }} function_handle_internal_function_{{ handle.name }}(
+    {% if handle.parameters|length == 0 %}void{% endif %}
+    {% for parameter in handle.parameters.values() -%}
+    {{ parameter.type }} {{ parameter.name }}{% if not loop.last %}, {% endif %}
+    {%- endfor %}
+) {
+    jerry_value_t global_object = jerry_get_global_object();
+    jerry_value_t name = jerry_create_string((const jerry_char_t *) function_handle_next_function_name_{{ handle.name }});
+    jerry_value_t func = jerry_get_property(global_object, name);
+    //TODO error handling
+
+    jerry_value_t args[{{ [handle.parameters|length, 1]|max }}];
+    {%- for param in handle.parameters.values() %}
+        {% if param.is_number() %}
+    args[{{ loop.index0 }}] = jerry_create_number({{ param.name }});
+        {% elif param.is_string() %}
+    args[{{ loop.index0 }}] = jerry_create_string((const jerry_char_t*) {{ param.name }});
+        {% else %}
+            {{ "only native number types and strings supported for function handle parameters yet"/0 }}
+        {% endif %}
+    {%- endfor %}
+
+    jerry_value_t res_value = jerry_call_function(func, global_object, args, {{ handle.parameters|length }});
+    //TODO check type at runtime
+
+    {% if handle.return_type != 'void' %}
+        {% if handle.returns_number() -%}
+        {{ handle.return_type }} res = ({{ handle.return_type }}) jerry_get_number_value(res_value);
+        {% else %}
+            {{ "only native number types supported for function handle return values yet"/0 }}
+        {%- endif %}
+    {% endif %}
+
+    jerry_release_value(global_object);
+    jerry_release_value(name);
+    jerry_release_value(func);
+    {%- for param in handle.parameters.values() %}
+    jerry_release_value(args[{{ loop.index0 }}]);
+    {%- endfor %}
+    jerry_release_value(res_value);
+
+    {% if handle.return_type != 'void' -%}
+    return res;
+    {%- endif %}
+}
+{%- endfor %}
+
+{% for library in libraries.values() -%}
+    {% for function in library.functions.values() %}
+static jerry_value_t {{ function.name }}_native(const jerry_value_t func_val,
+                                                const jerry_value_t this_val,
+                                                const jerry_value_t argv[],
+                                                const jerry_length_t argc) {
+    (void) func_val;
+    (void) this_val;
+    (void) argc;
+
+    {% for parameter in function.parameters.values() -%}
+        {% if parameter.is_function_handle() %}
+    jerry_value_t value_{{ parameter.name }} = jerry_value_to_string(argv[{{ loop.index0 }}]);
+    size_t size_{{ parameter.name }} = jerry_get_string_size(value_{{ parameter.name }}) + 1;
+    char* {{ parameter.name }} = calloc(size_{{ parameter.name }}, sizeof(char));
+    jerry_string_to_char_buffer(value_{{ parameter.name }}, (jerry_char_t*) {{ parameter.name }}, size_{{ parameter.name }});
+    jerry_release_value(value_{{ parameter.name }});
+    strcpy(function_handle_next_function_name_{{ function_handles[parameter.type].name }}, {{ parameter.name }}); //TODO this is like next level unsafe :D
+    free({{ parameter.name }});
+        {% elif parameter.is_number() %}
+    {{ parameter.type }} {{ parameter.name }} = ({{ parameter.type }}) jerry_get_number_value(argv[{{ loop.index0 }}]);
+        {% elif parameter.is_string() %}
+    jerry_value_t value_{{ parameter.name }} = jerry_value_to_string(argv[{{ loop.index0 }}]);
+    size_t size_{{ parameter.name }} = jerry_get_string_size(value_{{ parameter.name }}) + 1;
+    char* {{ parameter.name }} = calloc(size_{{ parameter.name }}, sizeof(char));
+    jerry_string_to_char_buffer(value_{{ parameter.name }}, (jerry_char_t*) {{ parameter.name }}, size_{{ parameter.name }});
+    jerry_release_value(value_{{ parameter.name }});
+    //TODO error handling
+        {% elif not parameter.is_function_handle() %}
+            {{ "only native number types and strings supported for function handle parameters yet"/0 }}
+        {% endif %}
+    {%- endfor %}
+
+    {% if function.return_type != 'void' -%}{{ function.return_type }} res = {% endif %}{{ function.original_name }}(
+    {%- for parameter in function.parameters.values() -%}
+        {%- if parameter.is_function_handle() %}
+        function_handle_internal_function_{{ function_handles[parameter.type].name }}{% if not loop.last %}, {% endif %}
+        {%- elif parameter.is_string() %}
+        (const char*) {{ parameter.name }}{% if not loop.last %}, {% endif %}
+        {%- else %}
+        {{ parameter.name }}{% if not loop.last %}, {% endif %}
+        {%- endif %}
+    {%- endfor %}
+    );
+
+    // manual memory management
+    {% for parameter in function.parameters.values() -%}
+        {% if parameter.is_string() %}
+    free({{ parameter.name }});
+        {% endif %}
+    {%- endfor %}
+
+    {% if function.return_type == 'void' -%}
+    return jerry_create_undefined();
+    {%- elif function.returns_number() -%}
+    return jerry_create_number(res);
+    {%- else -%}
+        {{ "function return type not implemented yet (e.g. no strings)"/0 }}
+    {%- endif %}
+}
+    {% endfor %}
+{% endfor %}
+
+{% for library in libraries.values() -%}
+int js_libs_register_{{ library.name }}_natives(void) {
+    jerry_value_t constructor = jerry_create_external_function(empty_constructor);
+    jerry_value_t library_object = jerry_construct_object(constructor, NULL, 0);
+
+    {%- for function in library.functions.values() %}
+    {
+        jerry_value_t property_name_function = jerry_create_string((const jerry_char_t*) ("{{ function.name }}"));
+        jerry_value_t property_value_function = jerry_create_external_function({{ function.name }}_native);
+        jerry_value_t res = jerry_set_property(library_object, property_name_function, property_value_function);
+        //TODO error handling
+
+        jerry_release_value(property_name_function);
+        jerry_release_value(property_value_function);
+        jerry_release_value(res);
+    }
+    {%- endfor %}
+
+    jerry_value_t global_object = jerry_get_global_object();
+    jerry_value_t property_name_library = jerry_create_string((const jerry_char_t*) ("{{ library.name }}"));
+    jerry_value_t res = jerry_set_property(global_object, property_name_library, library_object);
+    //TODO error handling
+
+    jerry_release_value(constructor);
+    jerry_release_value(library_object);
+    jerry_release_value(global_object);
+    jerry_release_value(property_name_library);
+    jerry_release_value(res);
+
+    return {{ library.functions|length }};
+}
+{% endfor %}

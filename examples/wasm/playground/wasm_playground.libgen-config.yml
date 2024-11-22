@@ -1,0 +1,28 @@
+libraries:
+  io:
+    includes:
+      - stdio.h
+    functions:
+      puts:
+        original_name: puts
+        parameters:
+          str: const char*
+        return_type: int
+      call_void_func:
+        original_name: call_void_func
+        parameters:
+          func: void_func
+      call_sophisticated_func:
+        original_name: call_sophisticated_func
+        parameters:
+          func: sophisticated_func
+          a: int
+          b: int
+          op: char
+    function_handles:
+      void_func:
+      sophisticated_func:
+        parameters:
+          a: int
+          b: int
+        return_type: int
