@@ -3,7 +3,7 @@ from jinja2 import Environment, FileSystemLoader
 import yaml
 
 from riot_libgen.context import Context
-from riot_libgen.exceptions import LibGenConfigException
+from riot_libgen.exceptions import LibGenConfigException, RaiseExtension
 from riot_libgen.factory import Factory
 
 try:
@@ -49,7 +49,7 @@ class LibGen:
 
         module_template_path = self._template_path.joinpath(Path('module'))
 
-        env = Environment(loader=FileSystemLoader(self._template_path))
+        env = Environment(loader=FileSystemLoader(self._template_path), extensions=[RaiseExtension])
 
         for entity_path in module_template_path.rglob('*'):
             rel_path = entity_path.relative_to(module_template_path)

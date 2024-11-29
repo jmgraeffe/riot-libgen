@@ -43,7 +43,7 @@ static {{ handle.return_type }} function_handle_internal_function_{{ handle.name
     args[{{ loop.index0 }}].kind = WASM_f64;
     args[{{ loop.index0 }}].of.f64 = (double) {{ param.name }};
         {%- else -%}
-            {{ "only native literal types supported for function handle parameters yet (e.g. strings not implemented yet)"/0 }}
+            {% raise "library '" ~ library.name ~ "', function handle '" ~ handle.name ~ "', parameter '" ~ param.name ~ "': unsupported type '" ~ param.type ~ "' (Maybe it is a function handle? Function handles as parameters of function handles not supported yet.)" %}
         {%- endif -%}
     {%- endfor %}
 
@@ -68,7 +68,7 @@ static {{ handle.return_type }} function_handle_internal_function_{{ handle.name
         {%- elif handle.get_wasm_runtime_signature_for_return_type() == 'F' -%}
     return ({{ handle.return_type }}) results[0].of.f64;
         {%- else -%}
-            {{ "only native literal types supported for function handle parameters yet (e.g. strings not implemented yet)"/0 }}
+            {% raise "library '" ~ library.name ~ "', function handle '" ~ handle.name ~ "', return type: unsupported type '" ~ handle.return_type ~ "' (Maybe it is a function handle? Function handles as parameters of function handles not supported yet.)" %}
         {%- endif -%}
     {%- endif %}
 }

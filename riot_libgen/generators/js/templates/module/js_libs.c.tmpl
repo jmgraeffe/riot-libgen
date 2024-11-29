@@ -38,7 +38,7 @@ static {{ handle.return_type }} function_handle_internal_function_{{ handle.name
         {% elif param.is_string() %}
     args[{{ loop.index0 }}] = jerry_create_string((const jerry_char_t*) {{ param.name }});
         {% else %}
-            {{ "only native number types and strings supported for function handle parameters yet"/0 }}
+            {% raise "library '" ~ library.name ~ "', function handle '" ~ handle.name ~ "', parameter '" ~ param.name ~ "': unsupported type '" ~ param.type ~ "' (Maybe it is a function handle? Function handles as parameters of function handles not supported yet.)" %}
         {% endif %}
     {%- endfor %}
 
@@ -49,7 +49,7 @@ static {{ handle.return_type }} function_handle_internal_function_{{ handle.name
         {% if handle.returns_number() -%}
         {{ handle.return_type }} res = ({{ handle.return_type }}) jerry_get_number_value(res_value);
         {% else %}
-            {{ "only native number types supported for function handle return values yet"/0 }}
+            {% raise "library '" ~ library.name ~ "', function handle '" ~ handle.name ~ "', return type: unsupported type '" ~ handle.return_type ~ "' (Maybe it is a function handle? Function handles as parameters of function handles not supported yet.)" %}
         {%- endif %}
     {% endif %}
 
@@ -95,8 +95,8 @@ static jerry_value_t {{ function.name }}_native(const jerry_value_t func_val,
     jerry_string_to_char_buffer(value_{{ parameter.name }}, (jerry_char_t*) {{ parameter.name }}, size_{{ parameter.name }});
     jerry_release_value(value_{{ parameter.name }});
     //TODO error handling
-        {% elif not parameter.is_function_handle() %}
-            {{ "only native number types and strings supported for function handle parameters yet"/0 }}
+        {% else %}
+            {% raise "library '" ~ library.name ~ "', function '" ~ function.name ~ "', parameter '" ~ parameter.name ~ "': unsupported type '" ~ parameter.type ~ "'" %}
         {% endif %}
     {%- endfor %}
 
@@ -124,7 +124,7 @@ static jerry_value_t {{ function.name }}_native(const jerry_value_t func_val,
     {%- elif function.returns_number() -%}
     return jerry_create_number(res);
     {%- else -%}
-        {{ "function return type not implemented yet (e.g. no strings)"/0 }}
+         {% raise "library '" ~ library.name ~ "', function '" ~ function.name ~ "', return type: unsupported type '" ~ handle.return_type ~ "' (Maybe it is a function handle? Function handles as return types are not supported yet.)" %}
     {%- endif %}
 }
     {% endfor %}
