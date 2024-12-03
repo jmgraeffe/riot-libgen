@@ -11,9 +11,9 @@ int js_libs_register_{{ library.name }}_natives(void);
 {{ function.return_type }} {{ function.original_name }}(
         {%- for parameter in function.parameters.values() -%}
             {%- if parameter.is_function_handle() -%}
-    {{ function_handles[parameter.type].return_type }} (*{{ parameter.name }})(
-                {%- if function_handles[parameter.type].parameters|length == 0 -%}void{%- endif -%}
-                {%- for parameter2 in function_handles[parameter.type].parameters.values() -%}
+    {{ library.function_handles[parameter.type].return_type }} (*{{ parameter.name }})(
+                {%- if library.function_handles[parameter.type].parameters|length == 0 -%}void{%- endif -%}
+                {%- for parameter2 in library.function_handles[parameter.type].parameters.values() -%}
        {{ parameter2.type }} {{ parameter2.name }}{%- if not loop.last %}, {% endif -%}
                 {%- endfor -%}
     )

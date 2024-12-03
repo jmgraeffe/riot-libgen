@@ -4,6 +4,7 @@ from riot_libgen.exceptions import LibGenConfigException
 class Library:
     def __init__(self, name, config: dict, factory):
         self.functions = {}
+        self.function_handles = {}
 
         self.name = name
         self._factory = factory
@@ -17,16 +18,14 @@ class Library:
 
         if 'function_handles' in dict_:
             for name, config in dict_['function_handles'].items():
-                if name in self._context.function_handles:
-                    raise LibGenConfigException('function handle with duplicate name found: \'{}\''.format(name))
-                self._context.function_handles[name] = self._factory.create_function_handle(name, config)
+                self.function_handles[name] = self._factory.create_function_handle(name, config, self)
 
         if 'functions' in dict_:
             for name, config in dict_['functions'].items():
                 # shortcut for original name
                 if isinstance(config, str):
                     config = {'original_name': config}
-                self.functions[name] = self._factory.create_function(name, config)
+                self.functions[name] = self._factory.create_function(name, config, self)
 
         if 'includes' in dict_:
             self._context.add_includes(dict_['includes'])

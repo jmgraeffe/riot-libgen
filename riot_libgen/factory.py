@@ -9,14 +9,14 @@ class Factory:
     def __init__(self, context: Context):
         self.context = context
 
-    def create_library(self, name: str, config: dict = None):
+    def create_library(self, name: str, config: dict):
         return Library(name, config, self)
 
-    def create_function(self, name: str, config: dict = None):
-        return Function(name, config, self)
+    def create_function(self, name: str, config: dict, library: Library):
+        return Function(name, config, self, library)
 
-    def create_parameter(self, name: str, config: dict = None):
-        return Parameter(name, config, self)
+    def create_parameter(self, name: str, config: dict, library: Library):
+        return Parameter(name, config, self, library)
 
-    def create_function_handle(self, name: str, config: dict = None):
-        return FunctionHandle(name, config, self)
+    def create_function_handle(self, name: str, config: dict, library: Library):
+        return FunctionHandle(name, config, self, library)

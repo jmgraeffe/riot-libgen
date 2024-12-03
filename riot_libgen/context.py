@@ -4,7 +4,6 @@ class Context:
         self.includes = []
         self.modules = []
         self.packages = []
-        self.function_handles = {}
 
     def add_includes(self, includes):
         for include in includes:
@@ -26,6 +25,5 @@ class Context:
             'libraries': self.libraries,
             'includes': self.includes,
             'modules': self.modules,
-            'packages': self.packages,
-            'function_handles': self.function_handles
+            'packages': self.packages
         }

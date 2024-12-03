@@ -18,13 +18,14 @@ static jerry_value_t empty_constructor(const jerry_value_t func_val,
     return jerry_create_undefined();
 }
 
-{% for handle in function_handles.values() -%}
+{% for library in libraries.values() -%}
+    {% for handle in library.function_handles.values() -%}
 static char function_handle_next_function_name_{{ handle.name }}[256] = {'\0'};
 static {{ handle.return_type }} function_handle_internal_function_{{ handle.name }}(
-    {% if handle.parameters|length == 0 %}void{% endif %}
-    {% for parameter in handle.parameters.values() -%}
+        {% if handle.parameters|length == 0 %}void{% endif %}
+        {% for parameter in handle.parameters.values() -%}
     {{ parameter.type }} {{ parameter.name }}{% if not loop.last %}, {% endif %}
-    {%- endfor %}
+        {%- endfor %}
 ) {
     jerry_value_t global_object = jerry_get_global_object();
     jerry_value_t name = jerry_create_string((const jerry_char_t *) function_handle_next_function_name_{{ handle.name }});
@@ -32,42 +33,45 @@ static {{ handle.return_type }} function_handle_internal_function_{{ handle.name
     //TODO error handling
 
     jerry_value_t args[{{ [handle.parameters|length, 1]|max }}];
-    {%- for param in handle.parameters.values() %}
-        {% if param.is_number() %}
+        {%- for param in handle.parameters.values() %}
+            {% if param.is_number() %}
     args[{{ loop.index0 }}] = jerry_create_number({{ param.name }});
-        {% elif param.is_string() %}
+            {% elif param.is_string() %}
     args[{{ loop.index0 }}] = jerry_create_string((const jerry_char_t*) {{ param.name }});
-        {% else %}
-            {% raise "library '" ~ library.name ~ "', function handle '" ~ handle.name ~ "', parameter '" ~ param.name ~ "': unsupported type '" ~ param.type ~ "' (Maybe it is a function handle? Function handles as parameters of function handles not supported yet.)" %}
-        {% endif %}
-    {%- endfor %}
+            {% elif param.is_byte_array() %}
+                {% if param.length_parameter not in handle.parameters %}
+                    {% raise "library '" ~ library.name ~ "', function handle'" ~ handle.name ~ "', parameter '" ~ param.name ~ "': length parameter '" ~ param.length_parameter ~ "' does not exist as parameter" %}
+                {% endif %}
+            {% else %}
+                {% raise "library '" ~ library.name ~ "', function handle '" ~ handle.name ~ "', parameter '" ~ param.name ~ "': unsupported type '" ~ param.type ~ "' (Maybe it is a function handle? Function handles as parameters of function handles not supported yet.)" %}
+            {% endif %}
+        {%- endfor %}
 
     jerry_value_t res_value = jerry_call_function(func, global_object, args, {{ handle.parameters|length }});
     //TODO check type at runtime
 
-    {% if handle.return_type != 'void' %}
-        {% if handle.returns_number() -%}
+        {% if handle.return_type != 'void' %}
+            {% if handle.returns_number() -%}
         {{ handle.return_type }} res = ({{ handle.return_type }}) jerry_get_number_value(res_value);
-        {% else %}
-            {% raise "library '" ~ library.name ~ "', function handle '" ~ handle.name ~ "', return type: unsupported type '" ~ handle.return_type ~ "' (Maybe it is a function handle? Function handles as parameters of function handles not supported yet.)" %}
-        {%- endif %}
-    {% endif %}
+            {% else %}
+                {% raise "library '" ~ library.name ~ "', function handle '" ~ handle.name ~ "', return type: unsupported type '" ~ handle.return_type ~ "' (Maybe it is a function handle? Function handles as parameters of function handles not supported yet.)" %}
+            {%- endif %}
+        {% endif %}
 
     jerry_release_value(global_object);
     jerry_release_value(name);
     jerry_release_value(func);
-    {%- for param in handle.parameters.values() %}
+        {%- for param in handle.parameters.values() %}
     jerry_release_value(args[{{ loop.index0 }}]);
-    {%- endfor %}
+        {%- endfor %}
     jerry_release_value(res_value);
 
-    {% if handle.return_type != 'void' -%}
+        {% if handle.return_type != 'void' -%}
     return res;
-    {%- endif %}
+        {%- endif %}
 }
-{%- endfor %}
+    {%- endfor %}
 
-{% for library in libraries.values() -%}
     {% for function in library.functions.values() %}
 static jerry_value_t {{ function.name }}_native(const jerry_value_t func_val,
                                                 const jerry_value_t this_val,
@@ -84,7 +88,7 @@ static jerry_value_t {{ function.name }}_native(const jerry_value_t func_val,
     char* {{ parameter.name }} = calloc(size_{{ parameter.name }}, sizeof(char));
     jerry_string_to_char_buffer(value_{{ parameter.name }}, (jerry_char_t*) {{ parameter.name }}, size_{{ parameter.name }});
     jerry_release_value(value_{{ parameter.name }});
-    strcpy(function_handle_next_function_name_{{ function_handles[parameter.type].name }}, {{ parameter.name }}); //TODO this is like next level unsafe :D
+    strcpy(function_handle_next_function_name_{{ library.function_handles[parameter.type].name }}, {{ parameter.name }}); //TODO this is like next level unsafe :D
     free({{ parameter.name }});
         {% elif parameter.is_number() %}
     {{ parameter.type }} {{ parameter.name }} = ({{ parameter.type }}) jerry_get_number_value(argv[{{ loop.index0 }}]);
@@ -103,7 +107,7 @@ static jerry_value_t {{ function.name }}_native(const jerry_value_t func_val,
     {% if function.return_type != 'void' -%}{{ function.return_type }} res = {% endif %}{{ function.original_name }}(
     {%- for parameter in function.parameters.values() -%}
         {%- if parameter.is_function_handle() %}
-        function_handle_internal_function_{{ function_handles[parameter.type].name }}{% if not loop.last %}, {% endif %}
+        function_handle_internal_function_{{ library.function_handles[parameter.type].name }}{% if not loop.last %}, {% endif %}
         {%- elif parameter.is_string() %}
         (const char*) {{ parameter.name }}{% if not loop.last %}, {% endif %}
         {%- else %}

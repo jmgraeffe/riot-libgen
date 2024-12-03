@@ -3,6 +3,7 @@ from pathlib import Path
 from riot_libgen.exceptions import LibGenConfigException
 from riot_libgen.factory import Factory
 from riot_libgen.function import Function
+from riot_libgen.library import Library
 from riot_libgen.function_handle import FunctionHandle
 from riot_libgen.libgen import LibGen
 from riot_libgen.parameter import Parameter
@@ -63,7 +64,7 @@ class WasmFunction(Function):
         # add parameters
         signature = '('
         for parameter in self.parameters.values():
-            if parameter.type in self._context.function_handles:
+            if parameter.type in self._library.function_handles:
                 signature += NATIVE_TYPES_MAPPING['const char*']
             elif parameter.type in NATIVE_TYPES_MAPPING:
                 signature += NATIVE_TYPES_MAPPING[parameter.type]
@@ -96,14 +97,14 @@ class WasmFunctionHandle(FunctionHandle):
 
 
 class WasmFactory(Factory):
-    def create_function(self, name: str, config: dict = None):
-        return WasmFunction(name, config, self)
+    def create_function(self, name: str, config: dict, library: Library):
+        return WasmFunction(name, config, self, library)
 
-    def create_parameter(self, name: str, config: dict = None):
-        return WasmParameter(name, config, self)
+    def create_parameter(self, name: str, config: dict, library: Library):
+        return WasmParameter(name, config, self, library)
 
-    def create_function_handle(self, name: str, config: dict = None):
-        return WasmFunctionHandle(name, config, self)
+    def create_function_handle(self, name: str, config: dict, library: Library):
+        return WasmFunctionHandle(name, config, self, library)
 
 
 class WasmLibGen(LibGen):

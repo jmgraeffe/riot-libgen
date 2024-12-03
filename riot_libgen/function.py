@@ -1,9 +1,10 @@
 from riot_libgen.exceptions import LibGenConfigException
 from riot_libgen.helpers import NATIVE_TYPES
+from riot_libgen.library import Library
 
 
 class Function:
-    def __init__(self, name, config: dict, factory):
+    def __init__(self, name, config: dict, factory, library: Library):
         self.parameters = {}
         self.return_type = 'void'
         self.original_name: str | None = None
@@ -11,6 +12,7 @@ class Function:
         self.name = name
         self._factory = factory
         self._context = factory.context
+        self._library = library
 
         self.load_config_from_dict(config)
 
@@ -32,7 +34,7 @@ class Function:
                 # shortcut for parameter type
                 if isinstance(config, str):
                     config = {'type': config}
-                self.parameters[name] = self._factory.create_parameter(name, config)
+                self.parameters[name] = self._factory.create_parameter(name, config, self._library)
 
         if 'includes' in dict_:
             self._context.add_includes(dict_['includes'])

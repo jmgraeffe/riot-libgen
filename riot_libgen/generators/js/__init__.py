@@ -4,6 +4,7 @@ from pathlib import Path
 from riot_libgen.factory import Factory
 from riot_libgen.function import Function
 from riot_libgen.function_handle import FunctionHandle
+from riot_libgen.library import Library
 from riot_libgen.libgen import LibGen
 from riot_libgen.parameter import Parameter
 
@@ -91,14 +92,14 @@ class JsFunctionHandle(FunctionHandle):
 
 
 class JsFactory(Factory):
-    def create_function(self, name: str, config: dict = None):
-        return JsFunction(name, config, self)
+    def create_function(self, name: str, config: dict, library: Library):
+        return JsFunction(name, config, self, library)
 
-    def create_parameter(self, name: str, config: dict = None):
-        return JsParameter(name, config, self)
+    def create_parameter(self, name: str, config: dict, library: Library):
+        return JsParameter(name, config, self, library)
 
-    def create_function_handle(self, name: str, config: dict = None):
-        return JsFunctionHandle(name, config, self)
+    def create_function_handle(self, name: str, config: dict, library: Library):
+        return JsFunctionHandle(name, config, self, library)
 
 
 class JsLibGen(LibGen):
