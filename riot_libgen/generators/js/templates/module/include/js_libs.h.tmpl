@@ -1,6 +1,8 @@
 #include <stddef.h>
 #include "jerryscript.h"
 
+void js_libs_extract_error_message(jerry_value_t error_value);
+
 {% for library in libraries.values() -%}
 int js_libs_register_{{ library.name }}_natives(void);
 {% endfor %}

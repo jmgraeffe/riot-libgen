@@ -166,3 +166,34 @@ int js_libs_register_{{ library.name }}_natives(void) {
     return {{ library.functions|length }};
 }
 {% endfor %}
+
+void js_libs_extract_error_message(jerry_value_t error_value) {
+    if (!jerry_value_is_error(error_value)) {
+        printf("Provided value is not an error object.\n");
+        return;
+    }
+
+    jerry_value_t error_obj = jerry_get_value_from_error(error_value, true);
+
+    jerry_value_t message_prop_name = jerry_create_string((const jerry_char_t*)"message");
+    jerry_value_t message_value = jerry_get_property(error_obj, message_prop_name);
+
+    if (jerry_value_is_string(message_value)) {
+        jerry_size_t message_size = jerry_get_string_size(message_value);
+        char *message_buffer = (char *)malloc(message_size + 1);
+        if (message_buffer) {
+            jerry_string_to_char_buffer(message_value, (jerry_char_t *)message_buffer, message_size);
+            message_buffer[message_size] = '\0';
+
+            printf("Error message: %s\n", message_buffer);
+
+            free(message_buffer);
+        }
+    } else {
+        printf("Error object does not have a 'message' property or it is not a string.\n");
+    }
+
+    jerry_release_value(message_value);
+    jerry_release_value(message_prop_name);
+    jerry_release_value(error_obj);
+}
