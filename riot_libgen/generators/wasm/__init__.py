@@ -8,8 +8,9 @@ from riot_libgen.function_handle import FunctionHandle
 from riot_libgen.libgen import LibGen
 from riot_libgen.parameter import Parameter
 
+# from https://github.com/bytecodealliance/wasm-micro-runtime/blob/main/doc/export_native_api.md
 NATIVE_TYPES_MAPPING = {
-    # from https://github.com/bytecodealliance/wasm-micro-runtime/blob/main/doc/export_native_api.md
+    # named main types (from https://en.wikipedia.org/wiki/C_data_types#Main_types)
 
     'char': 'i',
     'signed char': 'i',
@@ -30,30 +31,67 @@ NATIVE_TYPES_MAPPING = {
     'unsigned': 'i',
     'unsigned int': 'i',
 
-    'long': 'i',  # i32
-    'long int': 'i',  # i32
-    'signed long': 'i',  # i32
-    'signed long int': 'i',  # i32
+    'long': 'i',
+    'long int': 'i',
+    'signed long': 'i',
+    'signed long int': 'i',
 
-    'unsigned long': 'i',  # i32
-    'unsigned long int': 'i',  # i32
+    'unsigned long': 'i',
+    'unsigned long int': 'i',
 
-    'long long': 'I',  # i64
-    'long long int': 'I',  # i64
-    'signed long long': 'I',  # i64
-    'signed long long int': 'I',  # i64
+    'long long': 'I',
+    'long long int': 'I',
+    'signed long long': 'I',
+    'signed long long int': 'I',
 
-    'unsigned long long': 'I',  # i64
-    'unsigned long long int': 'I',  # i64
+    'unsigned long long': 'I',
+    'unsigned long long int': 'I',
 
-    'float': 'f',  # f32
+    'float': 'f',
 
-    'double': 'F',  # f64
+    'double': 'F', #TODO verify correctness
+    'long double': 'F', #TODO verify correctness
 
-    # TODO still unsure what those types correspond in WASM runtime
-    # 'long double',
+    # stddef types (incomplete)
+
+    'size_t': 'I', #TODO this is a problem, platform specific
+    'ssize_t': 'I', #TODO this is a problem, platform specific
+
+    # stdint types (from https://www.gnu.org/software/libc/manual/html_node/Integers.html)
+
+    'int8_t': 'i',
+    'int16_t': 'i',
+    'int32_t': 'i',
+    'int64_t': 'i',
+    'uint8_t': 'i',
+    'uint16_t': 'i',
+    'uint32_t': 'i',
+    'uint64_t': 'I',
+    
+    'int_least8_t': 'i',
+    'int_least16_t': 'i',
+    'int_least32_t': 'i',
+    'int_least64_t': 'I',
+    'uint_least8_t': 'i',
+    'uint_least16_t': 'i',
+    'uint_least32_t': 'i',
+    'uint_least64_t': 'I',
+
+    'int_fast8_t': 'i',
+    'int_fast16_t': 'i',
+    'int_fast32_t': 'i',
+    'int_fast64_t': 'I',
+    'uint_fast8_t': 'i',
+    'uint_fast16_t': 'i',
+    'uint_fast32_t': 'i',
+    'uint_fast64_t': 'I',
+
+    'intmax_t': 'I', #TODO this is a problem, platform specific
+    'uintmax_t': 'I', #TODO this is a problem, platform specific
+
+    # special types
+
     # 'bool',
-
     'void': '',
     'const char*': '$'
 }

@@ -17,6 +17,8 @@ class JsType(Enum):
 
 
 NATIVE_TYPES_MAPPING = {
+    # named main types (from https://en.wikipedia.org/wiki/C_data_types#Main_types)
+
     'char': JsType.NUMBER,
     'signed char': JsType.NUMBER,
     'unsigned char': JsType.NUMBER,
@@ -57,9 +59,46 @@ NATIVE_TYPES_MAPPING = {
     'double': JsType.NUMBER,
     'long double': JsType.NUMBER,
 
-    # TODO still unsure what those types correspond in JS runtime
-    # 'bool',
+    # stddef types (incomplete)
 
+    'size_t': JsType.NUMBER,
+    'ssize_t': JsType.NUMBER,
+
+    # stdint types (from https://www.gnu.org/software/libc/manual/html_node/Integers.html)
+
+    'int8_t': JsType.NUMBER,
+    'int16_t': JsType.NUMBER,
+    'int32_t': JsType.NUMBER,
+    'int64_t': JsType.NUMBER,
+    'uint8_t': JsType.NUMBER,
+    'uint16_t': JsType.NUMBER,
+    'uint32_t': JsType.NUMBER,
+    'uint64_t': JsType.NUMBER,
+    
+    'int_least8_t': JsType.NUMBER,
+    'int_least16_t': JsType.NUMBER,
+    'int_least32_t': JsType.NUMBER,
+    'int_least64_t': JsType.NUMBER,
+    'uint_least8_t': JsType.NUMBER,
+    'uint_least16_t': JsType.NUMBER,
+    'uint_least32_t': JsType.NUMBER,
+    'uint_least64_t': JsType.NUMBER,
+
+    'int_fast8_t': JsType.NUMBER,
+    'int_fast16_t': JsType.NUMBER,
+    'int_fast32_t': JsType.NUMBER,
+    'int_fast64_t': JsType.NUMBER,
+    'uint_fast8_t': JsType.NUMBER,
+    'uint_fast16_t': JsType.NUMBER,
+    'uint_fast32_t': JsType.NUMBER,
+    'uint_fast64_t': JsType.NUMBER,
+
+    'intmax_t': JsType.NUMBER,
+    'uintmax_t': JsType.NUMBER,
+
+    # special types
+
+    # 'bool',
     'void': JsType.UNDEFINED,
     'const char*': JsType.STRING
 }
