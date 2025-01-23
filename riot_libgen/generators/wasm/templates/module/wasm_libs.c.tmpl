@@ -1,10 +1,6 @@
 #include <string.h>
 #include "wasm_libs.h"
 
-{% for include in includes -%}
-#include "{{ include }}"
-{% endfor %}
-
 static wasm_module_inst_t wasm_module_inst = NULL;
 
 {% for library in libraries.values() %}

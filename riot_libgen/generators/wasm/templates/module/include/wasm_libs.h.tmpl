@@ -1,6 +1,10 @@
 #include <stddef.h>
 #include "wasm_export.h"
 
+{% for include in includes -%}
+#include "{{ include }}"
+{% endfor %}
+
 void wasm_libs_set_wasm_module_inst(wasm_module_inst_t module_inst);
 {% for library in libraries.values() -%}
 int wasm_libs_register_{{ library.name }}_natives(const char* env);
