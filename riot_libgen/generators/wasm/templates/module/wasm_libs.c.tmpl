@@ -76,7 +76,7 @@ static {{ handle.return_type }} function_handle_internal_function_{{ handle.name
     (void) exec_env;
     {% for parameter in function.parameters.values() -%}
         {% if parameter.is_function_handle() %}
-    strcpy(function_handle_next_function_name_{{ library.function_handles[parameter.type].name }}, {{ parameter.name }}); //TODO this is like next level unsafe :D
+    strcpy(function_handle_next_function_name_{{ library.prefix }}{{ library.function_handles[parameter.type].name }}, {{ parameter.name }}); //TODO this is like next level unsafe :D
         {% endif %}
     {%- endfor %}
 
@@ -106,9 +106,9 @@ static union {
 static NativeSymbol native_symbols_{{ library.name }}_library[] = {
     {% for function in library.functions.values() -%}
     {
-        "{{ function.name }}",
+        "{{ library.prefix }}{{ function.name }}",
         NULL, // function pointer, will be set in `wasm_runtime_register_{{ library.name }}_natives()`
-        "{{ function.get_wasm_runtime_signature() }}", // {{ function.return_type }} {{ function.name }}({% for parameter in function.parameters.values() %}{{ parameter.name }}{% if not loop.last %}, {% endif %}{% endfor %})
+        "{{ function.get_wasm_runtime_signature() }}", // {{ function.return_type }} {{ library.prefix }}{{ function.name }}({% for parameter in function.parameters.values() %}{{ parameter.name }}{% if not loop.last %}, {% endif %}{% endfor %})
         NULL
     }{% if not loop.last %},{% endif %}
     {% endfor %}
@@ -119,7 +119,7 @@ static int num_native_symbols_{{ library.name }}_library = sizeof(native_symbols
 {% for library in libraries.values() -%}
 int wasm_libs_register_{{ library.name }}_natives(const char* env) {
     {% for function in library.functions.values() -%}
-    native_symbols_{{ library.name }}_library[{{ loop.index0 }}].func_ptr = {{ function.name }}_ptr.void_ptr;
+    native_symbols_{{ library.name }}_library[{{ loop.index0 }}].func_ptr = {{ library.prefix }}{{ function.name }}_ptr.void_ptr;
     {% endfor %}
 
     if (!wasm_runtime_register_natives(env, native_symbols_{{ library.name }}_library, num_native_symbols_{{ library.name }}_library)) {
