@@ -31,10 +31,6 @@ class LibGen:
         self.load_config_from_dict(config)
 
     def load_config_from_dict(self, dict_: dict):
-        if 'function_handles' in dict_:
-            for name, config in dict_['function_handles'].items():
-                self._context.function_handles[name] = self._factory.create_function_handle(name, config)
-
         if 'libraries' not in dict_:
             raise LibGenConfigException('invalid config file format (no \'libraries\' tag)')
 
