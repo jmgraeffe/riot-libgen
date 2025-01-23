@@ -9,7 +9,7 @@ static wasm_module_inst_t wasm_module_inst = NULL;
 
 {% for library in libraries.values() %}
     {% for handle in library.function_handles.values() -%}
-static char function_handle_next_function_name_{{ handle.name }}[256] = {'\0'};
+static char function_handle_next_function_name_{{ library.prefix }}{{ handle.name }}[256] = {'\0'};
 static {{ handle.return_type }} function_handle_internal_function_{{ handle.name }}(
         {% if handle.parameters|length == 0 %}void{% endif %}
         {% for parameter in handle.parameters.values() -%}
@@ -22,7 +22,7 @@ static {{ handle.return_type }} function_handle_internal_function_{{ handle.name
 
     wasm_function_inst_t wasm_function_inst = wasm_runtime_lookup_function(
         wasm_module_inst,
-        (const char*) function_handle_next_function_name_{{ handle.name }}
+        (const char*) function_handle_next_function_name_{{ library.prefix }}{{ handle.name }}
     );
     if (wasm_function_inst == NULL) {
         //TODO error handling e.g. panic
@@ -76,7 +76,7 @@ static {{ handle.return_type }} function_handle_internal_function_{{ handle.name
     {%- endfor %}
 
     {% for function in library.functions.values() %}
-{{ function.return_type }} {{ function.name }}_native(wasm_exec_env_t exec_env{% for parameter in function.parameters.values() %}, {% if parameter.is_function_handle() %}const char*{% else %}{{ parameter.type }}{% endif %} {{ parameter.name }}{% endfor %}) {
+{{ function.return_type }} {{ library.prefix }}{{ function.name }}_native(wasm_exec_env_t exec_env{% for parameter in function.parameters.values() %}, {% if parameter.is_function_handle() %}const char*{% else %}{{ parameter.type }}{% endif %} {{ parameter.name }}{% endfor %}) {
     (void) exec_env;
     {% for parameter in function.parameters.values() -%}
         {% if parameter.is_function_handle() %}
@@ -100,8 +100,8 @@ static {{ handle.return_type }} function_handle_internal_function_{{ handle.name
 static union {
     void* void_ptr;
     {{ function.return_type }} (*func_ptr)(wasm_exec_env_t{% for parameter in function.parameters.values() %}, {% if parameter.is_function_handle() %}const char*{% else %}{{ parameter.type }}{% endif %}{% endfor %});
-} {{ function.name }}_ptr = {
-    .func_ptr = {{ function.name }}_native
+} {{ library.prefix }}{{ function.name }}_ptr = {
+    .func_ptr = {{ library.prefix }}{{ function.name }}_native
 };
     {% endfor %}
 {% endfor %}

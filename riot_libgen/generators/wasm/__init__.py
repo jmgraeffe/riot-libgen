@@ -59,6 +59,16 @@ NATIVE_TYPES_MAPPING = {
 }
 
 
+class WasmLibrary(Library):
+    def __init__(self, name, config: dict, factory):
+        super().__init__(name, config, factory)
+
+        if self.prefix is not None:
+            self.prefix = self.prefix + '_'
+        else:
+            self.prefix = self.name + '_'
+
+
 class WasmFunction(Function):
     def get_wasm_runtime_signature(self) -> str:
         # add parameters
@@ -97,6 +107,9 @@ class WasmFunctionHandle(FunctionHandle):
 
 
 class WasmFactory(Factory):
+    def create_library(self, name: str, config: dict):
+        return WasmLibrary(name, config, self)
+
     def create_function(self, name: str, config: dict, library: Library):
         return WasmFunction(name, config, self, library)
 

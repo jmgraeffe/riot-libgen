@@ -7,6 +7,7 @@ class Library:
         self.function_handles = {}
 
         self.name = name
+        self.prefix = None
         self._factory = factory
         self._context = factory.context
 
