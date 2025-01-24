@@ -7,7 +7,7 @@ class Function:
     def __init__(self, name, config: dict, factory, library: Library):
         self.parameters = {}
         self.return_type = 'void'
-        self.original_name: str | None = None
+        self.original_name = name
 
         self.name = name
         self._factory = factory
@@ -20,9 +20,8 @@ class Function:
         if dict_ is None:
             raise LibGenConfigException('could not read config')
 
-        if 'original_name' not in dict_:
-            raise LibGenConfigException('missing original function name for \'{}\''.format(self.name))
-        self.original_name = dict_['original_name']
+        if 'original_name' in dict_:
+            self.original_name = dict_['original_name']
 
         if 'return_type' in dict_:
             if dict_['return_type'] not in NATIVE_TYPES:
