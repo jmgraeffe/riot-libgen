@@ -8,12 +8,28 @@
 /* include header generated from main.js */
 #include "blob/main.js.h"
 
-void call_void_func(void (*func)(void)) {
-    func();
+void pass_string_to_host(const char* str) {
+    printf("Got string from app: %s\n", str);
 }
 
-void call_sophisticated_func(int (*func)(int, int), int a, int b, const char* op) {
-    printf("%d %s %d = %d\n", a, op, b, func(a, b));
+void pass_string_to_host_via_function_handle(const char* (*func)(void)) {
+    printf("Got string from app: %s\n", func());
+}
+
+void pass_string_to_app_via_function_handle(void (*func)(const char*)) {
+    func("Greetings from host!\n");
+}
+
+void pass_bytes_to_host(const uint8_t* data, size_t len) {
+    printf("Got data with length %d from app: %s\n", len, data);
+}
+
+void pass_bytes_to_host_via_function_handle(const uint8_t* (*func)(void)) {
+    printf("Got data from app: %s\n", (const char*) func());
+}
+
+void pass_bytes_to_app_via_function_handle(void (*func)(const uint8_t*, size_t)) {
+    func((const uint8_t*) "Bruce Stringsteen!\n", strlen("Bruce Stringsteen!\n"));
 }
 
 int main(void) {
@@ -28,7 +44,7 @@ int main(void) {
                                    jerryx_handler_print);
 
     /* register libraries to global object */
-    if (!js_libs_register_io_natives()) {
+    if (!js_libs_register_playground_natives()) {
         printf("Could not register natives!\n");
         res = 1;
     }

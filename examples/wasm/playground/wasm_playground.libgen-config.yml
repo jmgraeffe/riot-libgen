@@ -1,28 +1,39 @@
 libraries:
-  io:
-    includes:
-      - stdio.h
+  playground:
     functions:
-      puts:
-        original_name: puts
+      pass_string_to_host:
+        parameters:
+          data:
+            type: const char*
+      pass_string_to_host_via_function_handle:
+        parameters:
+          func: string_sender
+      pass_string_to_app_via_function_handle:
+        parameters:
+          func: string_receiver
+      pass_bytes_to_host:
+        parameters:
+          data:
+            type: const uint8_t*
+            length_parameter: len
+          len: size_t
+      pass_bytes_to_host_via_function_handle:
+        parameters:
+          func: bytes_sender
+      pass_bytes_to_app_via_function_handle:
+        parameters:
+          func: bytes_receiver
+    function_handles:
+      string_sender:
+        return_type: const char*
+      string_receiver:
         parameters:
           str: const char*
-        return_type: int
-      call_void_func:
-        original_name: call_void_func
+      bytes_sender:
+        return_type: const uint8_t*
+      bytes_receiver:
         parameters:
-          func: void_func
-      call_sophisticated_func:
-        original_name: call_sophisticated_func
-        parameters:
-          func: sophisticated_func
-          a: int
-          b: int
-          op: char
-    function_handles:
-      void_func:
-      sophisticated_func:
-        parameters:
-          a: int
-          b: int
-        return_type: int
+          data:
+            type: const uint8_t*
+            length_parameter: len
+          len: size_t

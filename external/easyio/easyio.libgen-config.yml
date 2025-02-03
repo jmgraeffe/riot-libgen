@@ -1,0 +1,23 @@
+libraries:
+  easyio:
+    modules:
+      - easyio
+    includes:
+      - "easyio.h"
+    functions:
+      prints:
+        original_name: easyio_prints
+        parameters:
+          s: const char*
+      printi:
+        original_name: easyio_printi
+        parameters:
+          i: int
+      puts:
+        original_name: easyio_puts
+        parameters:
+          s: const char*
+      puti:
+        original_name: easyio_puti
+        parameters:
+          i: int

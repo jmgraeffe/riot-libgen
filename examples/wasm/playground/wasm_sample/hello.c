@@ -6,24 +6,42 @@ extern int printf( const char *, ...);
 #define WASM_EXPORT __attribute__((visibility("default")))
 #endif
 
+#include <stdint.h>
+#include <stddef.h>
+
 #include "../external_modules/wasm_libs/include/wasm_libs_runtime.h"
 
-WASM_EXPORT void hello_world(void) {
-    puts("Hello World!");
+WASM_EXPORT const char* string_sender(void) {
+    return "Exterminate!";
 }
 
-WASM_EXPORT int add(int a, int b) {
-    return a + b;
+WASM_EXPORT void string_receiver(const char* str) {
+    easyio_prints("Got string from host: ");
+    easyio_puts(str);
 }
 
-WASM_EXPORT int sub(int a, int b) {
-    return a - b;
+WASM_EXPORT const uint8_t* bytes_sender(void) {
+    return "String in disguise!";
+}
+
+WASM_EXPORT void bytes_receiver(const uint8_t* data, size_t len) {
+    easyio_prints("Got data with length ");
+    easyio_printi(len);
+    easyio_prints(" from host: ");
+    easyio_puts((const char*) data);
 }
 
 WASM_EXPORT int main(int argc, char **argv)
 {
-    call_void_func(WASM_LIBS_FUNCTION_HANDLE("hello_world"));
-    call_sophisticated_func(WASM_LIBS_FUNCTION_HANDLE("add"), 2, 3, '+');
-    call_sophisticated_func(WASM_LIBS_FUNCTION_HANDLE("sub"), 42, 1337, '-');
+    // strings
+    playground_pass_string_to_host("The cake is a lie!");
+    playground_pass_string_to_host_via_function_handle(WASM_LIBS_FUNCTION_HANDLE("string_sender"));
+    playground_pass_string_to_app_via_function_handle(WASM_LIBS_FUNCTION_HANDLE("string_receiver"));
+    
+    // bytes
+    playground_pass_bytes_to_host("Actually a string!", 17);
+    playground_pass_bytes_to_host_via_function_handle(WASM_LIBS_FUNCTION_HANDLE("bytes_sender"));
+    playground_pass_bytes_to_app_via_function_handle(WASM_LIBS_FUNCTION_HANDLE("bytes_receiver"));
+    
     return 0;
 }
