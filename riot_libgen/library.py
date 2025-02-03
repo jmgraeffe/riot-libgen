@@ -17,6 +17,9 @@ class Library:
         if dict_ is None:
             raise LibGenConfigException('could not read config')
 
+        if 'prefix' in dict_:
+            self.prefix = dict_['prefix']
+
         if 'function_handles' in dict_:
             for name, config in dict_['function_handles'].items():
                 self.function_handles[name] = self._factory.create_function_handle(name, config, self)
