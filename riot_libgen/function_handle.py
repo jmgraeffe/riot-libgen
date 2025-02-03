@@ -1,5 +1,5 @@
 from riot_libgen.exceptions import LibGenConfigException
-from riot_libgen.helpers import NATIVE_TYPES
+from riot_libgen.helpers import NATIVE_TYPES, BYTE_ARRAY_TYPES
 from riot_libgen.library import Library
 
 
@@ -29,3 +29,8 @@ class FunctionHandle:
                 if isinstance(config, str):
                     config = {'type': config}
                 self.parameters[name] = self._factory.create_parameter(name, config, self._library)
+
+    def returns_byte_array(self) -> bool:
+        if self.return_type in BYTE_ARRAY_TYPES:
+            return True
+        return False

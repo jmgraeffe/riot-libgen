@@ -8,6 +8,14 @@ from riot_libgen.function_handle import FunctionHandle
 from riot_libgen.libgen import LibGen
 from riot_libgen.parameter import Parameter
 
+
+"""
+TODO:
+- extract sanity checks (parameter types etc.) into Python code instead of having it in template code
+- optimize field names (I32/i32) into function so the template code is shorter
+"""
+
+
 # from https://github.com/bytecodealliance/wasm-micro-runtime/blob/main/doc/export_native_api.md
 NATIVE_TYPES_MAPPING = {
     # named main types (from https://en.wikipedia.org/wiki/C_data_types#Main_types)
@@ -54,8 +62,8 @@ NATIVE_TYPES_MAPPING = {
 
     # stddef types (incomplete)
 
-    'size_t': 'I', #TODO this is a problem, platform specific
-    'ssize_t': 'I', #TODO this is a problem, platform specific
+    'size_t': 'i', #TODO this is a problem, platform specific
+    'ssize_t': 'i', #TODO this is a problem, platform specific
 
     # stdint types (from https://www.gnu.org/software/libc/manual/html_node/Integers.html)
 
@@ -86,14 +94,16 @@ NATIVE_TYPES_MAPPING = {
     'uint_fast32_t': 'i',
     'uint_fast64_t': 'I',
 
-    'intmax_t': 'I', #TODO this is a problem, platform specific
-    'uintmax_t': 'I', #TODO this is a problem, platform specific
+    'intmax_t': 'I',
+    'uintmax_t': 'I',
 
     # special types
 
     # 'bool',
     'void': '',
-    'const char*': '$'
+    'const char*': '$',
+    'const uint8_t*': 'i', #TODO this might become variable in the future
+    'uint8_t*': 'i' #TODO this might become variable in the future
 }
 
 
@@ -135,6 +145,12 @@ class WasmParameter(Parameter):
         if self.type in NATIVE_TYPES_MAPPING:
             return NATIVE_TYPES_MAPPING[self.type]
         return None
+
+    def is_integer(self) -> bool:
+        sig = self.get_wasm_runtime_signature()
+        if sig.lower() == 'i':
+            return True
+        return False
 
 
 class WasmFunctionHandle(FunctionHandle):

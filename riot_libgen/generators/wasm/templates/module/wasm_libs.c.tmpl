@@ -27,7 +27,28 @@ static {{ handle.return_type }} function_handle_internal_function_{{ handle.name
     size_t num_args = {{ handle.parameters|length }};
     wasm_val_t args[{{ [handle.parameters|length, 1]|max }}];
         {%- for param in handle.parameters.values() %}
-            {%- if param.get_wasm_runtime_signature() == 'i' %}
+            {%- if param.get_wasm_runtime_signature() == '$' %}
+                {# TODO 32bit memory model assumed, might become variable in the future #}
+    args[{{ loop.index0 }}].kind = WASM_I32;
+    args[{{ loop.index0 }}].of.i32 = (int32_t) wasm_runtime_module_dup_data(wasm_module_inst, (const char*) {{ param.name }}, strlen((const char*) str));
+            {%- elif param.is_byte_array() %}
+                {# we need to ensure there is a length parameter, and it is of number type #}
+                {% if param.length_parameter not in handle.parameters %}
+                    {% raise "library '" ~ library.name ~ "', function handle '" ~ handle.name ~ "', parameter '" ~ param.name ~ "': length parameter '" ~ param.length_parameter ~ "' does not exist as parameter" %}
+                {% endif %}
+                {% if not handle.parameters[param.length_parameter].is_integer() %}
+                    {% raise "library '" ~ library.name ~ "', function handle '" ~ handle.name ~ "', parameter '" ~ param.name ~ "': length parameter '" ~ param.length_parameter ~ "' is not an integer" %}
+                {% endif %}
+
+                {# considering pointer length already even though WAMR is 32bit memory model atm #}
+                {%- if param.get_wasm_runtime_signature() == 'i' -%}
+    args[{{ loop.index0 }}].kind = WASM_I32;
+    args[{{ loop.index0 }}].of.i32 = (int32_t) wasm_runtime_module_dup_data(wasm_module_inst, (const char*) {{ param.name }}, {{ param.length_parameter }});
+                {%- else -%}
+    args[{{ loop.index0 }}].kind = WASM_I64;
+    args[{{ loop.index0 }}].of.i64 = (int64_t) wasm_runtime_module_dup_data(wasm_module_inst, (const char*) {{ param.name }}, {{ param.length_parameter }});
+                {%- endif -%}
+            {%- elif param.get_wasm_runtime_signature() == 'i' %}
     args[{{ loop.index0 }}].kind = WASM_I32;
     args[{{ loop.index0 }}].of.i32 = (int32_t) {{ param.name }};
             {%- elif param.get_wasm_runtime_signature() == 'I' %}
@@ -50,13 +71,40 @@ static {{ handle.return_type }} function_handle_internal_function_{{ handle.name
     if (!wasm_runtime_call_wasm_a(wasm_exec_env, wasm_function_inst, num_results, results, num_args, args)) {
         const char *exception = 0;
         if ((exception = wasm_runtime_get_exception(wasm_module_inst))) {
-            puts(exception);
             //TODO error handling e.g. panic
         }
     }
 
+        {%- for param in handle.parameters.values() %}
+            {%- if param.get_wasm_runtime_signature() == '$' or param.is_byte_array() %}
+                {# TODO 32bit memory model assumed for strings ($), might become variable in the future #}
+                {%- if param.get_wasm_runtime_signature() == 'i' or param.get_wasm_runtime_signature() == '$' -%}
+    wasm_runtime_module_free(wasm_module_inst, (uint64_t) args[{{ loop.index0 }}].of.i32);
+                {%- else -%}
+    wasm_runtime_module_free(wasm_module_inst, (uint64_t) args[{{ loop.index0 }}].of.i64);
+                {%- endif -%}
+            {%- endif -%}
+        {%- endfor %}
+
+
         {% if handle.return_type != 'void' -%}
-            {%- if handle.get_wasm_runtime_signature_for_return_type() == 'i' -%}
+            {%- if handle.get_wasm_runtime_signature_for_return_type() == '$' or handle.returns_byte_array() -%}
+                {# considering pointer length already even though WAMR is 32bit memory model atm #}
+                {# TODO 32bit memory model assumed for strings ($), might become variable in the future #}
+                {%- if handle.get_wasm_runtime_signature_for_return_type() == 'i' or handle.get_wasm_runtime_signature_for_return_type() == '$' -%}
+    if (!wasm_runtime_validate_app_addr(wasm_module_inst, results[0].of.i32, sizeof(results[0].of.i32))) {
+        //TODO error handling
+    }
+    //TODO if not a string, check if not only the beginning but the whole range is in the VM memory, and btw we do not care about the VM messing up type boundaries
+    return ({{ handle.return_type }}) wasm_runtime_addr_app_to_native(wasm_module_inst, results[0].of.i32);                   
+                {%- else -%}
+if (!wasm_runtime_validate_app_addr(wasm_module_inst, results[0].of.i64, sizeof(results[0].of.i64))) {
+        //TODO error handling
+    }
+    //TODO if not a string, check if not only the beginning but the whole range is in the VM memory, and btw we do not care about the VM messing up type boundaries
+    return ({{ handle.return_type }}) wasm_runtime_addr_app_to_native(wasm_module_inst, results[0].of.i64);
+                {%- endif -%}
+            {%- elif handle.get_wasm_runtime_signature_for_return_type() == 'i' -%}
     return ({{ handle.return_type }}) results[0].of.i32;
             {%- elif handle.get_wasm_runtime_signature_for_return_type() == 'I' -%}
     return ({{ handle.return_type }}) results[0].of.i64;
@@ -77,6 +125,19 @@ static {{ handle.return_type }} function_handle_internal_function_{{ handle.name
     {% for parameter in function.parameters.values() -%}
         {% if parameter.is_function_handle() %}
     strcpy(function_handle_next_function_name_{{ library.prefix }}{{ library.function_handles[parameter.type].name }}, {{ parameter.name }}); //TODO this is like next level unsafe :D
+        {% elif parameter.is_byte_array() %}
+            {# we need to ensure there is a length parameter, and it is of number type #}
+            {% if parameter.length_parameter not in function.parameters %}
+                {% raise "library '" ~ library.name ~ "', function '" ~ function.name ~ "', parameter '" ~ parameter.name ~ "': length parameter '" ~ parameter.length_parameter ~ "' does not exist as parameter" %}
+            {% endif %}
+            {% if not function.parameters[parameter.length_parameter].is_integer() %}
+                {% raise "library '" ~ library.name ~ "', function '" ~ function.name ~ "', parameter '" ~ parameter.name ~ "': length parameter '" ~ parameter.length_parameter ~ "' is not an integer" %}
+            {% endif %}
+    if (!wasm_runtime_validate_app_addr(wasm_module_inst, (uintptr_t) {{ parameter.name }}, sizeof({{ parameter.name }}))) {
+        //TODO error handling
+    }
+    //TODO check if not only the beginning but the whole range is in the VM memory, and btw we do not care about the VM messing up type boundaries
+    {{ parameter.name }} = ({{ parameter.type }}) wasm_runtime_addr_app_to_native(wasm_module_inst, (uintptr_t) {{ parameter.name }});
         {% endif %}
     {%- endfor %}
 

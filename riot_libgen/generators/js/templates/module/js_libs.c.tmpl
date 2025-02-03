@@ -38,6 +38,14 @@ static {{ handle.return_type }} function_handle_internal_function_{{ handle.name
                 {% if param.length_parameter not in handle.parameters %}
                     {% raise "library '" ~ library.name ~ "', function handle'" ~ handle.name ~ "', parameter '" ~ param.name ~ "': length parameter '" ~ param.length_parameter ~ "' does not exist as parameter" %}
                 {% endif %}
+                {% if not handle.parameters[param.length_parameter].is_number() %}
+                    {% raise "library '" ~ library.name ~ "', function handle'" ~ handle.name ~ "', parameter '" ~ param.name ~ "': length parameter '" ~ param.length_parameter ~ "' is not a number" %}
+                {% endif %}
+    if ({{ param.name }} != NULL) {
+        args[{{ loop.index0 }}] = jerry_create_string_sz((const jerry_char_t*) {{ param.name }}, {{ param.length_parameter }});
+    } else {
+        args[{{ loop.index0 }}] = jerry_create_null();
+    }
             {% else %}
                 {% raise "library '" ~ library.name ~ "', function handle '" ~ handle.name ~ "', parameter '" ~ param.name ~ "': unsupported type '" ~ param.type ~ "' (Maybe it is a function handle? Function handles as parameters of function handles not supported yet.)" %}
             {% endif %}
@@ -88,13 +96,25 @@ static jerry_value_t {{ function.name }}_native(const jerry_value_t func_val,
     free({{ parameter.name }});
         {% elif parameter.is_number() %}
     {{ parameter.type }} {{ parameter.name }} = ({{ parameter.type }}) jerry_get_number_value(argv[{{ loop.index0 }}]);
-        {% elif parameter.is_string() %}
-    jerry_value_t value_{{ parameter.name }} = jerry_value_to_string(argv[{{ loop.index0 }}]);
-    size_t size_{{ parameter.name }} = jerry_get_string_size(value_{{ parameter.name }}) + 1;
-    char* {{ parameter.name }} = calloc(size_{{ parameter.name }}, sizeof(char));
-    jerry_string_to_char_buffer(value_{{ parameter.name }}, (jerry_char_t*) {{ parameter.name }}, size_{{ parameter.name }});
-    jerry_release_value(value_{{ parameter.name }});
-    //TODO error handling
+        {% elif parameter.is_string() or parameter.is_byte_array() %}
+            {# if byte array, we need to ensure there is a length parameter, and it is of number type #}
+            {% if parameter.is_byte_array() %}
+                {% if parameter.length_parameter not in function.parameters %}
+                    {% raise "library '" ~ library.name ~ "', function '" ~ function.name ~ "', parameter '" ~ parameter.name ~ "': length parameter '" ~ parameter.length_parameter ~ "' does not exist as parameter" %}
+                {% endif %}
+                {% if not function.parameters[parameter.length_parameter].is_number() %}
+                    {% raise "library '" ~ library.name ~ "', function '" ~ function.name ~ "', parameter '" ~ parameter.name ~ "': length parameter '" ~ parameter.length_parameter ~ "' is not a number" %}
+                {% endif %}
+            {% endif %}
+    char* {{ parameter.name}} = NULL;
+    if (!jerry_value_is_null(argv[{{ loop.index0 }}])) {
+        jerry_value_t value_{{ parameter.name }} = jerry_value_to_string(argv[{{ loop.index0 }}]);
+        size_t size_{{ parameter.name }} = jerry_get_string_size(value_{{ parameter.name }});
+        {{ parameter.name }} = (char*) calloc(size_{{ parameter.name }} + 1, sizeof(char));
+        jerry_string_to_char_buffer(value_{{ parameter.name }}, (jerry_char_t*) {{ parameter.name }}, size_{{ parameter.name }});
+        jerry_release_value(value_{{ parameter.name }});
+        //TODO error handling
+    }
         {% else %}
             {% raise "library '" ~ library.name ~ "', function '" ~ function.name ~ "', parameter '" ~ parameter.name ~ "': unsupported type '" ~ parameter.type ~ "'" %}
         {% endif %}
@@ -104,8 +124,8 @@ static jerry_value_t {{ function.name }}_native(const jerry_value_t func_val,
     {%- for parameter in function.parameters.values() -%}
         {%- if parameter.is_function_handle() %}
         function_handle_internal_function_{{ library.function_handles[parameter.type].name }}{% if not loop.last %}, {% endif %}
-        {%- elif parameter.is_string() %}
-        (const char*) {{ parameter.name }}{% if not loop.last %}, {% endif %}
+        {%- elif parameter.is_string() or parameter.is_byte_array() %}
+        ({{ parameter.type }}) {{ parameter.name }}{% if not loop.last %}, {% endif %}
         {%- else %}
         {{ parameter.name }}{% if not loop.last %}, {% endif %}
         {%- endif %}
@@ -114,7 +134,7 @@ static jerry_value_t {{ function.name }}_native(const jerry_value_t func_val,
 
     // manual memory management
     {% for parameter in function.parameters.values() -%}
-        {% if parameter.is_string() %}
+        {% if parameter.is_string() or parameter.is_byte_array() %}
     free({{ parameter.name }});
         {% endif %}
     {%- endfor %}

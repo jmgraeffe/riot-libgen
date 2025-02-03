@@ -13,6 +13,7 @@ class JsType(Enum):
     UNDEFINED = 0
     NUMBER = 1
     STRING = 2
+    BYTE_ARRAY = 3
     UNKNOWN = 100
 
 
@@ -100,7 +101,9 @@ NATIVE_TYPES_MAPPING = {
 
     # 'bool',
     'void': JsType.UNDEFINED,
-    'const char*': JsType.STRING
+    'const char*': JsType.STRING,
+    'const uint8_t*': JsType.BYTE_ARRAY,
+    'uint8_t*': JsType.BYTE_ARRAY
 }
 
 

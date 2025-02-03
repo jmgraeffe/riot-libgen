@@ -82,5 +82,12 @@ NATIVE_TYPES = [
 
     'bool',
     'void',
-    'const char*'
+    'const char*',
+    'const uint8_t*',
+    'uint8_t*'
+]
+
+BYTE_ARRAY_TYPES = [
+    'const uint8_t*',
+    'uint8_t*'
 ]

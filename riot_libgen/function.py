@@ -1,5 +1,5 @@
 from riot_libgen.exceptions import LibGenConfigException
-from riot_libgen.helpers import NATIVE_TYPES
+from riot_libgen.helpers import NATIVE_TYPES, BYTE_ARRAY_TYPES
 from riot_libgen.library import Library
 
 
@@ -43,3 +43,8 @@ class Function:
 
         if 'packages' in dict_:
             self._context.add_packages(dict_['packages'])
+
+    def returns_byte_array(self) -> bool:
+        if self.return_type in BYTE_ARRAY_TYPES:
+            return True
+        return False
