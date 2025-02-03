@@ -63,7 +63,7 @@ NATIVE_TYPES_MAPPING = {
     # stddef types (incomplete)
 
     'size_t': 'i', #TODO this is a problem, platform specific
-    'ssize_t': 'i', #TODO this is a problem, platform specific
+    'ssize_t': 'I', #TODO this is a problem, platform specific
 
     # stdint types (from https://www.gnu.org/software/libc/manual/html_node/Integers.html)
 
