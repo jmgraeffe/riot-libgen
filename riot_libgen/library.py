@@ -5,6 +5,7 @@ class Library:
     def __init__(self, name, config: dict, factory):
         self.functions = {}
         self.function_handles = {}
+        self.constants = {}
 
         self.name = name
         self.prefix = None
@@ -31,6 +32,10 @@ class Library:
                     config = {'original_name': config}
                 self.functions[name] = self._factory.create_function(name, config, self)
 
+        if 'constants' in dict_:
+            for name, value in dict_['constants'].items():
+                self.constants[name] = value
+
         if 'includes' in dict_:
             self._context.add_includes(dict_['includes'])
 
@@ -39,3 +44,9 @@ class Library:
 
         if 'packages' in dict_:
             self._context.add_packages(dict_['packages'])
+
+    def get_constant_identifier(self, name: str) -> str:
+        if self.prefix is not None:
+            return self.prefix.upper() + name.upper()
+        else:
+            return name.upper()

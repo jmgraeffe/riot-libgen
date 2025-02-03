@@ -168,6 +168,25 @@ int js_libs_register_{{ library.name }}_natives(void) {
     }
     {%- endfor %}
 
+    {%- for name, value in library.constants.items() %}
+    {
+        jerry_value_t property_name_constant = jerry_create_string((const jerry_char_t*) ("{{ library.get_constant_identifier(name) }}"));
+        {% if value is string %}
+        jerry_value_t property_value_constant = jerry_create_string((const jerry_char_t*) ("{{ value }}"));
+        {% elif value is number %}
+        jerry_value_t property_value_constant = jerry_create_number({{ value }});
+        {% else %}
+            {% raise "library '" ~ library.name ~ "', constant '" ~ name ~ "': unsupported type (only strings and numbers)" %}
+        {% endif %}
+        jerry_value_t res = jerry_set_property(library_object, property_name_constant, property_value_constant);
+        //TODO error handling
+
+        jerry_release_value(property_name_constant);
+        jerry_release_value(property_value_constant);
+        jerry_release_value(res);
+    }
+    {%- endfor %}
+
     jerry_value_t global_object = jerry_get_global_object();
     jerry_value_t property_name_library = jerry_create_string((const jerry_char_t*) ("{{ library.name }}"));
     jerry_value_t res = jerry_set_property(global_object, property_name_library, library_object);

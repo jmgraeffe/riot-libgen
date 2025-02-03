@@ -1,9 +1,15 @@
 #define WASM_LIBS_FUNCTION_HANDLE(name) (name)
 
+{% for library in libraries.values() -%}
+	{% for name, value in library.constants.items() %}
+#define {{ library.get_constant_identifier(name) }} ({%- if value is string -%}"{%- endif -%}{{ value }}{%- if value is string -%}"{%- endif -%})
+	{%- endfor %}
+{%- endfor %}
+
 typedef const char* wasm_libs_function_handle_t;
 
 {% for library in libraries.values() -%}
-{% for function in library.functions.values() -%}
+	{% for function in library.functions.values() -%}
 {{ function.return_type }} {{ library.prefix }}{{ function.name }}({% for parameter in function.parameters.values() %}{% if parameter.is_function_handle() %}wasm_libs_function_handle_t{% else %}{{ parameter.type }}{% endif %} {{ parameter.name }}{% if not loop.last %}, {% endif %}{% endfor %});
-{% endfor %}
+	{% endfor %}
 {%- endfor %}
