@@ -5,7 +5,6 @@
 #include "jerryscript-ext/handler.h"
 #include "js_libs.h"
 
-/* include header generated from main.js */
 #include "blob/main.js.h"
 
 void pass_string_to_host(const char* str) {
@@ -33,38 +32,37 @@ void pass_bytes_to_app_via_function_handle(void (*func)(const uint8_t*, size_t))
 }
 
 int main(void) {
-    jerry_value_t parsed_code, ret_value;
+    jerry_value_t main_app, ret_value;
     int res = 0;
 
-    /* initialize engine, no flags, default configuration */
+    // initialize engine
     jerry_init(JERRY_INIT_EMPTY);
 
-    /* Register the print function in the global object. */
+    // register print function
     jerryx_handler_register_global((const jerry_char_t *) "print",
                                    jerryx_handler_print);
 
-    /* register libraries to global object */
+    // register library natives to global object
     if (!js_libs_register_playground_natives()) {
         printf("Could not register natives!\n");
         res = 1;
     }
 
-    /* setup global scope code */
-    parsed_code = jerry_parse(NULL, 0, main_js, main_js_len, JERRY_PARSE_NO_OPTS);
-    if (!jerry_value_is_error(parsed_code)) {
-        /* execute the parsed source code in the global scope */
-        ret_value = jerry_run(parsed_code);
+    // parse and run main.js
+    main_app = jerry_parse(NULL, 0, main_js, main_js_len, JERRY_PARSE_NO_OPTS);
+    if (!jerry_value_is_error(main_app)) {
+        ret_value = jerry_run(main_app);
 
         if (jerry_value_is_error(ret_value)) {
-            printf("js_run(): Script Error!");
+            printf("Could not run main script!\n");
             res = 1;
         }
 
         jerry_release_value(ret_value);
     }
-    jerry_release_value(parsed_code);
+    jerry_release_value(main_app);
 
-    /* cleanup engine */
+    // cleanup engine
     jerry_cleanup();
 
     return res;

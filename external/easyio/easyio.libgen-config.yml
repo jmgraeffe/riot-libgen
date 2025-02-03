@@ -9,10 +9,19 @@ libraries:
         original_name: easyio_prints
         parameters:
           s: const char*
+      printsl:
+        original_name: easyio_printsl
+        parameters:
+          s: const char*
+          l: size_t
       printi:
         original_name: easyio_printi
         parameters:
           i: int
+      printc:
+        original_name: easyio_printc
+        parameters:
+          c: char
       puts:
         original_name: easyio_puts
         parameters:
@@ -21,3 +30,7 @@ libraries:
         original_name: easyio_puti
         parameters:
           i: int
+      putc:
+        original_name: easyio_putc
+        parameters:
+          c: char
