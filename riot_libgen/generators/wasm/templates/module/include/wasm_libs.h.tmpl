@@ -13,7 +13,7 @@ int wasm_libs_register_{{ library.name }}_natives(const char* env);
 // forward declarations so that functions are well declared even if defined in user code
 {%- for library in libraries.values() -%}
     {%- for function in library.functions.values() %}
-{{ function.return_type }} {{ function.name }}(
+{{ function.return_type }} {{ function.original_name }}(
         {%- for parameter in function.parameters.values() -%}
             {%- if parameter.is_function_handle() -%}
     {{ library.function_handles[parameter.type].return_type }} (*{{ parameter.name }})(
