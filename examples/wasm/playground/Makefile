@@ -1,4 +1,4 @@
-APPLICATION = wasm_example
+APPLICATION = wasm_playground
 # If no BOARD is defined in the environment, use this default:
 BOARD ?= native
 

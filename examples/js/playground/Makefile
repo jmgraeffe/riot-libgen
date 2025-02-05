@@ -1,5 +1,5 @@
 # application name
-APPLICATION = js_sample
+APPLICATION = js_playground
 
 JERRY_STACK = 0
 
