@@ -5,8 +5,8 @@ static wasm_module_inst_t wasm_module_inst = NULL;
 
 {% for library in libraries.values() %}
     {% for handle in library.function_handles.values() -%}
-static char function_handle_next_function_name_{{ library.prefix }}{{ handle.name }}[256] = {'\0'};
-static {{ handle.return_type }} function_handle_internal_function_{{ handle.name }}(
+static char function_handle_next_function_name_{{ library.name }}_{{ handle.name }}[WASM_LIBS_FUNCTION_HANDLE_MAX_LENGTH + 1] = {'\0'};
+static {{ handle.return_type }} function_handle_internal_function_{{ library.name }}_{{ handle.name }}(
         {% if handle.parameters|length == 0 %}void{% endif %}
         {% for parameter in handle.parameters.values() -%}
     {{ parameter.type }} {{ parameter.name }}{% if not loop.last %}, {% endif %}
@@ -18,7 +18,7 @@ static {{ handle.return_type }} function_handle_internal_function_{{ handle.name
 
     wasm_function_inst_t wasm_function_inst = wasm_runtime_lookup_function(
         wasm_module_inst,
-        (const char*) function_handle_next_function_name_{{ library.prefix }}{{ handle.name }}
+        (const char*) function_handle_next_function_name_{{ library.name }}_{{ handle.name }}
     );
     if (wasm_function_inst == NULL) {
         //TODO error handling e.g. panic
@@ -69,7 +69,7 @@ static {{ handle.return_type }} function_handle_internal_function_{{ handle.name
     wasm_val_t results[1];
 
     if (!wasm_runtime_call_wasm_a(wasm_exec_env, wasm_function_inst, num_results, results, num_args, args)) {
-        const char *exception = 0;
+        const char* exception = 0;
         if ((exception = wasm_runtime_get_exception(wasm_module_inst))) {
             //TODO error handling e.g. panic
         }
@@ -120,11 +120,11 @@ if (!wasm_runtime_validate_app_addr(wasm_module_inst, results[0].of.i64, sizeof(
     {%- endfor %}
 
     {% for function in library.functions.values() %}
-{{ function.return_type }} {{ library.prefix }}{{ function.name }}_native(wasm_exec_env_t exec_env{% for parameter in function.parameters.values() %}, {% if parameter.is_function_handle() %}const char*{% else %}{{ parameter.type }}{% endif %} {{ parameter.name }}{% endfor %}) {
+{{ function.return_type }} {{ library.name }}_{{ function.name }}_native(wasm_exec_env_t exec_env{% for parameter in function.parameters.values() %}, {% if parameter.is_function_handle() %}const char*{% else %}{{ parameter.type }}{% endif %} {{ parameter.name }}{% endfor %}) {
     (void) exec_env;
     {% for parameter in function.parameters.values() -%}
         {% if parameter.is_function_handle() %}
-    strcpy(function_handle_next_function_name_{{ library.prefix }}{{ library.function_handles[parameter.type].name }}, {{ parameter.name }}); //TODO this is like next level unsafe :D
+    strcpy(function_handle_next_function_name_{{ library.name }}_{{ library.function_handles[parameter.type].name }}, {{ parameter.name }});
         {% elif parameter.is_byte_array() %}
             {# we need to ensure there is a length parameter, and it is of number type #}
             {% if parameter.length_parameter not in function.parameters %}
@@ -144,7 +144,7 @@ if (!wasm_runtime_validate_app_addr(wasm_module_inst, results[0].of.i64, sizeof(
     {% if function.return_type != 'void' %}{{ function.return_type }} res = {% endif %}{{ function.original_name }}(
     {% for parameter in function.parameters.values() -%}
         {% if parameter.is_function_handle() -%}
-        function_handle_internal_function_{{ library.function_handles[parameter.type].name }}{% if not loop.last %}, {% endif %}
+        function_handle_internal_function_{{ library.name }}_{{ library.function_handles[parameter.type].name }}{% if not loop.last %}, {% endif %}
         {%- else %}
         {{ parameter.name }}{% if not loop.last %}, {% endif %}
         {%- endif %}
@@ -157,8 +157,8 @@ if (!wasm_runtime_validate_app_addr(wasm_module_inst, results[0].of.i64, sizeof(
 static union {
     void* void_ptr;
     {{ function.return_type }} (*func_ptr)(wasm_exec_env_t{% for parameter in function.parameters.values() %}, {% if parameter.is_function_handle() %}const char*{% else %}{{ parameter.type }}{% endif %}{% endfor %});
-} {{ library.prefix }}{{ function.name }}_ptr = {
-    .func_ptr = {{ library.prefix }}{{ function.name }}_native
+} {{ library.name }}_{{ function.name }}_ptr = {
+    .func_ptr = {{ library.name }}_{{ function.name }}_native
 };
     {% endfor %}
 {% endfor %}
@@ -180,7 +180,7 @@ static int num_native_symbols_{{ library.name }}_library = sizeof(native_symbols
 {% for library in libraries.values() -%}
 int wasm_libs_register_{{ library.name }}_natives(const char* env) {
     {% for function in library.functions.values() -%}
-    native_symbols_{{ library.name }}_library[{{ loop.index0 }}].func_ptr = {{ library.prefix }}{{ function.name }}_ptr.void_ptr;
+    native_symbols_{{ library.name }}_library[{{ loop.index0 }}].func_ptr = {{ library.name }}_{{ function.name }}_ptr.void_ptr;
     {% endfor %}
 
     if (!wasm_runtime_register_natives(env, native_symbols_{{ library.name }}_library, num_native_symbols_{{ library.name }}_library)) {
