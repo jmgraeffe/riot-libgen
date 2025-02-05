@@ -1,0 +1,7 @@
+libraries:
+  io:
+    functions:
+      printsl:
+        parameters:
+          s: const char*
+          l: size_t

@@ -1,0 +1,54 @@
+libraries:
+  easycoap:
+    modules:
+      - easycoap
+    includes:
+      - "easycoap.h"
+    constants:
+      method_get: 1
+      code_content: 69
+    functions:
+      # server
+      serve:
+        original_name: easycoap_serve
+        parameters:
+          path: const char*
+          methods: uint16_t
+          req_handler: req_handler
+        return_type: int
+      set_resp_payload:
+        original_name: easycoap_set_resp_payload
+        parameters:
+          payload:
+            type: const uint8_t*
+            length_parameter: payload_len
+          payload_len: uint16_t
+
+      # client
+      request:
+        original_name: easycoap_request
+        parameters:
+          uri: const char*
+          method: uint16_t
+          payload:
+            type: const uint8_t*
+            length_parameter: payload_len
+          payload_len: uint16_t
+          resp_handler: resp_handler
+        return_type: ssize_t
+    function_handles:
+      req_handler:
+        parameters:
+          method: uint16_t
+          payload:
+            type: const uint8_t*
+            length_parameter: payload_len
+          payload_len: uint16_t
+        return_type: uint8_t
+      resp_handler:
+        parameters:
+          code: uint8_t
+          payload:
+            type: const uint8_t*
+            length_parameter: payload_len
+          payload_len: uint16_t
