@@ -1,14 +1,14 @@
 #include <stddef.h>
-#include "wasm_export.h"
 
-{% for include in includes -%}
+#include "wasm_export.h"
+{%- for include in includes %}
 #include "{{ include }}"
-{% endfor %}
+{%- endfor %}
 
 void wasm_libs_set_wasm_module_inst(wasm_module_inst_t module_inst);
-{% for library in libraries.values() -%}
+{%- for library in libraries.values() %}
 int wasm_libs_register_{{ library.name }}_natives(const char* env);
-{% endfor %}
+{%- endfor %}
 
 // forward declarations so that functions are well declared even if defined in user code
 {%- for library in libraries.values() -%}

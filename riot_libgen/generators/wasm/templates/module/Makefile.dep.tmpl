@@ -1,10 +1,12 @@
 ifneq (,$(filter wasm_libs,$(USEMODULE)))
-  USEPKG += wamr
-
-  {% for module in modules -%}
+  # modules
+  {%- for module in modules %}
   USEMODULE += {{ module }}
-  {% endfor %}
-  {% for package in packages -%}
+  {%- endfor %}
+
+  # packages
+  USEPKG += wamr
+  {%- for package in packages %}
   USEPKG += {{ package }}
-  {% endfor %}
+  {%- endfor %}
 endif

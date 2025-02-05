@@ -8,12 +8,15 @@
 
 static wasm_module_inst_t wasm_module_inst = NULL;
 
+void wasm_libs_set_wasm_module_inst(wasm_module_inst_t module_inst) {
+    wasm_module_inst = module_inst;
+}
 {% for library in libraries.values() %}
-    {% for handle in library.function_handles.values() -%}
+    {%- for handle in library.function_handles.values() %}
 static char function_handle_next_function_name_{{ library.name }}_{{ handle.name }}[WASM_LIBS_FUNCTION_HANDLE_MAX_LENGTH + 1] = {'\0'};
 static {{ handle.return_type }} function_handle_internal_function_{{ library.name }}_{{ handle.name }}(
-        {% if handle.parameters|length == 0 %}void{% endif %}
-        {% for parameter in handle.parameters.values() -%}
+        {%- if handle.parameters|length == 0 %}void{% endif -%}
+        {%- for parameter in handle.parameters.values() %}
     {{ parameter.type }} {{ parameter.name }}{% if not loop.last %}, {% endif %}
         {%- endfor %}
 ) {
@@ -21,8 +24,10 @@ static {{ handle.return_type }} function_handle_internal_function_{{ library.nam
         core_panic(PANIC_GENERAL_ERROR, "wasm_libs: WASM module instance is not set (use wasm_libs_set_wasm_module_inst)");
     }
 
+    // get environment
     wasm_exec_env_t wasm_exec_env = wasm_runtime_get_exec_env_singleton(wasm_module_inst);
 
+    // lookup function handle in WASM runtime namespace
     wasm_function_inst_t wasm_function_inst = wasm_runtime_lookup_function(
         wasm_module_inst,
         (const char*) function_handle_next_function_name_{{ library.name }}_{{ handle.name }}
@@ -33,6 +38,7 @@ static {{ handle.return_type }} function_handle_internal_function_{{ library.nam
         core_panic(PANIC_GENERAL_ERROR, msg);
     }
 
+    // construct parameters for upcoming function call
     size_t num_args = {{ handle.parameters|length }};
     wasm_val_t args[{{ [handle.parameters|length, 1]|max }}];
         {%- for param in handle.parameters.values() %}
@@ -40,17 +46,17 @@ static {{ handle.return_type }} function_handle_internal_function_{{ library.nam
                 {# TODO 32bit memory model assumed, might become variable in the future #}
     args[{{ loop.index0 }}].kind = WASM_I32;
     args[{{ loop.index0 }}].of.i32 = (int32_t) wasm_runtime_module_dup_data(wasm_module_inst, (const char*) {{ param.name }}, strlen((const char*) str));
-            {%- elif param.is_byte_array() %}
+            {%- elif param.is_byte_array() -%}
                 {# we need to ensure there is a length parameter, and it is of number type #}
-                {% if param.length_parameter not in handle.parameters %}
+                {%- if param.length_parameter not in handle.parameters -%}
                     {% raise "library '" ~ library.name ~ "', function handle '" ~ handle.name ~ "', parameter '" ~ param.name ~ "': length parameter '" ~ param.length_parameter ~ "' does not exist as parameter" %}
-                {% endif %}
-                {% if not handle.parameters[param.length_parameter].is_integer() %}
+                {%- endif -%}
+                {%- if not handle.parameters[param.length_parameter].is_integer() -%}
                     {% raise "library '" ~ library.name ~ "', function handle '" ~ handle.name ~ "', parameter '" ~ param.name ~ "': length parameter '" ~ param.length_parameter ~ "' is not an integer" %}
-                {% endif %}
+                {%- endif -%}
 
                 {# considering pointer length already even though WAMR is 32bit memory model atm #}
-                {%- if param.get_wasm_runtime_signature() == 'i' -%}
+                {%- if param.get_wasm_runtime_signature() == 'i' %}
     args[{{ loop.index0 }}].kind = WASM_I32;
     args[{{ loop.index0 }}].of.i32 = (int32_t) wasm_runtime_module_dup_data(wasm_module_inst, (const char*) {{ param.name }}, {{ param.length_parameter }});
                 {%- else -%}
@@ -74,9 +80,11 @@ static {{ handle.return_type }} function_handle_internal_function_{{ library.nam
             {%- endif -%}
         {%- endfor %}
 
+    // make space for return value
     size_t num_results = {% if handle.return_type == 'void' %}0{% else %}1{% endif %};
     wasm_val_t results[1];
 
+    // call function handle
     if (!wasm_runtime_call_wasm_a(wasm_exec_env, wasm_function_inst, num_results, results, num_args, args)) {
         const char* exception = 0;
         if ((exception = wasm_runtime_get_exception(wasm_module_inst))) {
@@ -86,23 +94,24 @@ static {{ handle.return_type }} function_handle_internal_function_{{ library.nam
         }
     }
 
+    // cleanup
         {%- for param in handle.parameters.values() %}
-            {%- if param.get_wasm_runtime_signature() == '$' or param.is_byte_array() %}
+            {%- if param.get_wasm_runtime_signature() == '$' or param.is_byte_array() -%}
                 {# TODO 32bit memory model assumed for strings ($), might become variable in the future #}
-                {%- if param.get_wasm_runtime_signature() == 'i' or param.get_wasm_runtime_signature() == '$' -%}
+                {%- if param.get_wasm_runtime_signature() == 'i' or param.get_wasm_runtime_signature() == '$' %}
     wasm_runtime_module_free(wasm_module_inst, (uint64_t) args[{{ loop.index0 }}].of.i32);
-                {%- else -%}
+                {%- else %}
     wasm_runtime_module_free(wasm_module_inst, (uint64_t) args[{{ loop.index0 }}].of.i64);
                 {%- endif -%}
             {%- endif -%}
         {%- endfor %}
 
-
-        {% if handle.return_type != 'void' -%}
+        {%- if handle.return_type != 'void' -%}
             {%- if handle.get_wasm_runtime_signature_for_return_type() == '$' or handle.returns_byte_array() -%}
                 {# considering pointer length already even though WAMR is 32bit memory model atm #}
                 {# TODO 32bit memory model assumed for strings ($), might become variable in the future #}
-                {%- if handle.get_wasm_runtime_signature_for_return_type() == 'i' or handle.get_wasm_runtime_signature_for_return_type() == '$' -%}
+                {%- if handle.get_wasm_runtime_signature_for_return_type() == 'i' or handle.get_wasm_runtime_signature_for_return_type() == '$' %}
+    
     if (!wasm_runtime_validate_app_addr(wasm_module_inst, results[0].of.i32, sizeof(results[0].of.i32))) {
         char msg[512] = {'\0'};
         sprintf(msg, "wasm_libs: function handle '%s' returned pointer outside of WASM memory region", function_handle_next_function_name_{{ library.name }}_{{ handle.name }});
@@ -110,7 +119,8 @@ static {{ handle.return_type }} function_handle_internal_function_{{ library.nam
     }
     //TODO if not a string, check if not only the beginning but the whole range is in the VM memory, and btw we do not care about the VM messing up type boundaries
     return ({{ handle.return_type }}) wasm_runtime_addr_app_to_native(wasm_module_inst, results[0].of.i32);                   
-                {%- else -%}
+                {%- else %}
+    
     if (!wasm_runtime_validate_app_addr(wasm_module_inst, results[0].of.i64, sizeof(results[0].of.i64))) {
         char msg[512] = {'\0'};
         sprintf(msg, "wasm_libs: function handle '%s' returned pointer outside of WASM memory region", function_handle_next_function_name_{{ library.name }}_{{ handle.name }});
@@ -119,38 +129,44 @@ static {{ handle.return_type }} function_handle_internal_function_{{ library.nam
     //TODO if not a string, check if not only the beginning but the whole range is in the VM memory, and btw we do not care about the VM messing up type boundaries
     return ({{ handle.return_type }}) wasm_runtime_addr_app_to_native(wasm_module_inst, results[0].of.i64);
                 {%- endif -%}
-            {%- elif handle.get_wasm_runtime_signature_for_return_type() == 'i' -%}
+            {%- elif handle.get_wasm_runtime_signature_for_return_type() == 'i' %}
+    
     return ({{ handle.return_type }}) results[0].of.i32;
-            {%- elif handle.get_wasm_runtime_signature_for_return_type() == 'I' -%}
+            {%- elif handle.get_wasm_runtime_signature_for_return_type() == 'I' %}
+    
     return ({{ handle.return_type }}) results[0].of.i64;
-            {%- elif handle.get_wasm_runtime_signature_for_return_type() == 'f' -%}
+            {%- elif handle.get_wasm_runtime_signature_for_return_type() == 'f' %}
+    
     return ({{ handle.return_type }}) results[0].of.f32;
-            {%- elif handle.get_wasm_runtime_signature_for_return_type() == 'F' -%}
+            {%- elif handle.get_wasm_runtime_signature_for_return_type() == 'F' %}
+    
     return ({{ handle.return_type }}) results[0].of.f64;
             {%- else -%}
                 {% raise "library '" ~ library.name ~ "', function handle '" ~ handle.name ~ "', return type: unsupported type '" ~ handle.return_type ~ "' (Maybe it is a function handle? Function handles as parameters of function handles not supported yet.)" %}
             {%- endif -%}
         {%- endif %}
 }
-    {%- endfor %}
+    {% endfor %}
 
-    {% for function in library.functions.values() %}
+    {%- for function in library.functions.values() %}
 {{ function.return_type }} {{ library.name }}_{{ function.name }}_native(wasm_exec_env_t exec_env{% for parameter in function.parameters.values() %}, {% if parameter.is_function_handle() %}const char*{% else %}{{ parameter.type }}{% endif %} {{ parameter.name }}{% endfor %}) {
     (void) exec_env;
-    {% for parameter in function.parameters.values() -%}
-        {% if parameter.is_function_handle() %}
+
+    // prepare parameters
+    {%- for parameter in function.parameters.values() %}
+        {%- if parameter.is_function_handle() %}
     if (strlen({{ parameter.name }}) > WASM_LIBS_FUNCTION_HANDLE_MAX_LENGTH) {
         core_panic(PANIC_GENERAL_ERROR, "wasm_libs: function handle name is too long (> WASM_LIBS_FUNCTION_HANDLE_MAX_LENGTH)");
     }
     strcpy(function_handle_next_function_name_{{ library.name }}_{{ library.function_handles[parameter.type].name }}, {{ parameter.name }});
-        {% elif parameter.is_byte_array() %}
+        {%- elif parameter.is_byte_array() -%}
             {# we need to ensure there is a length parameter, and it is of number type #}
-            {% if parameter.length_parameter not in function.parameters %}
+            {%- if parameter.length_parameter not in function.parameters -%}
                 {% raise "library '" ~ library.name ~ "', function '" ~ function.name ~ "', parameter '" ~ parameter.name ~ "': length parameter '" ~ parameter.length_parameter ~ "' does not exist as parameter" %}
-            {% endif %}
-            {% if not function.parameters[parameter.length_parameter].is_integer() %}
+            {%- endif -%}
+            {%- if not function.parameters[parameter.length_parameter].is_integer() -%}
                 {% raise "library '" ~ library.name ~ "', function '" ~ function.name ~ "', parameter '" ~ parameter.name ~ "': length parameter '" ~ parameter.length_parameter ~ "' is not an integer" %}
-            {% endif %}
+            {%- endif %}
     if (wasm_module_inst == NULL) {
         core_panic(PANIC_GENERAL_ERROR, "wasm_libs: WASM module instance is not set (use wasm_libs_set_wasm_module_inst)");
     }
@@ -159,19 +175,24 @@ static {{ handle.return_type }} function_handle_internal_function_{{ library.nam
     }
     //TODO check if not only the beginning but the whole range is in the VM memory, and btw we do not care about the VM messing up type boundaries
     {{ parameter.name }} = ({{ parameter.type }}) wasm_runtime_addr_app_to_native(wasm_module_inst, (uintptr_t) {{ parameter.name }});
-        {% endif %}
+        {%- endif -%}
     {%- endfor %}
 
+    // call function
     {% if function.return_type != 'void' %}{{ function.return_type }} res = {% endif %}{{ function.original_name }}(
-    {% for parameter in function.parameters.values() -%}
-        {% if parameter.is_function_handle() -%}
+    {%- for parameter in function.parameters.values() -%}
+        {%- if parameter.is_function_handle() %}
         function_handle_internal_function_{{ library.name }}_{{ library.function_handles[parameter.type].name }}{% if not loop.last %}, {% endif %}
         {%- else %}
         {{ parameter.name }}{% if not loop.last %}, {% endif %}
         {%- endif %}
     {%- endfor %}
     );
-    {% if function.return_type != 'void' %}return res;{% endif %}
+
+    {%- if function.return_type != 'void' %}
+
+    return res;
+    {%- endif %}
 }
 // union just to avoid ISO C warning when initializing void* with function pointer
 // (on some systems, function pointers may be different from data pointers so this might not be universal)
@@ -184,7 +205,7 @@ static union {
     {% endfor %}
 {% endfor %}
 
-{% for library in libraries.values() -%}
+{%- for library in libraries.values() %}
 static NativeSymbol native_symbols_{{ library.name }}_library[] = {
     {% for function in library.functions.values() -%}
     {
@@ -198,20 +219,17 @@ static NativeSymbol native_symbols_{{ library.name }}_library[] = {
 static int num_native_symbols_{{ library.name }}_library = sizeof(native_symbols_{{ library.name }}_library) / sizeof(NativeSymbol);
 {% endfor %}
 
-{% for library in libraries.values() -%}
+{%- for library in libraries.values() %}
 int wasm_libs_register_{{ library.name }}_natives(const char* env) {
-    {% for function in library.functions.values() -%}
+    {%- for function in library.functions.values() %}
     native_symbols_{{ library.name }}_library[{{ loop.index0 }}].func_ptr = {{ library.name }}_{{ function.name }}_ptr.void_ptr;
-    {% endfor %}
+    {%- endfor %}
 
     if (!wasm_runtime_register_natives(env, native_symbols_{{ library.name }}_library, num_native_symbols_{{ library.name }}_library)) {
         printf("wasm_libs: could not register natives for library '%s'", "{{ library.name }}");
         return 0;
     }
+
     return num_native_symbols_{{ library.name }}_library;
 }
 {% endfor %}
-
-void wasm_libs_set_wasm_module_inst(wasm_module_inst_t module_inst) {
-    wasm_module_inst = module_inst;
-}
