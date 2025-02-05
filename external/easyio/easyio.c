@@ -7,8 +7,7 @@ void easyio_prints(const char* s) {
 }
 
 void easyio_printsl(const char* s, size_t l) {
-	for (size_t i = 0; i < l; ++i)
-		printf("%c", s[i]);
+	printf("%.*s", l, s);
 }
 
 void easyio_printi(int i) {
