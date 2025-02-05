@@ -1,5 +1,10 @@
+#include <stdio.h>
 #include <string.h>
+#include <panic.h>
+
 #include "wasm_libs.h"
+
+#define WASM_LIBS_FUNCTION_HANDLE_MAX_LENGTH (255)
 
 static wasm_module_inst_t wasm_module_inst = NULL;
 
@@ -12,7 +17,9 @@ static {{ handle.return_type }} function_handle_internal_function_{{ library.nam
     {{ parameter.type }} {{ parameter.name }}{% if not loop.last %}, {% endif %}
         {%- endfor %}
 ) {
-    //TODO check if wasm_module_inst is actually set
+    if (wasm_module_inst == NULL) {
+        core_panic(PANIC_GENERAL_ERROR, "wasm_libs: WASM module instance is not set (use wasm_libs_set_wasm_module_inst)");
+    }
 
     wasm_exec_env_t wasm_exec_env = wasm_runtime_get_exec_env_singleton(wasm_module_inst);
 
@@ -21,7 +28,9 @@ static {{ handle.return_type }} function_handle_internal_function_{{ library.nam
         (const char*) function_handle_next_function_name_{{ library.name }}_{{ handle.name }}
     );
     if (wasm_function_inst == NULL) {
-        //TODO error handling e.g. panic
+        char msg[512] = {'\0'};
+        sprintf(msg, "wasm_libs: lookup of function '%s' failed", function_handle_next_function_name_{{ library.name }}_{{ handle.name }});
+        core_panic(PANIC_GENERAL_ERROR, msg);
     }
 
     size_t num_args = {{ handle.parameters|length }};
@@ -71,7 +80,9 @@ static {{ handle.return_type }} function_handle_internal_function_{{ library.nam
     if (!wasm_runtime_call_wasm_a(wasm_exec_env, wasm_function_inst, num_results, results, num_args, args)) {
         const char* exception = 0;
         if ((exception = wasm_runtime_get_exception(wasm_module_inst))) {
-            //TODO error handling e.g. panic
+            char msg[512] = {'\0'};
+            sprintf(msg, "wasm_libs: function '%s' throw an exception: %s", function_handle_next_function_name_{{ library.name }}_{{ handle.name }}, exception);
+            core_panic(PANIC_GENERAL_ERROR, msg);
         }
     }
 
@@ -93,13 +104,17 @@ static {{ handle.return_type }} function_handle_internal_function_{{ library.nam
                 {# TODO 32bit memory model assumed for strings ($), might become variable in the future #}
                 {%- if handle.get_wasm_runtime_signature_for_return_type() == 'i' or handle.get_wasm_runtime_signature_for_return_type() == '$' -%}
     if (!wasm_runtime_validate_app_addr(wasm_module_inst, results[0].of.i32, sizeof(results[0].of.i32))) {
-        //TODO error handling
+        char msg[512] = {'\0'};
+        sprintf(msg, "wasm_libs: function handle '%s' returned pointer outside of WASM memory region", function_handle_next_function_name_{{ library.name }}_{{ handle.name }});
+        core_panic(PANIC_GENERAL_ERROR, msg);
     }
     //TODO if not a string, check if not only the beginning but the whole range is in the VM memory, and btw we do not care about the VM messing up type boundaries
     return ({{ handle.return_type }}) wasm_runtime_addr_app_to_native(wasm_module_inst, results[0].of.i32);                   
                 {%- else -%}
-if (!wasm_runtime_validate_app_addr(wasm_module_inst, results[0].of.i64, sizeof(results[0].of.i64))) {
-        //TODO error handling
+    if (!wasm_runtime_validate_app_addr(wasm_module_inst, results[0].of.i64, sizeof(results[0].of.i64))) {
+        char msg[512] = {'\0'};
+        sprintf(msg, "wasm_libs: function handle '%s' returned pointer outside of WASM memory region", function_handle_next_function_name_{{ library.name }}_{{ handle.name }});
+        core_panic(PANIC_GENERAL_ERROR, msg);
     }
     //TODO if not a string, check if not only the beginning but the whole range is in the VM memory, and btw we do not care about the VM messing up type boundaries
     return ({{ handle.return_type }}) wasm_runtime_addr_app_to_native(wasm_module_inst, results[0].of.i64);
@@ -124,6 +139,9 @@ if (!wasm_runtime_validate_app_addr(wasm_module_inst, results[0].of.i64, sizeof(
     (void) exec_env;
     {% for parameter in function.parameters.values() -%}
         {% if parameter.is_function_handle() %}
+    if (strlen({{ parameter.name }}) > WASM_LIBS_FUNCTION_HANDLE_MAX_LENGTH) {
+        core_panic(PANIC_GENERAL_ERROR, "wasm_libs: function handle name is too long (> WASM_LIBS_FUNCTION_HANDLE_MAX_LENGTH)");
+    }
     strcpy(function_handle_next_function_name_{{ library.name }}_{{ library.function_handles[parameter.type].name }}, {{ parameter.name }});
         {% elif parameter.is_byte_array() %}
             {# we need to ensure there is a length parameter, and it is of number type #}
@@ -133,8 +151,11 @@ if (!wasm_runtime_validate_app_addr(wasm_module_inst, results[0].of.i64, sizeof(
             {% if not function.parameters[parameter.length_parameter].is_integer() %}
                 {% raise "library '" ~ library.name ~ "', function '" ~ function.name ~ "', parameter '" ~ parameter.name ~ "': length parameter '" ~ parameter.length_parameter ~ "' is not an integer" %}
             {% endif %}
+    if (wasm_module_inst == NULL) {
+        core_panic(PANIC_GENERAL_ERROR, "wasm_libs: WASM module instance is not set (use wasm_libs_set_wasm_module_inst)");
+    }
     if (!wasm_runtime_validate_app_addr(wasm_module_inst, (uintptr_t) {{ parameter.name }}, sizeof({{ parameter.name }}))) {
-        //TODO error handling
+        core_panic(PANIC_GENERAL_ERROR, "wasm_libs: function '{{ library.prefix }}{{ function.name }}' was called with a pointer parameter that points outside of WASM memory region");
     }
     //TODO check if not only the beginning but the whole range is in the VM memory, and btw we do not care about the VM messing up type boundaries
     {{ parameter.name }} = ({{ parameter.type }}) wasm_runtime_addr_app_to_native(wasm_module_inst, (uintptr_t) {{ parameter.name }});
@@ -184,7 +205,7 @@ int wasm_libs_register_{{ library.name }}_natives(const char* env) {
     {% endfor %}
 
     if (!wasm_runtime_register_natives(env, native_symbols_{{ library.name }}_library, num_native_symbols_{{ library.name }}_library)) {
-        //TODO error handling
+        printf("wasm_libs: could not register natives for library '%s'", "{{ library.name }}");
         return 0;
     }
     return num_native_symbols_{{ library.name }}_library;

@@ -1,6 +1,10 @@
 #include <stdlib.h>
 #include <string.h>
+#include <panic.h>
+
 #include "js_libs.h"
+
+#define JS_LIBS_FUNCTION_HANDLE_MAX_LENGTH (255)
 
 static jerry_value_t empty_constructor(const jerry_value_t func_val,
                                        const jerry_value_t this_val,
@@ -16,7 +20,7 @@ static jerry_value_t empty_constructor(const jerry_value_t func_val,
 
 {% for library in libraries.values() -%}
     {% for handle in library.function_handles.values() -%}
-static char function_handle_next_function_name_{{ library.name }}_{{ handle.name }}[256] = {'\0'};
+static char function_handle_next_function_name_{{ library.name }}_{{ handle.name }}[JS_LIBS_FUNCTION_HANDLE_MAX_LENGTH + 1] = {'\0'};
 static {{ handle.return_type }} function_handle_internal_function_{{ library.name }}_{{ handle.name }}(
         {% if handle.parameters|length == 0 %}void{% endif %}
         {% for parameter in handle.parameters.values() -%}
@@ -26,7 +30,11 @@ static {{ handle.return_type }} function_handle_internal_function_{{ library.nam
     jerry_value_t global_object = jerry_get_global_object();
     jerry_value_t name = jerry_create_string((const jerry_char_t *) function_handle_next_function_name_{{ library.name }}_{{ handle.name }});
     jerry_value_t func = jerry_get_property(global_object, name);
-    //TODO error handling
+    if (jerry_value_is_error(func)) {
+        char msg[512] = {'\0'};
+        sprintf(msg, "js_libs: lookup of function '%s' failed", function_handle_next_function_name_{{ library.name }}_{{ handle.name }});
+        core_panic(PANIC_GENERAL_ERROR, msg);
+    }
 
     jerry_value_t args[{{ [handle.parameters|length, 1]|max }}];
         {%- for param in handle.parameters.values() %}
@@ -52,10 +60,14 @@ static {{ handle.return_type }} function_handle_internal_function_{{ library.nam
         {%- endfor %}
 
     jerry_value_t res_value = jerry_call_function(func, global_object, args, {{ handle.parameters|length }});
-    //TODO check type at runtime
 
         {% if handle.return_type != 'void' %}
             {% if handle.returns_number() -%}
+        if (!jerry_value_is_number(res_value)) {
+            char msg[512] = {'\0'};
+            sprintf(msg, "js_libs: returned type of function handle '%s' is as expected (not a number)", function_handle_next_function_name_{{ library.name }}_{{ handle.name }});
+            core_panic(PANIC_GENERAL_ERROR, msg);
+        }
         {{ handle.return_type }} res = ({{ handle.return_type }}) jerry_get_number_value(res_value);
             {% else %}
                 {% raise "library '" ~ library.name ~ "', function handle '" ~ handle.name ~ "', return type: unsupported type '" ~ handle.return_type ~ "' (Maybe it is a function handle? Function handles as parameters of function handles not supported yet.)" %}
@@ -88,11 +100,20 @@ static jerry_value_t {{ library.name }}_{{ function.name }}_native(const jerry_v
     {% for parameter in function.parameters.values() -%}
         {% if parameter.is_function_handle() %}
     jerry_value_t value_{{ parameter.name }} = jerry_value_to_string(argv[{{ loop.index0 }}]);
-    size_t size_{{ parameter.name }} = jerry_get_string_size(value_{{ parameter.name }});
-    char* {{ parameter.name }} = calloc(size_{{ parameter.name }} + 1, sizeof(char));
-    jerry_string_to_char_buffer(value_{{ parameter.name }}, (jerry_char_t*) {{ parameter.name }}, size_{{ parameter.name }});
+    if (jerry_value_is_error(value_{{ parameter.name }})) {
+        core_panic(PANIC_GENERAL_ERROR, "js_libs: library '{{ library.name }}', function '{{ function.name }}', parameter '{{ parameter.name }}': invalid name for function handle (not a string?)");
+    }
+    size_t length_{{ parameter.name }} = jerry_get_string_length(value_{{ parameter.name }});
+    if (length_{{ parameter.name }} == 0 || length_{{ parameter.name }} > JS_LIBS_FUNCTION_HANDLE_MAX_LENGTH) {
+        core_panic(PANIC_GENERAL_ERROR, "js_libs: library '{{ library.name }}', function '{{ function.name }}', parameter '{{ parameter.name }}': invalid length of function handle name (0 < name < JS_LIBS_FUNCTION_HANDLE_MAX_LENGTH)");
+    }
+    char* {{ parameter.name }} = calloc(length_{{ parameter.name }} + 1, sizeof(char));
+    if ({{ parameter.name }} == NULL) {
+        core_panic(PANIC_GENERAL_ERROR, "js_libs: could not allocate memory");
+    }
+    jerry_string_to_char_buffer(value_{{ parameter.name }}, (jerry_char_t*) {{ parameter.name }}, length_{{ parameter.name }});
     jerry_release_value(value_{{ parameter.name }});
-    strcpy(function_handle_next_function_name_{{ library.name }}_{{ library.function_handles[parameter.type].name }}, {{ parameter.name }}); //TODO this is like next level unsafe :D
+    strcpy(function_handle_next_function_name_{{ library.name }}_{{ library.function_handles[parameter.type].name }}, {{ parameter.name }});
     free({{ parameter.name }});
         {% elif parameter.is_number() %}
     {{ parameter.type }} {{ parameter.name }} = ({{ parameter.type }}) jerry_get_number_value(argv[{{ loop.index0 }}]);
@@ -109,11 +130,16 @@ static jerry_value_t {{ library.name }}_{{ function.name }}_native(const jerry_v
     char* {{ parameter.name}} = NULL;
     if (!jerry_value_is_null(argv[{{ loop.index0 }}])) {
         jerry_value_t value_{{ parameter.name }} = jerry_value_to_string(argv[{{ loop.index0 }}]);
-        size_t size_{{ parameter.name }} = jerry_get_string_size(value_{{ parameter.name }});
-        {{ parameter.name }} = (char*) calloc(size_{{ parameter.name }} + 1, sizeof(char));
-        jerry_string_to_char_buffer(value_{{ parameter.name }}, (jerry_char_t*) {{ parameter.name }}, size_{{ parameter.name }});
+        if (jerry_value_is_error(value_{{ parameter.name }})) {
+            core_panic(PANIC_GENERAL_ERROR, "js_libs: library '{{ library.name }}', function '{{ function.name }}', parameter '{{ parameter.name }}': invalid value for string/byte array");
+        }
+        size_t length_{{ parameter.name }} = jerry_get_string_size(value_{{ parameter.name }});
+        {{ parameter.name }} = (char*) calloc(length_{{ parameter.name }} + 1, sizeof(char));
+        if ({{ parameter.name }} == NULL) {
+            core_panic(PANIC_GENERAL_ERROR, "js_libs: could not allocate memory");
+        }
+        jerry_string_to_char_buffer(value_{{ parameter.name }}, (jerry_char_t*) {{ parameter.name }}, length_{{ parameter.name }});
         jerry_release_value(value_{{ parameter.name }});
-        //TODO error handling
     }
         {% else %}
             {% raise "library '" ~ library.name ~ "', function '" ~ function.name ~ "', parameter '" ~ parameter.name ~ "': unsupported type '" ~ parameter.type ~ "'" %}
@@ -160,7 +186,13 @@ int js_libs_register_{{ library.name }}_natives(void) {
         jerry_value_t property_name_function = jerry_create_string((const jerry_char_t*) ("{{ function.name }}"));
         jerry_value_t property_value_function = jerry_create_external_function({{ library.name }}_{{ function.name }}_native);
         jerry_value_t res = jerry_set_property(library_object, property_name_function, property_value_function);
-        //TODO error handling
+        if (jerry_value_is_error(res)) {
+            printf("js_libs: could not register natives for library '%s'", "{{ library.name }}");
+            jerry_release_value(property_name_function);
+            jerry_release_value(property_value_function);
+            jerry_release_value(res);
+            return 0;
+        }
 
         jerry_release_value(property_name_function);
         jerry_release_value(property_value_function);
@@ -179,7 +211,13 @@ int js_libs_register_{{ library.name }}_natives(void) {
             {% raise "library '" ~ library.name ~ "', constant '" ~ name ~ "': unsupported type (only strings and numbers)" %}
         {% endif %}
         jerry_value_t res = jerry_set_property(library_object, property_name_constant, property_value_constant);
-        //TODO error handling
+        if (jerry_value_is_error(res)) {
+            printf("js_libs: could not register constants for library '%s'", "{{ library.name }}");
+            jerry_release_value(property_name_constant);
+            jerry_release_value(property_value_constant);
+            jerry_release_value(res);
+            return 0;
+        }
 
         jerry_release_value(property_name_constant);
         jerry_release_value(property_value_constant);
@@ -190,7 +228,15 @@ int js_libs_register_{{ library.name }}_natives(void) {
     jerry_value_t global_object = jerry_get_global_object();
     jerry_value_t property_name_library = jerry_create_string((const jerry_char_t*) ("{{ library.name }}"));
     jerry_value_t res = jerry_set_property(global_object, property_name_library, library_object);
-    //TODO error handling
+    if (jerry_value_is_error(res)) {
+        printf("js_libs: could not register library '%s'", "{{ library.name }}");
+        jerry_release_value(constructor);
+        jerry_release_value(library_object);
+        jerry_release_value(global_object);
+        jerry_release_value(property_name_library);
+        jerry_release_value(res);
+        return 0;
+    }
 
     jerry_release_value(constructor);
     jerry_release_value(library_object);
