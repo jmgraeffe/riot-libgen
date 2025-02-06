@@ -21,7 +21,7 @@ WASM_EXPORT void string_receiver(const char* str) {
 }
 
 WASM_EXPORT const uint8_t* bytes_sender(void) {
-    return "String in disguise!";
+    return (const uint8_t*) "String in disguise!";
 }
 
 WASM_EXPORT void bytes_receiver(const uint8_t* data, size_t len) {
@@ -39,7 +39,7 @@ WASM_EXPORT int main(int argc, char **argv)
     playground_pass_string_to_app_via_function_handle(WASM_LIBS_FUNCTION_HANDLE("string_receiver"));
     
     // bytes
-    playground_pass_bytes_to_host("Actually a string!", 17);
+    playground_pass_bytes_to_host((const uint8_t*) "Actually a string!", 17);
     playground_pass_bytes_to_host_via_function_handle(WASM_LIBS_FUNCTION_HANDLE("bytes_sender"));
     playground_pass_bytes_to_app_via_function_handle(WASM_LIBS_FUNCTION_HANDLE("bytes_receiver"));
     
