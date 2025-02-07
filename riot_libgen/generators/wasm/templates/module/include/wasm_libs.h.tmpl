@@ -14,6 +14,7 @@ int wasm_libs_register_{{ library.name }}_natives(const char* env);
 {%- for library in libraries.values() -%}
     {%- for function in library.functions.values() %}
 {{ function.return_type }} {{ function.original_name }}(
+        {%- if function.parameters|length == 0 -%}void{%- endif -%}
         {%- for parameter in function.parameters.values() -%}
             {%- if parameter.is_function_handle() -%}
     {{ library.function_handles[parameter.type].return_type }} (*{{ parameter.name }})(
