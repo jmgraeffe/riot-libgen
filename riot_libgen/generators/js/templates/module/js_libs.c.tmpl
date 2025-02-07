@@ -108,6 +108,9 @@ static jerry_value_t {{ library.name }}_{{ function.name }}_native(
     (void) func_val;
     (void) this_val;
     (void) argc;
+    {%- if function.parameters|length == 0 %}
+    (void) argv;
+    {%- endif %}
 
     // prepare function parameters
     {%- for parameter in function.parameters.values() -%}
