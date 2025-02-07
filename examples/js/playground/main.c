@@ -31,6 +31,15 @@ void pass_bytes_to_app_via_function_handle(void (*func)(const uint8_t*, size_t))
     func((const uint8_t*) "Bruce Stringsteen!\n", strlen("Bruce Stringsteen!\n"));
 }
 
+int* pass_pointer_to_app_via_pointer_handle(void) {
+    static int i = 1337;
+    return &i;
+}
+
+void pass_pointer_to_host_via_pointer_handle(int* ptr) {
+    printf("Got pointer from app that points to: %d\n", *ptr);
+}
+
 int main(void) {
     jerry_value_t main_app, ret_value;
     int res = 0;

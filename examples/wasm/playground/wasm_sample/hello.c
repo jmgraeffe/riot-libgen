@@ -43,5 +43,9 @@ WASM_EXPORT int main(int argc, char **argv)
     playground_pass_bytes_to_host_via_function_handle(WASM_LIBS_FUNCTION_HANDLE("bytes_sender"));
     playground_pass_bytes_to_app_via_function_handle(WASM_LIBS_FUNCTION_HANDLE("bytes_receiver"));
     
+    // pointers
+    ssize_t ptr = playground_pass_pointer_to_app_via_pointer_handle();
+    playground_pass_pointer_to_host_via_pointer_handle(ptr);
+
     return 0;
 }

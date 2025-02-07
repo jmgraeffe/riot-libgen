@@ -27,3 +27,7 @@ playground.pass_string_to_app_via_function_handle(js_libs_function_handle("strin
 playground.pass_bytes_to_host("Actually a string!", 17);
 //playground.pass_bytes_to_host_via_function_handle(js_libs_function_handle("bytes_sender"));
 playground.pass_bytes_to_app_via_function_handle(js_libs_function_handle("bytes_receiver"));
+
+// pointers
+var ptr = playground.pass_pointer_to_app_via_pointer_handle();
+playground.pass_pointer_to_host_via_pointer_handle(ptr);

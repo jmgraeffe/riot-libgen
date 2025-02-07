@@ -23,6 +23,11 @@ libraries:
       pass_bytes_to_app_via_function_handle:
         parameters:
           func: bytes_receiver
+      pass_pointer_to_app_via_pointer_handle:
+        return_type: int_ptr
+      pass_pointer_to_host_via_pointer_handle:
+        parameters:
+          ptr: int_ptr
     function_handles:
       # string_sender:
       #   return_type: const char*
@@ -37,3 +42,5 @@ libraries:
             type: const uint8_t*
             length_parameter: len
           len: size_t
+    pointer_handles:
+      int_ptr: int*
