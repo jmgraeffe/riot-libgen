@@ -6,6 +6,7 @@ class Library:
         self.functions = {}
         self.function_handles = {}
         self.constants = {}
+        self.pointer_handles = {}
 
         self.name = name
         self.prefix = None
@@ -24,6 +25,13 @@ class Library:
         if 'function_handles' in dict_:
             for name, config in dict_['function_handles'].items():
                 self.function_handles[name] = self._factory.create_function_handle(name, config, self)
+
+        if 'pointer_handles' in dict_:
+            for name, config in dict_['pointer_handles'].items():
+                # shortcut for type
+                if isinstance(config, str):
+                    config = {'type': config}
+                self.pointer_handles[name] = self._factory.create_pointer_handle(name, config, self)
 
         if 'functions' in dict_:
             for name, config in dict_['functions'].items():

@@ -8,9 +8,7 @@
 
 static wasm_module_inst_t wasm_module_inst = NULL;
 
-void wasm_libs_set_wasm_module_inst(wasm_module_inst_t module_inst) {
-    wasm_module_inst = module_inst;
-}
+{%- include 'templates/pointer_handles.tmpl' %}
 {% for library in libraries.values() %}
     {%- for handle in library.function_handles.values() %}
 static char function_handle_next_function_name_{{ library.name }}_{{ handle.name }}[WASM_LIBS_FUNCTION_HANDLE_MAX_LENGTH + 1] = {'\0'};
@@ -56,12 +54,21 @@ static {{ handle.return_type }} function_handle_internal_function_{{ library.nam
                 {%- endif -%}
 
                 {# considering pointer length already even though WAMR is 32bit memory model atm #}
+                {# TODO consider NULL!? #}
                 {%- if param.get_wasm_runtime_signature() == 'i' %}
     args[{{ loop.index0 }}].kind = WASM_I32;
     args[{{ loop.index0 }}].of.i32 = (int32_t) wasm_runtime_module_dup_data(wasm_module_inst, (const char*) {{ param.name }}, {{ param.length_parameter }});
                 {%- else -%}
     args[{{ loop.index0 }}].kind = WASM_I64;
     args[{{ loop.index0 }}].of.i64 = (int64_t) wasm_runtime_module_dup_data(wasm_module_inst, (const char*) {{ param.name }}, {{ param.length_parameter }});
+                {%- endif -%}
+            {%- elif param.is_pointer_handle() %}
+                {%- if param.get_wasm_runtime_signature() == 'i' %}
+    args[{{ loop.index0 }}].kind = WASM_I32;
+    args[{{ loop.index0 }}].of.i32 = {{ param.name }} != NULL ? pointer_handles_get_or_add{{ library.name }}_{{ param.pointer_handle }}((void*) {{ param.name }}) : 0;
+                {%- else -%}
+    args[{{ loop.index0 }}].kind = WASM_I64;
+    args[{{ loop.index0 }}].of.i64 = {{ param.name }} != NULL ? pointer_handles_get_or_add{{ library.name }}_{{ param.pointer_handle }}((void*) {{ param.name }}) : 0;
                 {%- endif -%}
             {%- elif param.get_wasm_runtime_signature() == 'i' %}
     args[{{ loop.index0 }}].kind = WASM_I32;
@@ -129,6 +136,10 @@ static {{ handle.return_type }} function_handle_internal_function_{{ library.nam
     //TODO if not a string, check if not only the beginning but the whole range is in the VM memory, and btw we do not care about the VM messing up type boundaries
     return ({{ handle.return_type }}) wasm_runtime_addr_app_to_native(wasm_module_inst, results[0].of.i64);
                 {%- endif -%}
+            {%- elif handle.returns_pointer_handle() %}
+    //TODO maybe don't panic if it is out of bounds but let users decide what happens, because atm an application run by a runtime can "force" a panic which might not be desirable
+    pointer_handle_check_bounds_{{ library.name }}_{{ handle.returned_pointer_handle }}({{ param.name }});
+    return ({{ library.pointer_handles[handle.returned_pointer_handle].type }}) pointer_handles_{{ library.name }}_{{ handle.returned_pointer_handle }}[{{ param.name }} - 1];
             {%- elif handle.get_wasm_runtime_signature_for_return_type() == 'i' %}
     
     return ({{ handle.return_type }}) results[0].of.i32;
@@ -149,7 +160,7 @@ static {{ handle.return_type }} function_handle_internal_function_{{ library.nam
     {% endfor %}
 
     {%- for function in library.functions.values() %}
-{{ function.return_type }} {{ library.name }}_{{ function.name }}_native(wasm_exec_env_t exec_env{% for parameter in function.parameters.values() %}, {% if parameter.is_function_handle() %}const char*{% else %}{{ parameter.type }}{% endif %} {{ parameter.name }}{% endfor %}) {
+{{ function.return_type }} {{ library.name }}_{{ function.name }}_native(wasm_exec_env_t exec_env{% for parameter in function.parameters.values() %}, {{ parameter.type }} {{ parameter.name }}{% endfor %}) {
     (void) exec_env;
 
     // prepare parameters
@@ -158,7 +169,7 @@ static {{ handle.return_type }} function_handle_internal_function_{{ library.nam
     if (strlen({{ parameter.name }}) > WASM_LIBS_FUNCTION_HANDLE_MAX_LENGTH) {
         core_panic(PANIC_GENERAL_ERROR, "wasm_libs: function handle name is too long (> WASM_LIBS_FUNCTION_HANDLE_MAX_LENGTH)");
     }
-    strcpy(function_handle_next_function_name_{{ library.name }}_{{ library.function_handles[parameter.type].name }}, {{ parameter.name }});
+    strcpy(function_handle_next_function_name_{{ library.name }}_{{ parameter.function_handle }}, {{ parameter.name }});
         {%- elif parameter.is_byte_array() -%}
             {# we need to ensure there is a length parameter, and it is of number type #}
             {%- if parameter.length_parameter not in function.parameters -%}
@@ -175,14 +186,19 @@ static {{ handle.return_type }} function_handle_internal_function_{{ library.nam
     }
     //TODO check if not only the beginning but the whole range is in the VM memory, and btw we do not care about the VM messing up type boundaries
     {{ parameter.name }} = ({{ parameter.type }}) wasm_runtime_addr_app_to_native(wasm_module_inst, (uintptr_t) {{ parameter.name }});
+        {%- elif parameter.is_pointer_handle() %}
+    pointer_handle_check_bounds_{{ library.name }}_{{ parameter.pointer_handle }}({{ parameter.name }});
+    {{ library.pointer_handles[parameter.pointer_handle].type }} {{ parameter.name }}_ptr = ({{ library.pointer_handles[parameter.pointer_handle].type }}) pointer_handles_{{ library.name }}_{{ parameter.pointer_handle }}[{{ parameter.name }} - 1];
         {%- endif -%}
     {%- endfor %}
 
     // call function
-    {% if function.return_type != 'void' %}{{ function.return_type }} res = {% endif %}{{ function.original_name }}(
+    {% if function.return_type != 'void' %}{% if function.returns_pointer_handle() %}{{ library.pointer_handles[function.returned_pointer_handle].type }}{% else %}{{ function.return_type }}{% endif %} res = {% endif %}{{ function.original_name }}(
     {%- for parameter in function.parameters.values() -%}
         {%- if parameter.is_function_handle() %}
-        function_handle_internal_function_{{ library.name }}_{{ library.function_handles[parameter.type].name }}{% if not loop.last %}, {% endif %}
+        function_handle_internal_function_{{ library.name }}_{{ parameter.function_handle }}{% if not loop.last %}, {% endif %}
+        {%- elif parameter.is_pointer_handle() %}
+        {{ parameter.name }}_ptr{% if not loop.last %}, {% endif %}
         {%- else %}
         {{ parameter.name }}{% if not loop.last %}, {% endif %}
         {%- endif %}
@@ -190,15 +206,18 @@ static {{ handle.return_type }} function_handle_internal_function_{{ library.nam
     );
 
     {%- if function.return_type != 'void' %}
-
+        {%- if function.returns_pointer_handle() %}
+    return pointer_handles_get_or_add_{{ library.name }}_{{ function.returned_pointer_handle }}((void*) res);
+        {%- else %}
     return res;
+        {%- endif -%}
     {%- endif %}
 }
 // union just to avoid ISO C warning when initializing void* with function pointer
 // (on some systems, function pointers may be different from data pointers so this might not be universal)
 static union {
     void* void_ptr;
-    {{ function.return_type }} (*func_ptr)(wasm_exec_env_t{% for parameter in function.parameters.values() %}, {% if parameter.is_function_handle() %}const char*{% else %}{{ parameter.type }}{% endif %}{% endfor %});
+    {{ function.return_type }} (*func_ptr)(wasm_exec_env_t{% for parameter in function.parameters.values() %}, {{ parameter.type }}{% endfor %});
 } {{ library.name }}_{{ function.name }}_ptr = {
     .func_ptr = {{ library.name }}_{{ function.name }}_native
 };
@@ -232,4 +251,21 @@ int wasm_libs_register_{{ library.name }}_natives(const char* env) {
 
     return num_native_symbols_{{ library.name }}_library;
 }
+
+    {% for handle in library.pointer_handles.values() %}
+int wasm_libs_release_{{ library.name }}_{{ handle.name }}_pointer_handle(void* pointer) {
+    for (ssize_t i = 0; i < {{ handle.max_entries }}; ++i) {
+        if (pointer_handles_{{ library.name }}_{{ handle.name }}[i] == pointer) {
+            pointer_handles_{{ library.name }}_{{ handle.name }}[i] = NULL;
+            return 1;
+        }
+    }
+
+    return 0;
+}
+    {% endfor %}
 {% endfor %}
+
+void wasm_libs_set_wasm_module_inst(wasm_module_inst_t module_inst) {
+    wasm_module_inst = module_inst;
+}

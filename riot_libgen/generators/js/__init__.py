@@ -148,4 +148,4 @@ class JsLibGen(LibGen):
     def __init__(self):
         super().__init__()
         self._factory = JsFactory(self._context)
-        self._template_path = Path(__file__).resolve().parent.joinpath('templates/')
+        self._generator_template_path = Path(__file__).resolve().parent.joinpath('templates/')

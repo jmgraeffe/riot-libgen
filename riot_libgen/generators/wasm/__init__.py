@@ -7,6 +7,7 @@ from riot_libgen.library import Library
 from riot_libgen.function_handle import FunctionHandle
 from riot_libgen.libgen import LibGen
 from riot_libgen.parameter import Parameter
+from riot_libgen.helpers import FUNCTION_HANDLE_TYPE, POINTER_HANDLE_TYPE
 
 
 """
@@ -123,7 +124,9 @@ class WasmFunction(Function):
         signature = '('
         for parameter in self.parameters.values():
             if parameter.type in self._library.function_handles:
-                signature += NATIVE_TYPES_MAPPING['const char*']
+                signature += NATIVE_TYPES_MAPPING[FUNCTION_HANDLE_TYPE]
+            elif parameter.type in self._library.pointer_handles:
+                signature += NATIVE_TYPES_MAPPING[POINTER_HANDLE_TYPE]
             elif parameter.type in NATIVE_TYPES_MAPPING:
                 signature += NATIVE_TYPES_MAPPING[parameter.type]
             else:
@@ -132,10 +135,13 @@ class WasmFunction(Function):
         signature += ')'
 
         # add return type
-        if self.return_type not in NATIVE_TYPES_MAPPING:
+        if self.return_type in NATIVE_TYPES_MAPPING:
+            signature += NATIVE_TYPES_MAPPING[self.return_type]
+        elif self.return_type in self._library.pointer_handles:
+            signature += NATIVE_TYPES_MAPPING[POINTER_HANDLE_TYPE]
+        else:
             raise LibGenConfigException(
                 'WASM generator does not support return type \'{}\' yet'.format(self.return_type))
-        signature += NATIVE_TYPES_MAPPING[self.return_type]
 
         return signature
 
@@ -178,4 +184,4 @@ class WasmLibGen(LibGen):
     def __init__(self):
         super().__init__()
         self._factory = WasmFactory(self._context)
-        self._template_path = Path(__file__).resolve().parent.joinpath('templates/')
+        self._generator_template_path = Path(__file__).resolve().parent.joinpath('templates/')

@@ -16,7 +16,8 @@ class LibGen:
     def __init__(self, config: dict = None):
         self._context = Context()
         self._factory = Factory(self._context)
-        self._template_path: Path|None = None
+        self._template_path = Path(__file__).resolve().parent
+        self._generator_template_path: Path | None = None
 
         if config is not None:
             self.load_config_from_dict(config)
@@ -43,7 +44,7 @@ class LibGen:
     def _render_all_templates_and_copy_remaining_files_in_directory(self, output_path: Path, variables: dict):
         output_path.mkdir(exist_ok=True, parents=True)
 
-        module_template_path = self._template_path.joinpath(Path('module'))
+        module_template_path = self._generator_template_path.joinpath(Path('module'))
 
         env = Environment(loader=FileSystemLoader(self._template_path), extensions=[RaiseExtension])
 
@@ -59,6 +60,7 @@ class LibGen:
                 out_path.write_bytes(entity_path.read_bytes())
                 continue
 
-            template = env.get_template('module/' + str(rel_path))
+            template_path = str(entity_path.relative_to(self._template_path))
+            template = env.get_template(template_path)
             bytes_ = template.render(variables).encode('utf-8')
             out_path.with_suffix('').write_bytes(bytes_)

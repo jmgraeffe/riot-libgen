@@ -5,6 +5,7 @@
 #include "js_libs.h"
 
 #define JS_LIBS_FUNCTION_HANDLE_MAX_LENGTH (255)
+{% include 'templates/pointer_handles.tmpl' %}
 
 static jerry_value_t empty_constructor(const jerry_value_t func_val,
                                        const jerry_value_t this_val,
@@ -41,7 +42,9 @@ static {{ handle.return_type }} function_handle_internal_function_{{ library.nam
     // construct parameters for upcoming call
     jerry_value_t args[{{ [handle.parameters|length, 1]|max }}];
         {%- for param in handle.parameters.values() -%}
-            {%- if param.is_number() %}
+            {%- if param.is_pointer_handle() %}
+    args[{{ loop.index0 }}] = {{ param.name }} != NULL ? jerry_create_number(pointer_handles_get_or_add{{ library.name }}_{{ param.pointer_handle }}((void*) {{ param.name }})) : jerry_create_null();
+            {%- elif param.is_number() %}
     args[{{ loop.index0 }}] = jerry_create_number({{ param.name }});
             {%- elif param.is_string() %}
     args[{{ loop.index0 }}] = jerry_create_string((const jerry_char_t*) {{ param.name }});
@@ -65,11 +68,19 @@ static {{ handle.return_type }} function_handle_internal_function_{{ library.nam
     // call function handle
     jerry_value_t res_value = jerry_call_function(func, global_object, args, {{ handle.parameters|length }});
 
-
         {%- if handle.return_type != 'void' -%}
-            {%- if handle.returns_number() %}
+    
+    if (!jerry_value_is_number(res_value)) {
+        char msg[512] = {'\0'};
+        sprintf(msg, "js_libs: returned type of function handle '%s' is as expected (not a number)", function_handle_next_function_name_{{ library.name }}_{{ handle.name }});
+        core_panic(PANIC_GENERAL_ERROR, msg);
+    }
+            {%- if handle.returns_pointer_handle() %}
+    //TODO maybe don't panic if it is out of bounds but let users decide what happens, because atm an application run by a runtime can "force" a panic which might not be desirable
+    pointer_handle_check_bounds_{{ library.name }}_{{ handle.returned_pointer_handle }}({{ param.name }});
+    {{ library.pointer_handles[handle.returned_pointer_handle].type }} res = ({{ library.pointer_handles[handle.returned_pointer_handle].type }}) pointer_handles_{{ library.name }}_{{ handle.returned_pointer_handle }}[jerry_get_number_value(res_value) - 1];
+            {%- elif handle.returns_number() %}
 
-    // extract return value
     if (!jerry_value_is_number(res_value)) {
         char msg[512] = {'\0'};
         sprintf(msg, "js_libs: returned type of function handle '%s' is as expected (not a number)", function_handle_next_function_name_{{ library.name }}_{{ handle.name }});
@@ -129,8 +140,14 @@ static jerry_value_t {{ library.name }}_{{ function.name }}_native(
     }
     jerry_string_to_char_buffer(value_{{ parameter.name }}, (jerry_char_t*) {{ parameter.name }}, length_{{ parameter.name }});
     jerry_release_value(value_{{ parameter.name }});
-    strcpy(function_handle_next_function_name_{{ library.name }}_{{ library.function_handles[parameter.type].name }}, {{ parameter.name }});
-    free({{ parameter.name }});
+    strcpy(function_handle_next_function_name_{{ library.name }}_{{ parameter.function_handle }}, {{ parameter.name }});
+        {%- elif parameter.is_pointer_handle() %}
+    if (!jerry_value_is_number(argv[{{ loop.index0 }}])) {
+        core_panic(PANIC_GENERAL_ERROR, "js_libs: library '{{ library.name }}', function '{{ function.name }}', parameter '{{ parameter.name }}': invalid value for pointer handle (not a number?)");
+    }
+    ssize_t value_{{ parameter.name }} = ({{ parameter.type }}) jerry_get_number_value(argv[{{ loop.index0 }}]);
+    pointer_handle_check_bounds_{{ library.name }}_{{ parameter.pointer_handle }}(value_{{ parameter.name }});
+    {{ library.pointer_handles[parameter.pointer_handle].type }} {{ parameter.name }} = ({{ library.pointer_handles[parameter.pointer_handle].type }}) pointer_handles_{{ library.name }}_{{ parameter.pointer_handle }}[value_{{ parameter.name }} - 1];
         {%- elif parameter.is_number() %}
     {{ parameter.type }} {{ parameter.name }} = ({{ parameter.type }}) jerry_get_number_value(argv[{{ loop.index0 }}]);
         {%- elif parameter.is_string() or parameter.is_byte_array() -%}
@@ -163,10 +180,10 @@ static jerry_value_t {{ library.name }}_{{ function.name }}_native(
     {%- endfor %}
 
     // call native function
-    {% if function.return_type != 'void' -%}{{ function.return_type }} res = {% endif %}{{ function.original_name }}(
+    {% if function.return_type != 'void' %}{% if function.returns_pointer_handle() %}{{ library.pointer_handles[function.returned_pointer_handle].type }}{% else %}{{ function.return_type }}{% endif %} res = {% endif %}{{ function.original_name }}(
     {%- for parameter in function.parameters.values() -%}
         {%- if parameter.is_function_handle() %}
-        function_handle_internal_function_{{ library.name }}_{{ library.function_handles[parameter.type].name }}{% if not loop.last %}, {% endif %}
+        function_handle_internal_function_{{ library.name }}_{{ parameter.function_handle }}{% if not loop.last %}, {% endif %}
         {%- elif parameter.is_string() or parameter.is_byte_array() %}
         ({{ parameter.type }}) {{ parameter.name }}{% if not loop.last %}, {% endif %}
         {%- else %}
@@ -184,6 +201,8 @@ static jerry_value_t {{ library.name }}_{{ function.name }}_native(
 
     {% if function.return_type == 'void' -%}
     return jerry_create_undefined();
+    {%- elif function.returns_pointer_handle() -%}
+    return jerry_create_number(pointer_handles_get_or_add_{{ library.name }}_{{ function.returned_pointer_handle }}((void*) res));
     {%- elif function.returns_number() -%}
     return jerry_create_number(res);
     {%- else -%}

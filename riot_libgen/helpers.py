@@ -91,3 +91,10 @@ BYTE_ARRAY_TYPES = [
     'const uint8_t*',
     'uint8_t*'
 ]
+
+# function handles
+FUNCTION_HANDLE_TYPE = 'const char*'
+
+# pointer handles
+POINTER_HANDLE_TYPE = 'ssize_t'
+POINTER_HANDLE_MAX_ENTRIES_DEFAULT = 10
