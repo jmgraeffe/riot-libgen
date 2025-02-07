@@ -13,26 +13,4 @@ int js_libs_release_{{ library.name }}_{{ handle.name }}_pointer_handle(void* po
     {%- endfor %}
 {%- endfor %}
 
-// forward declarations so that functions are well declared even if defined in user code
-{%- for library in libraries.values() -%}
-    {%- for function in library.functions.values() %}
-{% if function.returns_pointer_handle() %}{{ library.pointer_handles[function.returned_pointer_handle].type }}{% else %}{{ function.return_type }}{% endif %} {{ function.original_name }}(
-        {%- if function.parameters|length == 0 -%}void{%- endif -%}
-        {%- for parameter in function.parameters.values() -%}
-            {%- if parameter.is_function_handle() -%}
-    {{ library.function_handles[parameter.function_handle].return_type }} (*{{ parameter.name }})(
-                {%- if library.function_handles[parameter.function_handle].parameters|length == 0 -%}void{%- endif -%}
-                {%- for parameter2 in library.function_handles[parameter.function_handle].parameters.values() -%}
-       {{ parameter2.type }} {{ parameter2.name }}{%- if not loop.last %}, {% endif -%}
-                {%- endfor -%}
-    )
-            {%- elif parameter.is_pointer_handle() -%}
-    {{ library.pointer_handles[parameter.pointer_handle].type }}
-            {%- else -%}
-    {{ parameter.type }} {{ parameter.name }}
-            {%- endif -%}
-            {%- if not loop.last %}, {% endif -%}
-        {%- endfor -%}
-);
-    {%- endfor -%}
-{%- endfor -%}
+{% include 'templates/forward_declarations.tmpl' %}
