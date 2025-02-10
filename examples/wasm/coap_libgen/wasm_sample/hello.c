@@ -9,9 +9,6 @@ extern int printf( const char *, ...);
 #include <stddef.h>
 #include <stdint.h>
 
-// no sys/types.h present in libc implementation of embedded WAMR, just using a shortcut here
-#define ssize_t intmax_t
-
 #include "../external_modules/wasm_libs/include/wasm_libs_runtime.h"
 
 WASM_EXPORT uint8_t req_handler(uint16_t method, const uint8_t payload, uint16_t payload_len) {

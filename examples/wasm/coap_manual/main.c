@@ -205,7 +205,6 @@ int main(void)
     }
 
     // instantiate WASM module
-    wasm_module_inst = NULL;
     {
         char error_buf[128];
         if (!(wasm_module_inst = wasm_runtime_instantiate(wasm_module, 8 * 1024,

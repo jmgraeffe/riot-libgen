@@ -5,7 +5,7 @@ BOARD ?= native
 
 # This has to be the absolute path to the RIOT base directory:
 RIOTBASE ?= $(CURDIR)/../../../external/RIOT
-EXTERNAL_MODULE_DIRS ?= $(CURDIR)/external_modules $(CURDIR)/../../../external
+EXTERNAL_MODULE_DIRS ?= $(CURDIR)/../../../external
 
 USEPKG += wamr
 
