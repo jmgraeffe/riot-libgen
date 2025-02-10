@@ -1,0 +1,1 @@
+python3 ../../../cli.py -g wasm -c ./saul_libgen.libgen-config.yml ../../../external/math.libgen-config.yml ../../../external/easysaul/easysaul.libgen-config.yml -d external_modules/wasm_libs

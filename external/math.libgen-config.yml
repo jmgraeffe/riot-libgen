@@ -1,0 +1,9 @@
+libraries:
+  math:
+    includes:
+      - "math.h"
+    functions:
+      log:
+        parameters:
+          arg: double
+        return_type: double

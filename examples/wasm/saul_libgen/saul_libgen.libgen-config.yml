@@ -1,0 +1,6 @@
+libraries:
+  io:
+    functions:
+      printd:
+        parameters:
+          d: double

@@ -1,0 +1,54 @@
+libraries:
+  easysaul:
+    modules:
+      - easysaul
+    includes:
+      - "easysaul.h"
+    constants:
+      # SAUL_CAT_SENSE | SAUL_SENSE_ID_HUM = 0x80 | 2 = 130
+      sense_temp: 130
+      # SAUL_CAT_SENSE | SAUL_SENSE_ID_HUM = 0x80 | 3 = 131
+      sense_hum: 131
+    functions:
+      # functions that don't need any wrapper and are exported as is
+      # reg_find_nth:
+      #   original_name: saul_reg_find_nth
+      #   parameters:
+      #     pos: int
+      #   return_type: reg
+      # reg_find_type:
+      #   original_name: saul_reg_find_type
+      #   parameters:
+      #     type: uint8_t
+      #   return_type: reg
+      # reg_find_name:
+      #   original_name: saul_reg_find_name
+      #   parameters:
+      #     name: const char*
+      #   return_type: reg
+      reg_find_type_and_name:
+        original_name: saul_reg_find_type_and_name
+        parameters:
+          type: uint8_t
+          name: const char*
+        return_type: reg
+      
+      # functions that don't need any wrapper but are renamed for simplicity
+      # unit_print:
+      #   original_name: phydat_unit_print
+      #   parameters:
+      #     unit: uint8_t
+
+      # functions that still need wrapper
+      reg_read:
+        original_name: easysaul_reg_read
+        parameters:
+          dev: reg
+        return_type: double
+      # reg_unit_get:
+      #   original_name: easysaul_reg_unit_get
+      #   parameters:
+      #     dev: reg
+      #   return_type: uint8_t
+    pointer_handles:
+      reg: saul_reg_t*
