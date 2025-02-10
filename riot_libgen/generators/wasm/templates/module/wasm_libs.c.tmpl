@@ -254,7 +254,7 @@ int wasm_libs_register_{{ library.name }}_natives(const char* env) {
 
     {% for handle in library.pointer_handles.values() %}
 int wasm_libs_release_{{ library.name }}_{{ handle.name }}_pointer_handle(void* pointer) {
-    for (ssize_t i = 0; i < {{ handle.max_entries }}; ++i) {
+    for (int64_t i = 0; i < {{ handle.max_entries }}; ++i) {
         if (pointer_handles_{{ library.name }}_{{ handle.name }}[i] == pointer) {
             pointer_handles_{{ library.name }}_{{ handle.name }}[i] = NULL;
             return 1;

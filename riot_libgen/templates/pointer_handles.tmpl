@@ -2,10 +2,10 @@
     {%- for handle in library.pointer_handles.values() %}
 static void* pointer_handles_{{ library.name }}_{{ handle.name }}[{{ handle.max_entries }}] = { 0 };
 
-static ssize_t pointer_handles_get_or_add_{{ library.name }}_{{ handle.name }}(void* pointer) {
-    ssize_t free_slot = -1;
+static int64_t pointer_handles_get_or_add_{{ library.name }}_{{ handle.name }}(void* pointer) {
+    int64_t free_slot = -1;
 
-    for (ssize_t i = 0; i < {{ handle.max_entries }}; ++i) {
+    for (int64_t i = 0; i < {{ handle.max_entries }}; ++i) {
         if (pointer_handles_{{ library.name }}_{{ handle.name }}[i] == pointer) {
             return i;
         } else if (free_slot < 0 && pointer_handles_{{ library.name }}_{{ handle.name }}[i] == NULL) {
@@ -17,7 +17,7 @@ static ssize_t pointer_handles_get_or_add_{{ library.name }}_{{ handle.name }}(v
     return free_slot + 1;
 }
 
-static void pointer_handle_check_bounds_{{ library.name }}_{{ handle.name }}(ssize_t handle) {
+static void pointer_handle_check_bounds_{{ library.name }}_{{ handle.name }}(int64_t handle) {
     if (handle > {{ handle.max_entries }} || handle < 0) {
         core_panic(PANIC_GENERAL_ERROR, "pointer handle '{{ handle.name }}' is out of bounds (needs to be 0 < handle < {{ handle.max_entries }})");
     }
