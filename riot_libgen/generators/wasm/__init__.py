@@ -71,7 +71,7 @@ NATIVE_TYPES_MAPPING = {
     'int8_t': 'i',
     'int16_t': 'i',
     'int32_t': 'i',
-    'int64_t': 'i',
+    'int64_t': 'I',
     'uint8_t': 'i',
     'uint16_t': 'i',
     'uint32_t': 'i',
