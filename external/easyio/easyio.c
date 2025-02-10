@@ -18,6 +18,10 @@ void easyio_printc(char c) {
 	printf("%c", c);
 }
 
+void easyio_printd(double d) {
+	printf("%f", d);
+}
+
 void easyio_puts(const char* s) {
 	puts(s);
 }
@@ -28,4 +32,8 @@ void easyio_puti(int i) {
 
 void easyio_putc(char c) {
 	printf("%c\n", c);
+}
+
+void easyio_putd(double d) {
+	printf("%f\n", d);
 }

@@ -22,6 +22,10 @@ libraries:
         original_name: easyio_printc
         parameters:
           c: char
+      printd:
+        original_name: easyio_printd
+        parameters:
+          d: double
       puts:
         original_name: easyio_puts
         parameters:
@@ -34,3 +38,7 @@ libraries:
         original_name: easyio_putc
         parameters:
           c: char
+      putd:
+        original_name: easyio_putd
+        parameters:
+          d: double
