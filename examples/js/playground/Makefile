@@ -18,9 +18,11 @@ USEPKG += jerryscript
 # development process:
 DEVELHELP ?= 1
 
-ifeq (,$(filter native native64,$(BOARD)))
-# Set stack size to something (conservatively) enormous
-CFLAGS += -DTHREAD_STACKSIZE_MAIN=9092
+# increase stack size
+ifeq ($(BOARD),native)
+	CFLAGS += -DTHREAD_STACKSIZE_DEFAULT=4096
+else
+	CFLAGS += -DTHREAD_STACKSIZE_DEFAULT=2048
 endif
 
 # generate .js.h header files of .js files

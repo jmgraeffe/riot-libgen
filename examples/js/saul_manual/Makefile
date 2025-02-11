@@ -20,11 +20,6 @@ USEMODULE += bme680_i2c
 # development process:
 DEVELHELP ?= 1
 
-ifeq (,$(filter native native64,$(BOARD)))
-# Set stack size to something (conservatively) enormous
-CFLAGS += -DTHREAD_STACKSIZE_MAIN=9092
-endif
-
 # generate .js.h header files of .js files
 BLOBS += $(wildcard *.js)
 

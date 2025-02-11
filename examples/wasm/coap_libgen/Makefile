@@ -22,11 +22,8 @@ USEMODULE += gnrc_ipv6_default
 # Additional networking modules that can be dropped if not needed
 USEMODULE += gnrc_icmpv6_echo
 
-USEMODULE += xtimer
-
-ifneq ($(BOARD),native)
-	CFLAGS += -DTHREAD_STACKSIZE_MAIN='(6 * 1024)'
-endif
+# increase stack size, VM, CoAP, network stack gets pretty big
+CFLAGS += -DTHREAD_STACKSIZE_DEFAULT=8192
 
 export WAMR_CONFIG := $(abspath config.cmake)
 

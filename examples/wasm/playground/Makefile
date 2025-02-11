@@ -9,9 +9,8 @@ EXTERNAL_MODULE_DIRS ?= $(CURDIR)/external_modules $(CURDIR)/../../../external
 USEMODULE += wasm_libs
 USEPKG += wamr
 
-ifneq ($(BOARD),native)
-	CFLAGS += -DTHREAD_STACKSIZE_MAIN='(6 * 1024)'
-endif
+# increase stack size
+CFLAGS += -DTHREAD_STACKSIZE_DEFAULT=8192
 
 export WAMR_CONFIG := $(abspath config.cmake)
 

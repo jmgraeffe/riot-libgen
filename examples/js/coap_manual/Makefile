@@ -25,17 +25,22 @@ USEMODULE += gnrc_ipv6_default
 # Additional networking modules that can be dropped if not needed
 USEMODULE += gnrc_icmpv6_echo
 
-USEMODULE += xtimer
+# increase stack size, interpreter, CoAP, network stack gets pretty big
+ifeq ($(BOARD),native)
+	CFLAGS += -DTHREAD_STACKSIZE_DEFAULT=4096
+else
+	CFLAGS += -DTHREAD_STACKSIZE_DEFAULT=2048
+endif
 
 # Comment this out to disable code in RIOT that does safety checking
 # which is not needed in a production environment but helps in the
 # development process:
 DEVELHELP ?= 1
 
-ifeq (,$(filter native native64,$(BOARD)))
+#ifeq (,$(filter native native64,$(BOARD)))
 # Set stack size to something (conservatively) enormous
-CFLAGS += -DTHREAD_STACKSIZE_MAIN=9092
-endif
+CFLAGS += -DTHREAD_STACKSIZE_MAIN=10240
+#endif
 
 # generate .js.h header files of .js files
 BLOBS += $(wildcard *.js)

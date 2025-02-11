@@ -13,9 +13,8 @@ USEMODULE += wasm_libs
 USEMODULE += bme680_i2c
 USEMODULE += printf_float
 
-ifneq ($(BOARD),native)
-	CFLAGS += -DTHREAD_STACKSIZE_MAIN='(6 * 1024)'
-endif
+# increase stack size, VM & printf are pretty big
+CFLAGS += -DTHREAD_STACKSIZE_DEFAULT=4096
 
 export WAMR_CONFIG := $(abspath config.cmake)
 
