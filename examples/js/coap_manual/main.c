@@ -9,6 +9,11 @@
 
 #include "blob/main.js.h"
 
+#if (defined(MEASURE_SYSTICKS) && MEASURE_SYSTICKS > 0) || (defined(MEASURE_HEAP) && MEASURE_HEAP > 0)
+#include "../../../external/measurements.h"
+#include "periph/pm.h"
+#endif
+
 static uint8_t req_handler(uint16_t method, const uint8_t* payload, uint16_t payload_len) {
     // lookup function in engine context
     jerry_value_t global_object = jerry_get_global_object();
@@ -233,6 +238,10 @@ static int register_natives(void) {
 }
 
 int main(void) {
+#if (defined(MEASURE_SYSTICKS) && MEASURE_SYSTICKS > 0) || (defined(MEASURE_HEAP) && MEASURE_HEAP > 0)
+    measurements_start();
+#endif
+
     jerry_value_t main_app, ret_value;
     int res = 0;
 
@@ -265,6 +274,13 @@ int main(void) {
 
     // cleanup engine
     jerry_cleanup();
+
+#if (defined(MEASURE_SYSTICKS) && MEASURE_SYSTICKS > 0) || (defined(MEASURE_HEAP) && MEASURE_HEAP > 0)
+    measurements_stop();
+    #if defined(RESET_LOOP) && RESET_LOOP > 0
+    pm_reboot();
+    #endif
+#endif
 
     return res;
 }

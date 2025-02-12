@@ -25,6 +25,22 @@ BLOBS += hello.wasm
 # development process:
 DEVELHELP ?= 1
 
+# measurements for thesis evaluation
+ifeq ($(BOARD),nucleo-f429zi)
+	MEASURE_SYSTICKS ?= 1
+	MEASURE_HEAP ?= 0
+	RESET_LOOP ?= 1
+
+	CFLAGS += -DRESET_LOOP=$(RESET_LOOP)
+	ifeq ($(MEASURE_SYSTICKS),1)
+		CFLAGS += -DMEASURE_SYSTICKS=1
+	endif
+	ifeq ($(MEASURE_HEAP),1)
+		USEMODULE += malloc_monitor
+		CFLAGS += -DMEASURE_HEAP=1
+	endif
+endif
+
 # Change this to 0 show compiler invocation lines by default:
 QUIET ?= 1
 

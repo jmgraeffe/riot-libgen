@@ -20,6 +20,22 @@ USEMODULE += bme680_i2c
 # development process:
 DEVELHELP ?= 1
 
+# measurements for thesis evaluation
+ifeq ($(BOARD),nucleo-f429zi)
+	MEASURE_SYSTICKS ?= 1
+	MEASURE_HEAP ?= 0
+	RESET_LOOP ?= 1
+
+	CFLAGS += -DRESET_LOOP=$(RESET_LOOP)
+	ifeq ($(MEASURE_SYSTICKS),1)
+		CFLAGS += -DMEASURE_SYSTICKS=1
+	endif
+	ifeq ($(MEASURE_HEAP),1)
+		USEMODULE += malloc_monitor
+		CFLAGS += -DMEASURE_HEAP=1
+	endif
+endif
+
 # generate .js.h header files of .js files
 BLOBS += $(wildcard *.js)
 

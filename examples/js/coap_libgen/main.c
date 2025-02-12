@@ -7,9 +7,18 @@
 
 #include "blob/main.js.h"
 
+#if (defined(MEASURE_SYSTICKS) && MEASURE_SYSTICKS > 0) || (defined(MEASURE_HEAP) && MEASURE_HEAP > 0)
+#include "../../../external/measurements.h"
+#include "periph/pm.h"
+#endif
+
 int main(void) {
-    jerry_value_t main_app, ret_value;
+#if (defined(MEASURE_SYSTICKS) && MEASURE_SYSTICKS > 0) || (defined(MEASURE_HEAP) && MEASURE_HEAP > 0)
+    measurements_start();
+#endif
+
     int res = 0;
+    jerry_value_t main_app, ret_value;
 
     // initialize engine
     jerry_init(JERRY_INIT_EMPTY);
@@ -40,6 +49,13 @@ int main(void) {
 
     // cleanup engine
     jerry_cleanup();
+
+#if (defined(MEASURE_SYSTICKS) && MEASURE_SYSTICKS > 0) || (defined(MEASURE_HEAP) && MEASURE_HEAP > 0)
+    measurements_stop();
+    #if defined(RESET_LOOP) && RESET_LOOP > 0
+    pm_reboot();
+    #endif
+#endif
 
     return res;
 }

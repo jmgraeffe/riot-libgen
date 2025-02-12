@@ -8,6 +8,11 @@
 #include "blob/hello.wasm.h"
 #include "wasm_libs.h"
 
+#if (defined(MEASURE_SYSTICKS) && MEASURE_SYSTICKS > 0) || (defined(MEASURE_HEAP) && MEASURE_HEAP > 0)
+#include "../../../external/measurements.h"
+#include "periph/pm.h"
+#endif
+
 bool iwasm_runtime_init(void);
 void iwasm_runtime_destroy(void);
 int iwasm_instance_exec_main(wasm_module_inst_t, int, char**);
@@ -16,8 +21,11 @@ void printd(double d) {
     printf("%f", d);
 }
 
-int main(void)
-{
+int main(void) {
+#if (defined(MEASURE_SYSTICKS) && MEASURE_SYSTICKS > 0) || (defined(MEASURE_HEAP) && MEASURE_HEAP > 0)
+    measurements_start();
+#endif
+
     uint8_t* bytecode = malloc(hello_wasm_len);
     size_t bytecode_len = hello_wasm_len;
     memcpy(bytecode, hello_wasm, bytecode_len);
@@ -92,6 +100,13 @@ int main(void)
 
     // destroy WASM runtime
     iwasm_runtime_destroy();
+
+#if (defined(MEASURE_SYSTICKS) && MEASURE_SYSTICKS > 0) || (defined(MEASURE_HEAP) && MEASURE_HEAP > 0)
+    measurements_stop();
+    #if defined(RESET_LOOP) && RESET_LOOP > 0
+    pm_reboot();
+    #endif
+#endif
 
     return 0;
 }

@@ -9,6 +9,11 @@
 #include "blob/hello.wasm.h"
 #include "easycoap.h"
 
+#if (defined(MEASURE_SYSTICKS) && MEASURE_SYSTICKS > 0) || (defined(MEASURE_HEAP) && MEASURE_HEAP > 0)
+#include "../../../external/measurements.h"
+#include "periph/pm.h"
+#endif
+
 bool iwasm_runtime_init(void);
 void iwasm_runtime_destroy(void);
 int iwasm_instance_exec_main(wasm_module_inst_t, int, char**);
@@ -149,8 +154,11 @@ static union {
     .func_ptr = printsl_native
 };
 
-int main(void)
-{
+int main(void) {
+#if (defined(MEASURE_SYSTICKS) && MEASURE_SYSTICKS > 0) || (defined(MEASURE_HEAP) && MEASURE_HEAP > 0)
+    measurements_start();
+#endif
+
     NativeSymbol native_symbols[] = {
         {
             "easycoap_serve",
@@ -237,6 +245,13 @@ int main(void)
 
     // destroy WASM runtime
     iwasm_runtime_destroy();
+
+#if (defined(MEASURE_SYSTICKS) && MEASURE_SYSTICKS > 0) || (defined(MEASURE_HEAP) && MEASURE_HEAP > 0)
+    measurements_stop();
+    #if defined(RESET_LOOP) && RESET_LOOP > 0
+    pm_reboot();
+    #endif
+#endif
 
     return 0;
 }
