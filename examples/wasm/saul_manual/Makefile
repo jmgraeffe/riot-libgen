@@ -1,4 +1,4 @@
-APPLICATION = wasm_saul_libgen
+APPLICATION = wasm_saul_manual
 
 # If no BOARD is defined in the environment, use this default:
 BOARD ?= native
