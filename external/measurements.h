@@ -48,8 +48,8 @@ static void _heap_start(void) {
 
 static void _heap_stop(void) {
     size_t after_max = malloc_monitor_get_usage_high_watermark();
-    printf("Maximum application heap usage: %d bytes\n", after - _heap_before);
-    printf("Maximum overall heap usage: %d bytes\n", after);
+    printf("Maximum application heap usage: %d bytes\n", after_max - _heap_before);
+    printf("Maximum overall heap usage: %d bytes\n", after_max);
 }
 #endif
 
