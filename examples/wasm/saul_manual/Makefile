@@ -23,7 +23,7 @@ BLOBS += hello.wasm
 # Comment this out to disable code in RIOT that does safety checking
 # which is not needed in a production environment but helps in the
 # development process:
-DEVELHELP ?= 1
+DEVELHELP ?= 0
 
 # measurements for thesis evaluation
 ifeq ($(BOARD),nucleo-f429zi)
