@@ -1,0 +1,234 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"$id": "https://github.com/jmgraeffe/riot-libgen.schema.json",
+	"title": "RIOT OS LibGen Configuration",
+	"description": "Specification of configuration files for RIOT OS LibGen. Can be used as reference and for validation to specify which C host functions to export. If not specified otherwise, the names of things should be unqiue and alpha-numeric with underscores, not starting with a number.",
+	"type": "object",
+	"properties": {
+		"libraries": {
+			"description": "Object whose properties represent libraries, or in other words collections of functions, constants et cetera that belong together and therefore should be exported in the same namespace or with the same prefix, for example. The property name is the name of a library.",
+			"type": "object",
+			"patternProperties": {
+				"^[a-z][a-z0-9\\_]+[a-z0-9]$": {
+					"description": "Object whose properties represent the contents of a library, such as functions, function handles, pointer handles, constants et cetera.",
+					"type": "object",
+					"properties": {
+						"includes": {
+							"description": "List of strings that contain the (relative) paths to C header files to be included by the generated export code, so that the host C functions are available to it.",
+							"type": "array",
+							"items": {
+								"type": "string",
+								"examples": ["stdio.h", "net/gcoap.h"]
+							}
+						},
+						"modules": {
+							"description": "List of strings that contain the names of RIOT OS modules required for the export code to be linked against the underlying C host functions.",
+							"type": "array",
+							"items": {
+								"type": "string",
+								"examples": ["netdev_default", "gcoap"]
+							}
+						},
+						"packages": {
+							"description": "List of strings that contain the names of RIOT OS packages required for the export code to be linked against the underlying C host functions.",
+							"type": "array",
+							"items": {
+								"type": "string",
+								"examples": ["jerryscript", "ubasic"]
+							}
+						},
+						"functions": {
+							"description": "Object whose properties represent functions that shall be exported by the generated code. The property name is the name of the function to be used from within the runtime environment.",
+							"type": "object",
+							"patternProperties": {
+								"^[a-z][a-z0-9\\_]+[a-z0-9]$": {
+									"anyOf": [
+										{
+											"description": "Object whose properties define the function signature (parameters, return type, name of the original function, ...) in LibGen format, which should fit the original function and will also be used to generate function signatures for the runtime environment.",
+											"type": "object",
+											"properties": {
+												"original_name": {
+													"description": "String that contains the name of the C host function to export. If not specified, the property name of the object representing the function will be used.",
+													"type": "string",
+													"pattern": "^[a-z][a-z0-9\\_]+[a-z0-9]$",
+													"examples": ["printf", "my_function"]
+												},
+												"parameters": {
+													"description": "Object whose properties represent the parameters input to a function. The property name is the parameter's name.",
+													"type": "object",
+													"patternProperties": {
+														"^[a-z][a-z0-9\\_]+[a-z0-9]$": {
+															"$ref": "#/$defs/parameter_type"
+														}
+													}
+												},
+												"return_type": {
+													"$ref": "#/$defs/return_type"
+												}
+											},
+											"additionalProperties": false
+										},
+										{
+											"description": "Shortcut for representation of a function that has no parameters and no return type. String that contains the original name of the C host function to be exported.",
+											"type": "string",
+											"examples": ["my_pointer_handle"]
+										},
+										{
+											"description": "Shortcut for representation of a function that has no parameters and no return type. The name of the original C host function will be deferred from the function name.",
+											"type": "null"
+										}
+									]
+								}
+							},
+							"additionalProperties": false
+						},
+						"function_handles": {
+							"description": "Object whose properties represent function handles that can be used similarly to function pointers. The property name is the name of the function handle.",
+							"type": "object",
+							"patternProperties": {
+								"^[a-z][a-z0-9\\_]+[a-z0-9]$": {
+									"anyOf": [
+										{
+											"description": "Object whose properties represent the signature (parameters, return type) of functions associated to a function handle.",
+											"type": "object",
+											"properties": {
+												"parameters": {
+													"description": "Object whose properties represent the parameters input to a function corresponding to a function handle. The property name is the name of the parameter.",
+													"type": "object",
+													"patternProperties": {
+														"^[a-z][a-z0-9\\_]+[a-z0-9]$": {
+															"$ref": "#/$defs/parameter_type"		
+														}
+													}
+												},
+												"return_type": {
+													"$ref": "#/$defs/return_type"
+												}
+											},
+											"additionalProperties": false
+										},
+										{
+											"description": "Shortcut for representation of a function handle that has no parameters and no return type.",
+											"type": "null"
+										}
+									]
+								}
+							}
+						},
+						"pointer_handles": {
+							"description": "Object whose properties represent pointer handles that can be used similarly to void pointers. The property name is the name of the pointer handle.",
+							"type": "object",
+							"patternProperties": {
+								"^[a-z][a-z0-9\\_]+[a-z0-9]$": {
+									"description": "String with the full C type of the underlying pointer. This is not limited to LibGen primitives and must not be a function or pointer handle name, and the type is only used for casting internally.",
+									"type": "string",
+									"examples": ["const sock_udp_ep_t*", "int**"]
+								}
+							}
+						},
+						"constants": {
+							"description": "Object whose properties represent constants that can be used similarly to C pre-processor defines. The property name is the name of the constant.",
+							"type": "object",
+							"patternProperties": {
+								"^[a-z][a-z0-9\\_]+[a-z0-9]$": {
+									"description": "String or integer with the constant value. This cannot be a macro or an expression or anything other than a string or an integer.",
+									"type": ["string", "integer"],
+									"examples": [42, "Hello World!"]
+								}
+							}
+						}
+					}
+				}
+			}	
+		}
+	},
+	"required": ["libraries"],
+
+	"$defs": {
+		"parameter_type": {
+			"anyOf": [
+				{
+					"anyOf": [
+						{
+							"description": "String that contains the primitive type of the parameter, if it is of primitive type. The type can either be a primitive as listed in the end of the specification, or a function handle, or a pointer handle.",
+							"type": "string",
+							"$ref": "#/$defs/primitive_type",
+							"examples": ["int", "size_t", "uint64_t"]
+						},
+						{
+							"description": "String that contains the name of a function or pointer handle, if the parameter is a function or pointer handle.",
+							"type": "string",
+							"examples": ["my_pointer_handle", "my_function_handle"]
+						}
+					]
+				},
+				{
+					"description": "Object whose properties represent a parameter.",
+					"type": "object",
+					"properties": {
+						"type": {
+							"anyOf": [
+								{
+									"description": "String that contains the primitive type of the parameter, if it is of primitive type.",
+									"type": "string",
+									"$ref": "#/$defs/primitive_type",
+									"examples": ["int", "size_t", "uint64_t"]
+								},
+								{
+									"description": "String that contains the name of a function or pointer handle, if the parameter is a function or pointer handle.",
+									"type": "string",
+									"examples": ["my_pointer_handle", "my_function_handle"]
+								}
+							]
+						},
+						"length_parameter": {
+							"description": "String that contains the name of another parameter that is used to pass the length of the byte array that is passed as another parameter. Only needed for parameters of type byte array.",
+							"type": "string",
+							"examples": ["another_param"]
+						}
+					},
+					"required": ["type"],
+					"additionalProperties": false
+				}
+			]
+		},
+		"return_type": {
+			"anyOf": [
+				{
+					"description": "String that contains the primitive return type, if it is of primitive type.",
+					"type": "string",
+					"$ref": "#/$defs/primitive_type",
+					"examples": ["int", "size_t", "uint64_t"]
+				},
+				{
+					"description": "String that contains the name of a pointer handle, if the return type is a pointer handle.",
+					"type": "string",
+					"examples": ["my_pointer_handle"]
+				}
+			]
+		},
+		"primitive_type": {
+			"enum": [
+				"char", "signed char", "unsigned char",
+				"short", "short int", "signed short", "signed short int", "unsigned short", "unsigned short int",
+				"int", "signed", "signed int", "unsigned", "unsigned int",
+			    "long", "long int", "signed long", "signed long int","unsigned long", "unsigned long int",
+			    "long long", "long long int", "signed long long", "signed long long int", "unsigned long long", "unsigned long long int",
+			    "float", "double", "long double",
+
+			    "size_t", "ssize_t",
+
+				"int8_t", "int16_t", "int32_t", "int64_t", "uint8_t", "uint16_t", "uint32_t", "uint64_t",
+				"int_least8_t", "int_least16_t", "int_least32_t", "int_least64_t", "uint_least8_t", "uint_least16_t", "uint_least32_t", "uint_least64_t",
+				"int_fast8_t", "int_fast16_t", "int_fast32_t", "int_fast64_t", "uint_fast8_t", "uint_fast16_t", "uint_fast32_t", "uint_fast64_t",
+				"intmax_t", "uintmax_t",
+
+			    "bool",
+			    "void",
+			    "const char*",
+			    "const uint8_t*",
+			    "uint8_t*"
+			]
+		}
+	}
+}
