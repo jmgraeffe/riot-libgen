@@ -206,7 +206,7 @@ static jerry_value_t {{ library.name }}_{{ function.name }}_native(
     {%- elif function.returns_number() -%}
     return jerry_create_number(res);
     {%- else -%}
-         {% raise "library '" ~ library.name ~ "', function '" ~ function.name ~ "', return type: unsupported type '" ~ handle.return_type ~ "' (Maybe it is a function handle? Function handles as return types are not supported yet.)" %}
+         {% raise "library '" ~ library.name ~ "', function '" ~ function.name ~ "', return type: unsupported type '" ~ function.return_type ~ "' (Maybe it is a function handle? Function handles as return types are not supported yet.)" %}
     {%- endif %}
 }
     {%- endfor -%}
