@@ -23,14 +23,14 @@ WASM_EXPORT int main(int argc, char **argv) {
     easysaul_reg_t hum_dev = easysaul_reg_find_type_and_name(EASYSAUL_SENSE_HUM, "bme680");
     if (!temp_dev || !hum_dev) return 1;
 
-    double temp = easysaul_reg_read(temp_dev);
-    double hum = easysaul_reg_read(hum_dev);
+    int32_t temp = easysaul_reg_read(temp_dev, 0);
+    int32_t hum = easysaul_reg_read(hum_dev, 0);
     double dew_point = (b * alpha(temp, hum)) / (a - alpha(temp, hum));
 
     printf("Temperature: ");
-    io_printd(temp);
+    io_printi32(temp);
     printf(" °C\nHumidity: ");
-    io_printd(hum);
+    io_printi32(hum);
     printf(" %\nDew point: ");
     io_printd(dew_point);
     printf(" °C\n");

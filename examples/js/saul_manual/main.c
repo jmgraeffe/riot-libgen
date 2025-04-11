@@ -37,14 +37,15 @@ static jerry_value_t easysaul_reg_find_and_read_native(const jerry_value_t func_
     }
     jerry_string_to_char_buffer(value_name, (jerry_char_t*) name, length_name);
     jerry_release_value(value_name);
+    int8_t power = (int8_t) jerry_get_number_value(argv[2]);
 
     // call native function
     saul_reg_t* dev = saul_reg_find_type_and_name(type, name);
 
     // cleanup
     free(name);
-
-    return jerry_create_number(easysaul_reg_read(dev));
+    printf("power = %d\n", power);
+    return jerry_create_number(easysaul_reg_read(dev, power));
 }
 
 static jerry_value_t empty_constructor(const jerry_value_t func_val, const jerry_value_t this_val, const jerry_value_t argv[], const jerry_length_t argc) {

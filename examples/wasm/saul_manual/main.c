@@ -31,6 +31,19 @@ static union {
     .func_ptr = io_printd_native
 };
 
+void io_printi32_native(wasm_exec_env_t exec_env, int32_t i) {
+    (void) exec_env;
+    printf("%ld", i);
+}
+// union just to avoid ISO C warning when initializing void* with function pointer
+// (on some systems, function pointers may be different from data pointers so this might not be universal)
+static union {
+    void* void_ptr;
+    void (*func_ptr)(wasm_exec_env_t, int32_t);
+} io_printi32_ptr = {
+    .func_ptr = io_printi32_native
+};
+
 double math_log_native(wasm_exec_env_t exec_env, double arg) {
     (void) exec_env;
     return log(arg);
@@ -44,16 +57,16 @@ static union {
     .func_ptr = math_log_native
 };
     
-double easysaul_reg_find_and_read_native(wasm_exec_env_t exec_env, uint8_t type, const char* name) {
+int32_t easysaul_reg_find_and_read_native(wasm_exec_env_t exec_env, uint8_t type, const char* name, int8_t power) {
     (void) exec_env;
     saul_reg_t* dev = saul_reg_find_type_and_name(type, name);
-    return easysaul_reg_read(dev);
+    return easysaul_reg_read(dev, power);
 }
 // union just to avoid ISO C warning when initializing void* with function pointer
 // (on some systems, function pointers may be different from data pointers so this might not be universal)
 static union {
     void* void_ptr;
-    double (*func_ptr)(wasm_exec_env_t, uint8_t, const char*);
+    int32_t (*func_ptr)(wasm_exec_env_t, uint8_t, const char*, int8_t);
 } easysaul_reg_find_and_read_ptr = {
     .func_ptr = easysaul_reg_find_and_read_native
 };
@@ -71,6 +84,12 @@ int main(void) {
             NULL
         },
         {
+            "io_printi32",
+            io_printi32_ptr.void_ptr,
+            "(i)", // void io_printi32(i)
+            NULL
+        },
+        {
             "math_log",
             math_log_ptr.void_ptr,
             "(F)F", // double math_log(arg)
@@ -79,7 +98,7 @@ int main(void) {
         {
             "easysaul_reg_find_and_read",
             easysaul_reg_find_and_read_ptr.void_ptr,
-            "(i$)F", // double easysaul_reg_find_and_read(type, name)
+            "(i$i)i", // int32_t easysaul_reg_find_and_read(type, name, power)
             NULL
         }
     };
@@ -94,7 +113,7 @@ int main(void) {
     }
 
     // register natives
-    if (!wasm_runtime_register_natives("env", native_symbols, 3)) {
+    if (!wasm_runtime_register_natives("env", native_symbols, 4)) {
         printf("Could not register natives!\n");
         return 0;
     }

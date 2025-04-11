@@ -44,7 +44,8 @@ libraries:
         original_name: easysaul_reg_read
         parameters:
           dev: reg
-        return_type: double
+          power: int8_t
+        return_type: int32_t
       # reg_unit_get:
       #   original_name: easysaul_reg_unit_get
       #   parameters:

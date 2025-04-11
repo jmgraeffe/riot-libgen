@@ -21,6 +21,10 @@ void printd(double d) {
     printf("%f", d);
 }
 
+void printi32(int32_t i) {
+    printf("%ld", i);
+}
+
 int main(void) {
 #if (defined(MEASURE_SYSTICKS) && MEASURE_SYSTICKS > 0) || (defined(MEASURE_HEAP) && MEASURE_HEAP > 0)
     measurements_start();

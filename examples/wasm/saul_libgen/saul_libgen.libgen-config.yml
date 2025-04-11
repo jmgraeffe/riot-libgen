@@ -4,3 +4,6 @@ libraries:
       printd:
         parameters:
           d: double
+      printi32:
+        parameters:
+          i: int32_t
