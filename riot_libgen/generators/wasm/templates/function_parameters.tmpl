@@ -1,0 +1,29 @@
+{%- macro function_handle(library, function, parameter, state) %}
+    if (strlen({{ parameter.name }}) > WASM_LIBS_FUNCTION_HANDLE_MAX_LENGTH) {
+        core_panic(PANIC_GENERAL_ERROR, "wasm_libs: function handle name is too long (> WASM_LIBS_FUNCTION_HANDLE_MAX_LENGTH)");
+    }
+    strcpy(function_handle_next_function_name_{{ library.name }}_{{ parameter.function_handle }}, {{ parameter.name }});
+{%- endmacro %}
+
+{%- macro pointer_handle(library, function, parameter, state) %}
+    pointer_handle_check_bounds_{{ library.name }}_{{ parameter.pointer_handle }}({{ parameter.name }});
+    {{ library.pointer_handles[parameter.pointer_handle].type }} {{ parameter.name }}_ptr = ({{ library.pointer_handles[parameter.pointer_handle].type }}) pointer_handles_{{ library.name }}_{{ parameter.pointer_handle }}[{{ parameter.name }} - 1];
+{%- endmacro %}
+
+{%- macro byte_array(library, function, parameter, state) %}
+    {# we need to ensure there is a length parameter, and it is of number type #}
+    {%- if parameter.length_parameter not in function.parameters -%}
+        {% raise "library '" ~ library.name ~ "', function '" ~ function.name ~ "', parameter '" ~ parameter.name ~ "': length parameter '" ~ parameter.length_parameter ~ "' does not exist as parameter" %}
+    {%- endif -%}
+    {%- if not function.parameters[parameter.length_parameter].is_integer() -%}
+        {% raise "library '" ~ library.name ~ "', function '" ~ function.name ~ "', parameter '" ~ parameter.name ~ "': length parameter '" ~ parameter.length_parameter ~ "' is not an integer" %}
+    {%- endif %}
+    if (wasm_module_inst == NULL) {
+        core_panic(PANIC_GENERAL_ERROR, "wasm_libs: WASM module instance is not set (use wasm_libs_set_wasm_module_inst)");
+    }
+    if (!wasm_runtime_validate_app_addr(wasm_module_inst, (uintptr_t) {{ parameter.name }}, sizeof({{ parameter.name }}))) {
+        core_panic(PANIC_GENERAL_ERROR, "wasm_libs: function '{{ library.prefix }}{{ function.name }}' was called with a pointer parameter that points outside of WASM memory region");
+    }
+    //TODO check if not only the beginning but the whole range is in the VM memory, and btw we do not care about the VM messing up type boundaries
+    {{ parameter.name }} = ({{ parameter.type }}) wasm_runtime_addr_app_to_native(wasm_module_inst, (uintptr_t) {{ parameter.name }});
+{%- endmacro %}

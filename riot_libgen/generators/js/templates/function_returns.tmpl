@@ -1,0 +1,11 @@
+{%- macro void(library, function, parameter) %}
+return jerry_create_undefined();
+{%- endmacro %}
+
+{%- macro pointer_handle(library, function, parameter) %}
+return jerry_create_number(pointer_handles_get_or_add_{{ library.name }}_{{ function.returned_pointer_handle }}((void*) res));
+{%- endmacro %}
+
+{%- macro number(library, function, parameter) %}
+return jerry_create_number(res);
+{%- endmacro %}

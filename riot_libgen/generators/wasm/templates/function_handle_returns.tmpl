@@ -1,0 +1,28 @@
+{%- macro string_byte_array(library, handle, param) %}
+	{# considering pointer length already even though WAMR is 32bit memory model atm #}
+    {# TODO 32bit memory model assumed for strings ($), might become variable in the future #}
+    {%- if handle.get_wasm_runtime_signature_for_return_type() == 'i' or handle.get_wasm_runtime_signature_for_return_type() == '$' %}
+    if (!wasm_runtime_validate_app_addr(wasm_module_inst, results[0].of.i32, sizeof(results[0].of.i32))) {
+        char msg[512] = {'\0'};
+        sprintf(msg, "wasm_libs: function handle '%s' returned pointer outside of WASM memory region", function_handle_next_function_name_{{ library.name }}_{{ handle.name }});
+        core_panic(PANIC_GENERAL_ERROR, msg);
+    }
+    //TODO if not a string, check if not only the beginning but the whole range is in the VM memory, and btw we do not care about the VM messing up type boundaries
+    return ({{ handle.return_type }}) wasm_runtime_addr_app_to_native(wasm_module_inst, results[0].of.i32);                   
+                {%- else %}
+    
+    if (!wasm_runtime_validate_app_addr(wasm_module_inst, results[0].of.i64, sizeof(results[0].of.i64))) {
+        char msg[512] = {'\0'};
+        sprintf(msg, "wasm_libs: function handle '%s' returned pointer outside of WASM memory region", function_handle_next_function_name_{{ library.name }}_{{ handle.name }});
+        core_panic(PANIC_GENERAL_ERROR, msg);
+    }
+    //TODO if not a string, check if not only the beginning but the whole range is in the VM memory, and btw we do not care about the VM messing up type boundaries
+    return ({{ handle.return_type }}) wasm_runtime_addr_app_to_native(wasm_module_inst, results[0].of.i64);
+    {%- endif -%}
+{%- endmacro %}
+
+{%- macro pointer_handle(library, handle, param) %}
+    //TODO maybe don't panic if it is out of bounds but let users decide what happens, because atm an application run by a runtime can "force" a panic which might not be desirable
+    pointer_handle_check_bounds_{{ library.name }}_{{ handle.returned_pointer_handle }}({{ param.name }});
+    return ({{ library.pointer_handles[handle.returned_pointer_handle].type }}) pointer_handles_{{ library.name }}_{{ handle.returned_pointer_handle }}[{{ param.name }} - 1];
+{%- endmacro %}

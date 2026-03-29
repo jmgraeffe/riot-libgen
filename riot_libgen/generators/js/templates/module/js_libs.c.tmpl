@@ -1,3 +1,9 @@
+{% import 'generators/js/templates/function_parameters.tmpl' as tmpl_function_parameters %}
+{% import 'generators/js/templates/function_call.tmpl' as tmpl_function_call %}
+{% import 'generators/js/templates/function_cleanup.tmpl' as tmpl_function_cleanup %}
+{% import 'generators/js/templates/function_returns.tmpl' as tmpl_function_returns %}
+{% import 'generators/js/templates/function_handle_parameters.tmpl' as tmpl_function_handle_parameters %}
+{% import 'generators/js/templates/function_handle_returns.tmpl' as tmpl_function_handle_returns %}
 #include <stdlib.h>
 #include <string.h>
 #include <panic.h>
@@ -41,55 +47,33 @@ static {{ handle.return_type }} function_handle_internal_function_{{ library.nam
 
     // construct parameters for upcoming call
     jerry_value_t args[{{ [handle.parameters|length, 1]|max }}];
+        {% set state = namespace(counter=0) %}
         {%- for param in handle.parameters.values() -%}
             {%- if param.is_pointer_handle() %}
-    args[{{ loop.index0 }}] = {{ param.name }} != NULL ? jerry_create_number(pointer_handles_get_or_add{{ library.name }}_{{ param.pointer_handle }}((void*) {{ param.name }})) : jerry_create_null();
+                {{ tmpl_function_handle_parameters.pointer_handle(library, handle, param, state) }}
             {%- elif param.is_number() %}
-    args[{{ loop.index0 }}] = jerry_create_number({{ param.name }});
+                {{ tmpl_function_handle_parameters.number(library, handle, param, state) }}
             {%- elif param.is_string() %}
-    args[{{ loop.index0 }}] = jerry_create_string((const jerry_char_t*) {{ param.name }});
+                {{ tmpl_function_handle_parameters.string(library, handle, param, state) }}
             {%- elif param.is_byte_array() -%}
-                {%- if param.length_parameter not in handle.parameters -%}
-                    {% raise "library '" ~ library.name ~ "', function handle'" ~ handle.name ~ "', parameter '" ~ param.name ~ "': length parameter '" ~ param.length_parameter ~ "' does not exist as parameter" %}
-                {%- endif -%}
-                {%- if not handle.parameters[param.length_parameter].is_number() -%}
-                    {% raise "library '" ~ library.name ~ "', function handle'" ~ handle.name ~ "', parameter '" ~ param.name ~ "': length parameter '" ~ param.length_parameter ~ "' is not a number" %}
-                {%- endif %}
-    if ({{ param.name }} != NULL) {
-        args[{{ loop.index0 }}] = jerry_create_string_sz((const jerry_char_t*) {{ param.name }}, {{ param.length_parameter }});
-    } else {
-        args[{{ loop.index0 }}] = jerry_create_null();
-    }
+                {{ tmpl_function_handle_parameters.byte_array(library, handle, param, state) }}
             {%- else %}
                 {% raise "library '" ~ library.name ~ "', function handle '" ~ handle.name ~ "', parameter '" ~ param.name ~ "': unsupported type '" ~ param.type ~ "' (Maybe it is a function handle? Function handles as parameters of function handles not supported yet.)" %}
             {%- endif %}
+            {%- set state.counter = state.counter + 1 -%}
         {%- endfor %}
 
     // call function handle
     jerry_value_t res_value = jerry_call_function(func, global_object, args, {{ handle.parameters|length }});
 
-        {%- if handle.return_type != 'void' -%}
-    
-    if (!jerry_value_is_number(res_value)) {
-        char msg[512] = {'\0'};
-        sprintf(msg, "js_libs: returned type of function handle '%s' is as expected (not a number)", function_handle_next_function_name_{{ library.name }}_{{ handle.name }});
-        core_panic(PANIC_GENERAL_ERROR, msg);
-    }
+        {%- if handle.return_type != 'void' %}
             {%- if handle.returns_pointer_handle() %}
-    //TODO maybe don't panic if it is out of bounds but let users decide what happens, because atm an application run by a runtime can "force" a panic which might not be desirable
-    pointer_handle_check_bounds_{{ library.name }}_{{ handle.returned_pointer_handle }}({{ param.name }});
-    {{ library.pointer_handles[handle.returned_pointer_handle].type }} res = ({{ library.pointer_handles[handle.returned_pointer_handle].type }}) pointer_handles_{{ library.name }}_{{ handle.returned_pointer_handle }}[jerry_get_number_value(res_value) - 1];
+                {{ tmpl_function_handle_returns.pointer_handle(library, handle, param) }}
             {%- elif handle.returns_number() %}
-
-    if (!jerry_value_is_number(res_value)) {
-        char msg[512] = {'\0'};
-        sprintf(msg, "js_libs: returned type of function handle '%s' is as expected (not a number)", function_handle_next_function_name_{{ library.name }}_{{ handle.name }});
-        core_panic(PANIC_GENERAL_ERROR, msg);
-    }
-    {{ handle.return_type }} res = ({{ handle.return_type }}) jerry_get_number_value(res_value);
+                {{ tmpl_function_handle_returns.number(library, handle, param) }}
             {%- else -%}
                 {% raise "library '" ~ library.name ~ "', function handle '" ~ handle.name ~ "', return type: unsupported type '" ~ handle.return_type ~ "' (Maybe it is a function handle? Function handles as parameters of function handles not supported yet.)" %}
-            {%- endif -%}
+            {%- endif %}
         {%- endif %}
 
     // cleanup
@@ -124,70 +108,33 @@ static jerry_value_t {{ library.name }}_{{ function.name }}_native(
     {%- endif %}
 
     // prepare function parameters
+    {# TODO argv length check #}
+    {%- set state = namespace(counter=0) -%}
     {%- for parameter in function.parameters.values() -%}
         {%- if parameter.is_function_handle() %}
-    jerry_value_t value_{{ parameter.name }} = jerry_value_to_string(argv[{{ loop.index0 }}]);
-    if (jerry_value_is_error(value_{{ parameter.name }})) {
-        core_panic(PANIC_GENERAL_ERROR, "js_libs: library '{{ library.name }}', function '{{ function.name }}', parameter '{{ parameter.name }}': invalid name for function handle (not a string?)");
-    }
-    size_t length_{{ parameter.name }} = jerry_get_string_length(value_{{ parameter.name }});
-    if (length_{{ parameter.name }} == 0 || length_{{ parameter.name }} > JS_LIBS_FUNCTION_HANDLE_MAX_LENGTH) {
-        core_panic(PANIC_GENERAL_ERROR, "js_libs: library '{{ library.name }}', function '{{ function.name }}', parameter '{{ parameter.name }}': invalid length of function handle name (0 < name < JS_LIBS_FUNCTION_HANDLE_MAX_LENGTH)");
-    }
-    char* {{ parameter.name }} = calloc(length_{{ parameter.name }} + 1, sizeof(char));
-    if ({{ parameter.name }} == NULL) {
-        core_panic(PANIC_GENERAL_ERROR, "js_libs: could not allocate memory");
-    }
-    jerry_string_to_char_buffer(value_{{ parameter.name }}, (jerry_char_t*) {{ parameter.name }}, length_{{ parameter.name }});
-    jerry_release_value(value_{{ parameter.name }});
-    strcpy(function_handle_next_function_name_{{ library.name }}_{{ parameter.function_handle }}, {{ parameter.name }});
+            {{ tmpl_function_parameters.function_handle(library, function, parameter, state) }}
         {%- elif parameter.is_pointer_handle() %}
-    if (!jerry_value_is_number(argv[{{ loop.index0 }}])) {
-        core_panic(PANIC_GENERAL_ERROR, "js_libs: library '{{ library.name }}', function '{{ function.name }}', parameter '{{ parameter.name }}': invalid value for pointer handle (not a number?)");
-    }
-    ssize_t value_{{ parameter.name }} = ({{ parameter.type }}) jerry_get_number_value(argv[{{ loop.index0 }}]);
-    pointer_handle_check_bounds_{{ library.name }}_{{ parameter.pointer_handle }}(value_{{ parameter.name }});
-    {{ library.pointer_handles[parameter.pointer_handle].type }} {{ parameter.name }} = ({{ library.pointer_handles[parameter.pointer_handle].type }}) pointer_handles_{{ library.name }}_{{ parameter.pointer_handle }}[value_{{ parameter.name }} - 1];
+            {{ tmpl_function_parameters.pointer_handle(library, function, parameter, state) }}
         {%- elif parameter.is_number() %}
-    {{ parameter.type }} {{ parameter.name }} = ({{ parameter.type }}) jerry_get_number_value(argv[{{ loop.index0 }}]);
+            {{ tmpl_function_parameters.number(library, function, parameter, state) }}
         {%- elif parameter.is_string() or parameter.is_byte_array() -%}
-            {# if byte array, we need to ensure there is a length parameter, and it is of number type #}
-            {%- if parameter.is_byte_array() -%}
-                {%- if parameter.length_parameter not in function.parameters -%}
-                    {% raise "library '" ~ library.name ~ "', function '" ~ function.name ~ "', parameter '" ~ parameter.name ~ "': length parameter '" ~ parameter.length_parameter ~ "' does not exist as parameter" %}
-                {%- endif -%}
-                {%- if not function.parameters[parameter.length_parameter].is_number() -%}
-                    {% raise "library '" ~ library.name ~ "', function '" ~ function.name ~ "', parameter '" ~ parameter.name ~ "': length parameter '" ~ parameter.length_parameter ~ "' is not a number" %}
-                {%- endif -%}
-            {%- endif %}
-    char* {{ parameter.name}} = NULL;
-    if (!jerry_value_is_null(argv[{{ loop.index0 }}])) {
-        jerry_value_t value_{{ parameter.name }} = jerry_value_to_string(argv[{{ loop.index0 }}]);
-        if (jerry_value_is_error(value_{{ parameter.name }})) {
-            core_panic(PANIC_GENERAL_ERROR, "js_libs: library '{{ library.name }}', function '{{ function.name }}', parameter '{{ parameter.name }}': invalid value for string/byte array");
-        }
-        size_t length_{{ parameter.name }} = jerry_get_string_size(value_{{ parameter.name }});
-        {{ parameter.name }} = (char*) calloc(length_{{ parameter.name }} + 1, sizeof(char));
-        if ({{ parameter.name }} == NULL) {
-            core_panic(PANIC_GENERAL_ERROR, "js_libs: could not allocate memory");
-        }
-        jerry_string_to_char_buffer(value_{{ parameter.name }}, (jerry_char_t*) {{ parameter.name }}, length_{{ parameter.name }});
-        jerry_release_value(value_{{ parameter.name }});
-    }
+            {{ tmpl_function_parameters.string_byte_array(library, function, parameter, state) }}
         {%- else %}
             {% raise "library '" ~ library.name ~ "', function '" ~ function.name ~ "', parameter '" ~ parameter.name ~ "': unsupported type '" ~ parameter.type ~ "'" %}
         {%- endif %}
+        {%- set state.counter = state.counter + 1 -%}
     {%- endfor %}
 
     // call native function
     {% if function.return_type != 'void' %}{% if function.returns_pointer_handle() %}{{ library.pointer_handles[function.returned_pointer_handle].type }}{% else %}{{ function.return_type }}{% endif %} res = {% endif %}{{ function.original_name }}(
     {%- for parameter in function.parameters.values() -%}
+        {%- set state = namespace(last=loop.last) -%}
         {%- if parameter.is_function_handle() %}
-        function_handle_internal_function_{{ library.name }}_{{ parameter.function_handle }}{% if not loop.last %}, {% endif %}
+            {{ tmpl_function_call.function_handle(library, function, parameter, state) }}
         {%- elif parameter.is_string() or parameter.is_byte_array() %}
-        ({{ parameter.type }}) {{ parameter.name }}{% if not loop.last %}, {% endif %}
+            {{ tmpl_function_call.string_byte_array(library, function, parameter, state) }}
         {%- else %}
-        {{ parameter.name }}{% if not loop.last %}, {% endif %}
+        {{ parameter.name }}{% if not state.last %}, {% endif %}
         {%- endif %}
     {%- endfor %}
     );
@@ -195,16 +142,16 @@ static jerry_value_t {{ library.name }}_{{ function.name }}_native(
     // cleanup
     {%- for parameter in function.parameters.values() -%}
         {%- if parameter.is_string() or parameter.is_byte_array() %}
-    free({{ parameter.name }});
+            {{ tmpl_function_cleanup.string_byte_array(library, function, parameter) }}
         {%- endif %}
     {%- endfor %}
 
     {% if function.return_type == 'void' -%}
-    return jerry_create_undefined();
+        {{ tmpl_function_returns.void(library, function, parameter) }}
     {%- elif function.returns_pointer_handle() -%}
-    return jerry_create_number(pointer_handles_get_or_add_{{ library.name }}_{{ function.returned_pointer_handle }}((void*) res));
+        {{ tmpl_function_returns.pointer_handle(library, function, parameter) }}
     {%- elif function.returns_number() -%}
-    return jerry_create_number(res);
+        {{ tmpl_function_returns.number(library, function, parameter) }}
     {%- else -%}
          {% raise "library '" ~ library.name ~ "', function '" ~ function.name ~ "', return type: unsupported type '" ~ function.return_type ~ "' (Maybe it is a function handle? Function handles as return types are not supported yet.)" %}
     {%- endif %}

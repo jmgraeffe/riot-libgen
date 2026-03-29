@@ -1,0 +1,3 @@
+{%- macro string_byte_array(library, function, parameter) %}
+	free({{ parameter.name }});
+{%- endmacro %}

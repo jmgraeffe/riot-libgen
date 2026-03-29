@@ -1,0 +1,56 @@
+{%- macro function_handle(library, function, parameter, state) %}
+    jerry_value_t value_{{ parameter.name }} = jerry_value_to_string(argv[{{ state.counter }}]);
+    if (jerry_value_is_error(value_{{ parameter.name }})) {
+        core_panic(PANIC_GENERAL_ERROR, "js_libs: library '{{ library.name }}', function '{{ function.name }}', parameter '{{ parameter.name }}': invalid name for function handle (not a string?)");
+    }
+    size_t length_{{ parameter.name }} = jerry_get_string_length(value_{{ parameter.name }});
+    if (length_{{ parameter.name }} == 0 || length_{{ parameter.name }} > JS_LIBS_FUNCTION_HANDLE_MAX_LENGTH) {
+        core_panic(PANIC_GENERAL_ERROR, "js_libs: library '{{ library.name }}', function '{{ function.name }}', parameter '{{ parameter.name }}': invalid length of function handle name (0 < name < JS_LIBS_FUNCTION_HANDLE_MAX_LENGTH)");
+    }
+    char* {{ parameter.name }} = calloc(length_{{ parameter.name }} + 1, sizeof(char));
+    if ({{ parameter.name }} == NULL) {
+        core_panic(PANIC_GENERAL_ERROR, "js_libs: could not allocate memory");
+    }
+    jerry_string_to_char_buffer(value_{{ parameter.name }}, (jerry_char_t*) {{ parameter.name }}, length_{{ parameter.name }});
+    jerry_release_value(value_{{ parameter.name }});
+    strcpy(function_handle_next_function_name_{{ library.name }}_{{ parameter.function_handle }}, {{ parameter.name }});
+{%- endmacro %}
+
+{%- macro pointer_handle(library, function, parameter, state) %}
+    if (!jerry_value_is_number(argv[{{ state.counter }}])) {
+        core_panic(PANIC_GENERAL_ERROR, "js_libs: library '{{ library.name }}', function '{{ function.name }}', parameter '{{ parameter.name }}': invalid value for pointer handle (not a number?)");
+    }
+    ssize_t value_{{ parameter.name }} = ({{ parameter.type }}) jerry_get_number_value(argv[{{ state.counter }}]);
+    pointer_handle_check_bounds_{{ library.name }}_{{ parameter.pointer_handle }}(value_{{ parameter.name }});
+    {{ library.pointer_handles[parameter.pointer_handle].type }} {{ parameter.name }} = ({{ library.pointer_handles[parameter.pointer_handle].type }}) pointer_handles_{{ library.name }}_{{ parameter.pointer_handle }}[value_{{ parameter.name }} - 1];
+{%- endmacro %}
+
+{%- macro number(library, function, parameter, state) %}
+    {{ parameter.type }} {{ parameter.name }} = ({{ parameter.type }}) jerry_get_number_value(argv[{{ state.counter }}]);
+{%- endmacro %}
+
+{%- macro string_byte_array(library, function, parameter, state) %}
+    {# if byte array, we need to ensure there is a length parameter, and it is of number type #}
+    {%- if parameter.is_byte_array() -%}
+        {%- if parameter.length_parameter not in function.parameters -%}
+            {% raise "library '" ~ library.name ~ "', function '" ~ function.name ~ "', parameter '" ~ parameter.name ~ "': length parameter '" ~ parameter.length_parameter ~ "' does not exist as parameter" %}
+        {%- endif -%}
+        {%- if not function.parameters[parameter.length_parameter].is_number() -%}
+            {% raise "library '" ~ library.name ~ "', function '" ~ function.name ~ "', parameter '" ~ parameter.name ~ "': length parameter '" ~ parameter.length_parameter ~ "' is not a number" %}
+        {%- endif -%}
+    {%- endif %}
+    char* {{ parameter.name}} = NULL;
+    if (!jerry_value_is_null(argv[{{ state.counter }}])) {
+        jerry_value_t value_{{ parameter.name }} = jerry_value_to_string(argv[{{ state.counter }}]);
+        if (jerry_value_is_error(value_{{ parameter.name }})) {
+            core_panic(PANIC_GENERAL_ERROR, "js_libs: library '{{ library.name }}', function '{{ function.name }}', parameter '{{ parameter.name }}': invalid value for string/byte array");
+        }
+        size_t length_{{ parameter.name }} = jerry_get_string_size(value_{{ parameter.name }});
+        {{ parameter.name }} = (char*) calloc(length_{{ parameter.name }} + 1, sizeof(char));
+        if ({{ parameter.name }} == NULL) {
+            core_panic(PANIC_GENERAL_ERROR, "js_libs: could not allocate memory");
+        }
+        jerry_string_to_char_buffer(value_{{ parameter.name }}, (jerry_char_t*) {{ parameter.name }}, length_{{ parameter.name }});
+        jerry_release_value(value_{{ parameter.name }});
+    }
+{%- endmacro %}

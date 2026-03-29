@@ -1,0 +1,7 @@
+{%- macro function_handle(library, function, parameter, state) %}
+	function_handle_internal_function_{{ library.name }}_{{ parameter.function_handle }}{% if not state.last %}, {% endif %}
+{%- endmacro %}
+
+{%- macro string_byte_array(library, function, parameter, state) %}
+	({{ parameter.type }}) {{ parameter.name }}{% if not state.last %}, {% endif %}
+{%- endmacro %}

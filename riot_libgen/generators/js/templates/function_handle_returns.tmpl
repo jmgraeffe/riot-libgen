@@ -1,0 +1,14 @@
+{%- macro pointer_handle(library, handle, param) %}
+	//TODO maybe don't panic if it is out of bounds but let users decide what happens, because atm an application run by a runtime can "force" a panic which might not be desirable
+    pointer_handle_check_bounds_{{ library.name }}_{{ handle.returned_pointer_handle }}({{ param.name }});
+    {{ library.pointer_handles[handle.returned_pointer_handle].type }} res = ({{ library.pointer_handles[handle.returned_pointer_handle].type }}) pointer_handles_{{ library.name }}_{{ handle.returned_pointer_handle }}[jerry_get_number_value(res_value) - 1];
+{%- endmacro %}
+
+{%- macro number(library, handle, param) %}
+    if (!jerry_value_is_number(res_value)) {
+        char msg[512] = {'\0'};
+        sprintf(msg, "js_libs: returned type of function handle '%s' is as expected (not a number)", function_handle_next_function_name_{{ library.name }}_{{ handle.name }});
+        core_panic(PANIC_GENERAL_ERROR, msg);
+    }
+    {{ handle.return_type }} res = ({{ handle.return_type }}) jerry_get_number_value(res_value);
+{%- endmacro %}

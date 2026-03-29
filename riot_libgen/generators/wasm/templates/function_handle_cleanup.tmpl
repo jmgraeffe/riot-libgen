@@ -1,0 +1,8 @@
+{%- macro string_byte_array(library, handle, param, state) %}
+	{# TODO 32bit memory model assumed for strings ($), might become variable in the future #}
+    {%- if param.get_wasm_runtime_signature() == 'i' or param.get_wasm_runtime_signature() == '$' %}
+    wasm_runtime_module_free(wasm_module_inst, (uint64_t) args[{{ state.counter }}].of.i32);
+    {%- else %}
+    wasm_runtime_module_free(wasm_module_inst, (uint64_t) args[{{ state.counter }}].of.i64);
+    {%- endif -%}
+{%- endmacro %}

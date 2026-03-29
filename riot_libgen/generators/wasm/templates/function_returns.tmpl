@@ -1,0 +1,3 @@
+{%- macro pointer_handle(library, function, parameter) %}
+	return pointer_handles_get_or_add_{{ library.name }}_{{ function.returned_pointer_handle }}((void*) res);
+{%- endmacro %}

@@ -1,3 +1,9 @@
+{%- import 'generators/wasm/templates/function_parameters.tmpl' as tmpl_function_parameters -%}
+{%- import 'generators/wasm/templates/function_call.tmpl' as tmpl_function_call -%}
+{%- import 'generators/wasm/templates/function_returns.tmpl' as tmpl_function_returns -%}
+{%- import 'generators/wasm/templates/function_handle_parameters.tmpl' as tmpl_function_handle_parameters -%}
+{%- import 'generators/wasm/templates/function_handle_cleanup.tmpl' as tmpl_function_handle_cleanup -%}
+{%- import 'generators/wasm/templates/function_handle_returns.tmpl' as tmpl_function_handle_returns -%}
 #include <stdio.h>
 #include <string.h>
 #include <panic.h>
@@ -39,52 +45,30 @@ static {{ handle.return_type }} function_handle_internal_function_{{ library.nam
     // construct parameters for upcoming function call
     size_t num_args = {{ handle.parameters|length }};
     wasm_val_t args[{{ [handle.parameters|length, 1]|max }}];
+        {%- set state = namespace(counter=0) -%}
         {%- for param in handle.parameters.values() %}
             {%- if param.get_wasm_runtime_signature() == '$' %}
-                {# TODO 32bit memory model assumed, might become variable in the future #}
-    args[{{ loop.index0 }}].kind = WASM_I32;
-    args[{{ loop.index0 }}].of.i32 = (int32_t) wasm_runtime_module_dup_data(wasm_module_inst, (const char*) {{ param.name }}, strlen((const char*) str));
+                {{ tmpl_function_handle_parameters.string(library, handle, param, state) }}
             {%- elif param.is_byte_array() -%}
-                {# we need to ensure there is a length parameter, and it is of number type #}
-                {%- if param.length_parameter not in handle.parameters -%}
-                    {% raise "library '" ~ library.name ~ "', function handle '" ~ handle.name ~ "', parameter '" ~ param.name ~ "': length parameter '" ~ param.length_parameter ~ "' does not exist as parameter" %}
-                {%- endif -%}
-                {%- if not handle.parameters[param.length_parameter].is_integer() -%}
-                    {% raise "library '" ~ library.name ~ "', function handle '" ~ handle.name ~ "', parameter '" ~ param.name ~ "': length parameter '" ~ param.length_parameter ~ "' is not an integer" %}
-                {%- endif -%}
-
-                {# considering pointer length already even though WAMR is 32bit memory model atm #}
-                {# TODO consider NULL!? #}
-                {%- if param.get_wasm_runtime_signature() == 'i' %}
-    args[{{ loop.index0 }}].kind = WASM_I32;
-    args[{{ loop.index0 }}].of.i32 = (int32_t) wasm_runtime_module_dup_data(wasm_module_inst, (const char*) {{ param.name }}, {{ param.length_parameter }});
-                {%- else -%}
-    args[{{ loop.index0 }}].kind = WASM_I64;
-    args[{{ loop.index0 }}].of.i64 = (int64_t) wasm_runtime_module_dup_data(wasm_module_inst, (const char*) {{ param.name }}, {{ param.length_parameter }});
-                {%- endif -%}
+                {{ tmpl_function_handle_parameters.byte_array(library, handle, param, state) }}
             {%- elif param.is_pointer_handle() %}
-                {%- if param.get_wasm_runtime_signature() == 'i' %}
-    args[{{ loop.index0 }}].kind = WASM_I32;
-    args[{{ loop.index0 }}].of.i32 = {{ param.name }} != NULL ? pointer_handles_get_or_add{{ library.name }}_{{ param.pointer_handle }}((void*) {{ param.name }}) : 0;
-                {%- else -%}
-    args[{{ loop.index0 }}].kind = WASM_I64;
-    args[{{ loop.index0 }}].of.i64 = {{ param.name }} != NULL ? pointer_handles_get_or_add{{ library.name }}_{{ param.pointer_handle }}((void*) {{ param.name }}) : 0;
-                {%- endif -%}
+                {{ tmpl_function_handle_parameters.pointer_handle(library, handle, param, state) }}
             {%- elif param.get_wasm_runtime_signature() == 'i' %}
-    args[{{ loop.index0 }}].kind = WASM_I32;
-    args[{{ loop.index0 }}].of.i32 = (int32_t) {{ param.name }};
+    args[{{ state.counter }}].kind = WASM_I32;
+    args[{{ state.counter }}].of.i32 = (int32_t) {{ param.name }};
             {%- elif param.get_wasm_runtime_signature() == 'I' %}
-    args[{{ loop.index0 }}].kind = WASM_I64;
-    args[{{ loop.index0 }}].of.i64 = (int64_t) {{ param.name }};
+    args[{{ state.counter }}].kind = WASM_I64;
+    args[{{ state.counter }}].of.i64 = (int64_t) {{ param.name }};
             {%- elif param.get_wasm_runtime_signature() == 'f' %}
-    args[{{ loop.index0 }}].kind = WASM_f32;
-    args[{{ loop.index0 }}].of.f32 = (float) {{ param.name }};
+    args[{{ state.counter }}].kind = WASM_f32;
+    args[{{ state.counter }}].of.f32 = (float) {{ param.name }};
             {%- elif param.get_wasm_runtime_signature() == 'F' %}
-    args[{{ loop.index0 }}].kind = WASM_f64;
-    args[{{ loop.index0 }}].of.f64 = (double) {{ param.name }};
+    args[{{ state.counter }}].kind = WASM_f64;
+    args[{{ state.counter }}].of.f64 = (double) {{ param.name }};
             {%- else -%}
                 {% raise "library '" ~ library.name ~ "', function handle '" ~ handle.name ~ "', parameter '" ~ param.name ~ "': unsupported type '" ~ param.type ~ "' (Maybe it is a function handle? Function handles as parameters of function handles not supported yet.)" %}
             {%- endif -%}
+            {%- set state.counter = state.counter + 1 -%}
         {%- endfor %}
 
     // make space for return value
@@ -102,44 +86,21 @@ static {{ handle.return_type }} function_handle_internal_function_{{ library.nam
     }
 
     // cleanup
+        {%- set state = namespace(counter=0) -%}
         {%- for param in handle.parameters.values() %}
             {%- if param.get_wasm_runtime_signature() == '$' or param.is_byte_array() -%}
-                {# TODO 32bit memory model assumed for strings ($), might become variable in the future #}
-                {%- if param.get_wasm_runtime_signature() == 'i' or param.get_wasm_runtime_signature() == '$' %}
-    wasm_runtime_module_free(wasm_module_inst, (uint64_t) args[{{ loop.index0 }}].of.i32);
-                {%- else %}
-    wasm_runtime_module_free(wasm_module_inst, (uint64_t) args[{{ loop.index0 }}].of.i64);
-                {%- endif -%}
+                {{ tmpl_function_handle_cleanup.string_byte_array(library, handle, param, state) }}
             {%- endif -%}
+            {%- set state.counter = state.counter + 1 -%}
         {%- endfor %}
 
         {%- if handle.return_type != 'void' -%}
             {%- if handle.get_wasm_runtime_signature_for_return_type() == '$' or handle.returns_byte_array() -%}
-                {# considering pointer length already even though WAMR is 32bit memory model atm #}
-                {# TODO 32bit memory model assumed for strings ($), might become variable in the future #}
-                {%- if handle.get_wasm_runtime_signature_for_return_type() == 'i' or handle.get_wasm_runtime_signature_for_return_type() == '$' %}
-    
-    if (!wasm_runtime_validate_app_addr(wasm_module_inst, results[0].of.i32, sizeof(results[0].of.i32))) {
-        char msg[512] = {'\0'};
-        sprintf(msg, "wasm_libs: function handle '%s' returned pointer outside of WASM memory region", function_handle_next_function_name_{{ library.name }}_{{ handle.name }});
-        core_panic(PANIC_GENERAL_ERROR, msg);
-    }
-    //TODO if not a string, check if not only the beginning but the whole range is in the VM memory, and btw we do not care about the VM messing up type boundaries
-    return ({{ handle.return_type }}) wasm_runtime_addr_app_to_native(wasm_module_inst, results[0].of.i32);                   
-                {%- else %}
-    
-    if (!wasm_runtime_validate_app_addr(wasm_module_inst, results[0].of.i64, sizeof(results[0].of.i64))) {
-        char msg[512] = {'\0'};
-        sprintf(msg, "wasm_libs: function handle '%s' returned pointer outside of WASM memory region", function_handle_next_function_name_{{ library.name }}_{{ handle.name }});
-        core_panic(PANIC_GENERAL_ERROR, msg);
-    }
-    //TODO if not a string, check if not only the beginning but the whole range is in the VM memory, and btw we do not care about the VM messing up type boundaries
-    return ({{ handle.return_type }}) wasm_runtime_addr_app_to_native(wasm_module_inst, results[0].of.i64);
-                {%- endif -%}
+                
+                {{ tmpl_function_handle_returns.string_byte_array(library, handle, param) }}
             {%- elif handle.returns_pointer_handle() %}
-    //TODO maybe don't panic if it is out of bounds but let users decide what happens, because atm an application run by a runtime can "force" a panic which might not be desirable
-    pointer_handle_check_bounds_{{ library.name }}_{{ handle.returned_pointer_handle }}({{ param.name }});
-    return ({{ library.pointer_handles[handle.returned_pointer_handle].type }}) pointer_handles_{{ library.name }}_{{ handle.returned_pointer_handle }}[{{ param.name }} - 1];
+                
+                {{ tmpl_function_handle_returns.pointer_handle(library, handle, param) }}
             {%- elif handle.get_wasm_runtime_signature_for_return_type() == 'i' %}
     
     return ({{ handle.return_type }}) results[0].of.i32;
@@ -164,50 +125,35 @@ static {{ handle.return_type }} function_handle_internal_function_{{ library.nam
     (void) exec_env;
 
     // prepare parameters
+    {%- set state = namespace(counter=0) -%}
     {%- for parameter in function.parameters.values() %}
-        {%- if parameter.is_function_handle() %}
-    if (strlen({{ parameter.name }}) > WASM_LIBS_FUNCTION_HANDLE_MAX_LENGTH) {
-        core_panic(PANIC_GENERAL_ERROR, "wasm_libs: function handle name is too long (> WASM_LIBS_FUNCTION_HANDLE_MAX_LENGTH)");
-    }
-    strcpy(function_handle_next_function_name_{{ library.name }}_{{ parameter.function_handle }}, {{ parameter.name }});
+        {%- if parameter.is_function_handle() -%}
+            {{ tmpl_function_parameters.function_handle(library, function, parameter, state) }}
         {%- elif parameter.is_byte_array() -%}
-            {# we need to ensure there is a length parameter, and it is of number type #}
-            {%- if parameter.length_parameter not in function.parameters -%}
-                {% raise "library '" ~ library.name ~ "', function '" ~ function.name ~ "', parameter '" ~ parameter.name ~ "': length parameter '" ~ parameter.length_parameter ~ "' does not exist as parameter" %}
-            {%- endif -%}
-            {%- if not function.parameters[parameter.length_parameter].is_integer() -%}
-                {% raise "library '" ~ library.name ~ "', function '" ~ function.name ~ "', parameter '" ~ parameter.name ~ "': length parameter '" ~ parameter.length_parameter ~ "' is not an integer" %}
-            {%- endif %}
-    if (wasm_module_inst == NULL) {
-        core_panic(PANIC_GENERAL_ERROR, "wasm_libs: WASM module instance is not set (use wasm_libs_set_wasm_module_inst)");
-    }
-    if (!wasm_runtime_validate_app_addr(wasm_module_inst, (uintptr_t) {{ parameter.name }}, sizeof({{ parameter.name }}))) {
-        core_panic(PANIC_GENERAL_ERROR, "wasm_libs: function '{{ library.prefix }}{{ function.name }}' was called with a pointer parameter that points outside of WASM memory region");
-    }
-    //TODO check if not only the beginning but the whole range is in the VM memory, and btw we do not care about the VM messing up type boundaries
-    {{ parameter.name }} = ({{ parameter.type }}) wasm_runtime_addr_app_to_native(wasm_module_inst, (uintptr_t) {{ parameter.name }});
-        {%- elif parameter.is_pointer_handle() %}
-    pointer_handle_check_bounds_{{ library.name }}_{{ parameter.pointer_handle }}({{ parameter.name }});
-    {{ library.pointer_handles[parameter.pointer_handle].type }} {{ parameter.name }}_ptr = ({{ library.pointer_handles[parameter.pointer_handle].type }}) pointer_handles_{{ library.name }}_{{ parameter.pointer_handle }}[{{ parameter.name }} - 1];
+            {{ tmpl_function_parameters.byte_array(library, function, parameter, state) }}
+        {%- elif parameter.is_pointer_handle() -%}
+            {{ tmpl_function_parameters.pointer_handle(library, function, parameter, state) }}
         {%- endif -%}
+        {%- set state.counter = state.counter + 1 -%}
     {%- endfor %}
 
     // call function
     {% if function.return_type != 'void' %}{% if function.returns_pointer_handle() %}{{ library.pointer_handles[function.returned_pointer_handle].type }}{% else %}{{ function.return_type }}{% endif %} res = {% endif %}{{ function.original_name }}(
     {%- for parameter in function.parameters.values() -%}
+        {%- set state = namespace(last=loop.last) -%}
         {%- if parameter.is_function_handle() %}
-        function_handle_internal_function_{{ library.name }}_{{ parameter.function_handle }}{% if not loop.last %}, {% endif %}
+            {{ tmpl_function_call.function_handle(library, function, parameter, state) }}
         {%- elif parameter.is_pointer_handle() %}
-        {{ parameter.name }}_ptr{% if not loop.last %}, {% endif %}
+            {{ tmpl_function_call.pointer_handle(library, function, parameter, state) }}
         {%- else %}
-        {{ parameter.name }}{% if not loop.last %}, {% endif %}
+            {{ parameter.name }}{% if not state.last %}, {% endif %}
         {%- endif %}
     {%- endfor %}
     );
 
     {%- if function.return_type != 'void' %}
         {%- if function.returns_pointer_handle() %}
-    return pointer_handles_get_or_add_{{ library.name }}_{{ function.returned_pointer_handle }}((void*) res);
+            {{ tmpl_function_returns.pointer_handle(library, function, parameter) }}
         {%- else %}
     return res;
         {%- endif -%}
