@@ -40,6 +40,19 @@ void pass_pointer_to_host_via_pointer_handle(int* ptr) {
     printf("Got pointer from app that points to: %d\n", *ptr);
 }
 
+void pass_array_to_host(int arr[3]) {
+    printf("Got array with following elements from app: ");
+    for (int i = 0; i < 3; ++i) {
+        printf("%d ", arr[i]);
+    }
+    printf("\n");
+}
+
+void pass_array_to_app_via_function_handle(void (*func)(int arr[3])) {
+    int a[3] = {11, 22, 33};
+    func(a);
+}
+
 int main(void) {
     jerry_value_t main_app, ret_value;
     int res = 0;

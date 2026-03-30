@@ -98,3 +98,6 @@ FUNCTION_HANDLE_TYPE = 'const char*'
 # pointer handles
 POINTER_HANDLE_TYPE = 'int64_t'
 POINTER_HANDLE_MAX_ENTRIES_DEFAULT = 10
+
+# arrays
+ARRAY_PATTERN = r'^(\w+)\[(\d+)\]$'

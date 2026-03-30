@@ -4,11 +4,17 @@
 {% if function.returns_pointer_handle() %}{{ library.pointer_handles[function.returned_pointer_handle].type }}{% else %}{{ function.return_type }}{% endif %} {{ function.original_name }}(
         {%- if function.parameters|length == 0 -%}void{%- endif -%}
         {%- for parameter in function.parameters.values() -%}
-            {%- if parameter.is_function_handle() -%}
+            {%- if parameter.is_array() -%}
+    {{ parameter._element_parameter.type }} {{ parameter.name }}[{{ parameter.array_size }}]{%- if not loop.last %}, {% endif -%}
+            {%- elif parameter.is_function_handle() -%}
     {{ library.function_handles[parameter.function_handle].return_type }} (*{{ parameter.name }})(
                 {%- if library.function_handles[parameter.function_handle].parameters|length == 0 -%}void{%- endif -%}
                 {%- for parameter2 in library.function_handles[parameter.function_handle].parameters.values() -%}
-       {{ parameter2.type }} {{ parameter2.name }}{%- if not loop.last %}, {% endif -%}
+                    {%- if parameter2.is_array() -%}
+        {{ parameter2._element_parameter.type }} {{ parameter2.name }}[{{ parameter2.array_size }}]{%- if not loop.last %}, {% endif -%}
+                    {%- else -%}
+        {{ parameter2.type }} {{ parameter2.name }}{%- if not loop.last %}, {% endif -%}
+                    {%- endif -%}
                 {%- endfor -%}
     )
             {%- elif parameter.is_pointer_handle() -%}

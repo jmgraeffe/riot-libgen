@@ -31,6 +31,15 @@ WASM_EXPORT void bytes_receiver(const uint8_t* data, size_t len) {
     easyio_puts((const char*) data);
 }
 
+WASM_EXPORT void array_receiver(int arr[3]) {
+    easyio_prints("Got array with following elements from host: ");
+    for (int i = 0; i < 3; ++i) {
+        easyio_printi(arr[i]);
+        easyio_prints(" ");
+    }
+    easyio_prints("\n");
+}
+
 WASM_EXPORT int main(int argc, char **argv)
 {
     // strings
@@ -46,6 +55,11 @@ WASM_EXPORT int main(int argc, char **argv)
     // pointers
     ssize_t ptr = playground_pass_pointer_to_app_via_pointer_handle();
     playground_pass_pointer_to_host_via_pointer_handle(ptr);
+
+    // arrays
+    int arr[3] = {1, 2, 3};
+    playground_pass_array_to_host(arr);
+    playground_pass_array_to_app_via_function_handle(WASM_LIBS_FUNCTION_HANDLE("array_receiver"));
 
     return 0;
 }

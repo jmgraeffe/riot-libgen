@@ -32,7 +32,11 @@ static char function_handle_next_function_name_{{ library.name }}_{{ handle.name
 static {{ handle.return_type }} function_handle_internal_function_{{ library.name }}_{{ handle.name }}(
         {%- if handle.parameters|length == 0 %}void{% endif %}
         {%- for parameter in handle.parameters.values() %}
+            {%- if parameter.is_array() %}
+    {{ parameter._element_parameter.type }} {{ parameter.name }}[{{ parameter.array_size }}]{%- if not loop.last %}, {% endif -%}
+            {%- else %}
     {{ parameter.type }} {{ parameter.name }}{% if not loop.last %}, {% endif %}
+            {%- endif %}
         {%- endfor %}
 ) {
     // lookup name of function handle in engine context
@@ -49,14 +53,16 @@ static {{ handle.return_type }} function_handle_internal_function_{{ library.nam
     jerry_value_t args[{{ [handle.parameters|length, 1]|max }}];
         {% set state = namespace(counter=0) %}
         {%- for param in handle.parameters.values() -%}
-            {%- if param.is_pointer_handle() %}
-                {{ tmpl_function_handle_parameters.pointer_handle(library, handle, param, state) }}
+            {%- if param.is_array() %}
+                {{ tmpl_function_handle_parameters.array(library, handle, param, 'args[' ~ state.counter ~ ']') }}
+            {%- elif param.is_pointer_handle() %}
+                {{ tmpl_function_handle_parameters.pointer_handle(library, handle, param, 'args[' ~ state.counter ~ ']') }}
             {%- elif param.is_number() %}
-                {{ tmpl_function_handle_parameters.number(library, handle, param, state) }}
+                {{ tmpl_function_handle_parameters.number(library, handle, param, 'args[' ~ state.counter ~ ']') }}
             {%- elif param.is_string() %}
-                {{ tmpl_function_handle_parameters.string(library, handle, param, state) }}
+                {{ tmpl_function_handle_parameters.string(library, handle, param, 'args[' ~ state.counter ~ ']') }}
             {%- elif param.is_byte_array() -%}
-                {{ tmpl_function_handle_parameters.byte_array(library, handle, param, state) }}
+                {{ tmpl_function_handle_parameters.byte_array(library, handle, param, 'args[' ~ state.counter ~ ']') }}
             {%- else %}
                 {% raise "library '" ~ library.name ~ "', function handle '" ~ handle.name ~ "', parameter '" ~ param.name ~ "': unsupported type '" ~ param.type ~ "' (Maybe it is a function handle? Function handles as parameters of function handles not supported yet.)" %}
             {%- endif %}
@@ -111,14 +117,16 @@ static jerry_value_t {{ library.name }}_{{ function.name }}_native(
     {# TODO argv length check #}
     {%- set state = namespace(counter=0) -%}
     {%- for parameter in function.parameters.values() -%}
-        {%- if parameter.is_function_handle() %}
-            {{ tmpl_function_parameters.function_handle(library, function, parameter, state) }}
+        {%- if parameter.is_array() %}
+            {{ tmpl_function_parameters.array(library, function, parameter, 'argv[' ~ state.counter ~ ']') }}
+        {%- elif parameter.is_function_handle() %}
+            {{ tmpl_function_parameters.function_handle(library, function, parameter, 'argv[' ~ state.counter ~ ']') }}
         {%- elif parameter.is_pointer_handle() %}
-            {{ tmpl_function_parameters.pointer_handle(library, function, parameter, state) }}
+            {{ tmpl_function_parameters.pointer_handle(library, function, parameter, 'argv[' ~ state.counter ~ ']') }}
         {%- elif parameter.is_number() %}
-            {{ tmpl_function_parameters.number(library, function, parameter, state) }}
+            {{ tmpl_function_parameters.number(library, function, parameter, 'argv[' ~ state.counter ~ ']') }}
         {%- elif parameter.is_string() or parameter.is_byte_array() -%}
-            {{ tmpl_function_parameters.string_byte_array(library, function, parameter, state) }}
+            {{ tmpl_function_parameters.string_byte_array(library, function, parameter, 'argv[' ~ state.counter ~ ']') }}
         {%- else %}
             {% raise "library '" ~ library.name ~ "', function '" ~ function.name ~ "', parameter '" ~ parameter.name ~ "': unsupported type '" ~ parameter.type ~ "'" %}
         {%- endif %}

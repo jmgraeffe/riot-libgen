@@ -21,7 +21,11 @@ static char function_handle_next_function_name_{{ library.name }}_{{ handle.name
 static {{ handle.return_type }} function_handle_internal_function_{{ library.name }}_{{ handle.name }}(
         {%- if handle.parameters|length == 0 %}void{% endif -%}
         {%- for parameter in handle.parameters.values() %}
+            {%- if parameter.is_array() %}
+    {{ parameter._element_parameter.type }} {{ parameter.name }}[{{ parameter.array_size }}]{%- if not loop.last %}, {% endif -%}
+            {%- else %}
     {{ parameter.type }} {{ parameter.name }}{% if not loop.last %}, {% endif %}
+            {%- endif %}
         {%- endfor %}
 ) {
     if (wasm_module_inst == NULL) {
@@ -47,12 +51,14 @@ static {{ handle.return_type }} function_handle_internal_function_{{ library.nam
     wasm_val_t args[{{ [handle.parameters|length, 1]|max }}];
         {%- set state = namespace(counter=0) -%}
         {%- for param in handle.parameters.values() %}
-            {%- if param.get_wasm_runtime_signature() == '$' %}
-                {{ tmpl_function_handle_parameters.string(library, handle, param, state) }}
+            {%- if param.is_array() %}
+                {{ tmpl_function_handle_parameters.array(library, handle, param, 'args[' ~ state.counter ~ ']') }}
+            {%- elif param.get_wasm_runtime_signature() == '$' %}
+                {{ tmpl_function_handle_parameters.string(library, handle, param, 'args[' ~ state.counter ~ ']') }}
             {%- elif param.is_byte_array() -%}
-                {{ tmpl_function_handle_parameters.byte_array(library, handle, param, state) }}
+                {{ tmpl_function_handle_parameters.byte_array(library, handle, param, 'args[' ~ state.counter ~ ']') }}
             {%- elif param.is_pointer_handle() %}
-                {{ tmpl_function_handle_parameters.pointer_handle(library, handle, param, state) }}
+                {{ tmpl_function_handle_parameters.pointer_handle(library, handle, param, 'args[' ~ state.counter ~ ']') }}
             {%- elif param.get_wasm_runtime_signature() == 'i' %}
     args[{{ state.counter }}].kind = WASM_I32;
     args[{{ state.counter }}].of.i32 = (int32_t) {{ param.name }};
@@ -121,13 +127,15 @@ static {{ handle.return_type }} function_handle_internal_function_{{ library.nam
     {% endfor %}
 
     {%- for function in library.functions.values() %}
-{{ function.return_type }} {{ library.name }}_{{ function.name }}_native(wasm_exec_env_t exec_env{% for parameter in function.parameters.values() %}, {{ parameter.type }} {{ parameter.name }}{% endfor %}) {
+{{ function.return_type }} {{ library.name }}_{{ function.name }}_native(wasm_exec_env_t exec_env{% for parameter in function.parameters.values() %}, {% if parameter.is_array() %}{{ parameter._element_parameter.type }}{% else %}{{ parameter.type }}{% endif %} {{ parameter.name }}{% if parameter.is_array() %}[{{ parameter.array_size }}]{% endif %}{% endfor %}) {
     (void) exec_env;
 
     // prepare parameters
     {%- set state = namespace(counter=0) -%}
     {%- for parameter in function.parameters.values() %}
-        {%- if parameter.is_function_handle() -%}
+        {%- if parameter.is_array() -%}
+            {{ tmpl_function_parameters.array(library, function, parameter, state) }}
+        {%- elif parameter.is_function_handle() -%}
             {{ tmpl_function_parameters.function_handle(library, function, parameter, state) }}
         {%- elif parameter.is_byte_array() -%}
             {{ tmpl_function_parameters.byte_array(library, function, parameter, state) }}

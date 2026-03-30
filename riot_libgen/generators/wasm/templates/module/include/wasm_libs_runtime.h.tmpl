@@ -19,6 +19,6 @@ typedef ssize_t {{ library.prefix }}{{ handle.name }}_t;
 {%- endfor %}
 {% for library in libraries.values() -%}
 	{%- for function in library.functions.values() %}
-{{ function.return_type }} {{ library.prefix }}{{ function.name }}({% for parameter in function.parameters.values() %}{% if parameter.is_function_handle() %}wasm_libs_function_handle_t{% else %}{{ parameter.type }}{% endif %} {{ parameter.name }}{% if not loop.last %}, {% endif %}{% endfor %});
+{{ function.return_type }} {{ library.prefix }}{{ function.name }}({% for parameter in function.parameters.values() %}{% if parameter.is_function_handle() %}wasm_libs_function_handle_t{% elif parameter.is_array() %}{{ parameter._element_parameter.type }}{% else %}{{ parameter.type }}{% endif %} {{ parameter.name }}{% if parameter.is_array() %}[{{ parameter.array_size }}]{% endif %}{% if not loop.last %}, {% endif %}{% endfor %});
 	{%- endfor %}
 {%- endfor %}

@@ -1,3 +1,13 @@
+{%- macro array(library, function, parameter, state) %}
+    if (wasm_module_inst == NULL) {
+        core_panic(PANIC_GENERAL_ERROR, "wasm_libs: WASM module instance is not set (use wasm_libs_set_wasm_module_inst)");
+    }
+    if (!wasm_runtime_validate_app_addr(wasm_module_inst, (uintptr_t) {{ parameter.name }}, sizeof(&{{ parameter.name }}[0]) * ({{ parameter.array_size }}))) {
+        core_panic(PANIC_GENERAL_ERROR, "wasm_libs: function '{{ library.prefix }}{{ function.name }}' was called with an array parameter that points outside of WASM memory region");
+    }
+    {{ parameter.name }} = ({{ parameter._element_parameter.type }}*) wasm_runtime_addr_app_to_native(wasm_module_inst, (uintptr_t) {{ parameter.name }});
+{%- endmacro %}
+
 {%- macro function_handle(library, function, parameter, state) %}
     if (strlen({{ parameter.name }}) > WASM_LIBS_FUNCTION_HANDLE_MAX_LENGTH) {
         core_panic(PANIC_GENERAL_ERROR, "wasm_libs: function handle name is too long (> WASM_LIBS_FUNCTION_HANDLE_MAX_LENGTH)");

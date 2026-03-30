@@ -1,14 +1,21 @@
-{%- macro pointer_handle(library, handle, param, state) %}
+{%- macro array(library, handle, param, dest) %}
+    {# TODO consider NULL!? #}
+    {# TODO 32bit memory model assumed, might become variable in the future #}
+    {{ dest }}.kind = WASM_I32;
+    {{ dest }}.of.i32 = (int32_t) wasm_runtime_module_dup_data(wasm_module_inst, (const char*) {{ param.name }}, sizeof(&{{ param.name }}[0]) * ({{ param.array_size }}));
+{%- endmacro %}
+
+{%- macro pointer_handle(library, handle, param, dest) %}
     {%- if param.get_wasm_runtime_signature() == 'i' %}
-    args[{{ state.counter }}].kind = WASM_I32;
-    args[{{ state.counter }}].of.i32 = {{ param.name }} != NULL ? pointer_handles_get_or_add{{ library.name }}_{{ param.pointer_handle }}((void*) {{ param.name }}) : 0;
+    {{ dest }}.kind = WASM_I32;
+    {{ dest }}.of.i32 = {{ param.name }} != NULL ? pointer_handles_get_or_add{{ library.name }}_{{ param.pointer_handle }}((void*) {{ param.name }}) : 0;
     {%- else -%}
-    args[{{ state.counter }}].kind = WASM_I64;
-    args[{{ state.counter }}].of.i64 = {{ param.name }} != NULL ? pointer_handles_get_or_add{{ library.name }}_{{ param.pointer_handle }}((void*) {{ param.name }}) : 0;
+    {{ dest }}.kind = WASM_I64;
+    {{ dest }}.of.i64 = {{ param.name }} != NULL ? pointer_handles_get_or_add{{ library.name }}_{{ param.pointer_handle }}((void*) {{ param.name }}) : 0;
     {%- endif -%}
 {%- endmacro %}
 
-{%- macro byte_array(library, handle, param, state) %}
+{%- macro byte_array(library, handle, param, dest) %}
     {# we need to ensure there is a length parameter, and it is of number type #}
     {%- if param.length_parameter not in handle.parameters -%}
         {% raise "library '" ~ library.name ~ "', function handle '" ~ handle.name ~ "', parameter '" ~ param.name ~ "': length parameter '" ~ param.length_parameter ~ "' does not exist as parameter" %}
@@ -20,16 +27,16 @@
     {# considering pointer length already even though WAMR is 32bit memory model atm #}
     {# TODO consider NULL!? #}
     {%- if param.get_wasm_runtime_signature() == 'i' %}
-    args[{{ state.counter }}].kind = WASM_I32;
-    args[{{ state.counter }}].of.i32 = (int32_t) wasm_runtime_module_dup_data(wasm_module_inst, (const char*) {{ param.name }}, {{ param.length_parameter }});
+    {{ dest }}.kind = WASM_I32;
+    {{ dest }}.of.i32 = (int32_t) wasm_runtime_module_dup_data(wasm_module_inst, (const char*) {{ param.name }}, {{ param.length_parameter }});
     {%- else -%}
-    args[{{ state.counter }}].kind = WASM_I64;
-    args[{{ state.counter }}].of.i64 = (int64_t) wasm_runtime_module_dup_data(wasm_module_inst, (const char*) {{ param.name }}, {{ param.length_parameter }});
+    {{ dest }}.kind = WASM_I64;
+    {{ dest }}.of.i64 = (int64_t) wasm_runtime_module_dup_data(wasm_module_inst, (const char*) {{ param.name }}, {{ param.length_parameter }});
     {%- endif -%}
 {%- endmacro %}
 
-{%- macro string(library, handle, param, state) %}
+{%- macro string(library, handle, param, dest) %}
     {# TODO 32bit memory model assumed, might become variable in the future #}
-    args[{{ state.counter }}].kind = WASM_I32;
-    args[{{ state.counter }}].of.i32 = (int32_t) wasm_runtime_module_dup_data(wasm_module_inst, (const char*) {{ param.name }}, strlen((const char*) str));
+    {{ dest }}.kind = WASM_I32;
+    {{ dest }}.of.i32 = (int32_t) wasm_runtime_module_dup_data(wasm_module_inst, (const char*) {{ param.name }}, strlen((const char*) str));
 {%- endmacro %}

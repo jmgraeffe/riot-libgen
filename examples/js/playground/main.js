@@ -18,6 +18,14 @@ function bytes_receiver(data, len) {
     print("Got data with length " + len + " from host: " + data);
 }
 
+function array_receiver(arr) {
+    var s = "";
+    for (var i = 0; i < 3; ++i) {
+        s += arr[i] + " ";
+    }
+    print("Got array with following elements from host: " + s);
+}
+
 // strings
 playground.pass_string_to_host("The cake is a lie!");
 //playground.pass_string_to_host_via_function_handle(js_libs_function_handle("string_sender"));
@@ -31,3 +39,8 @@ playground.pass_bytes_to_app_via_function_handle(js_libs_function_handle("bytes_
 // pointers
 var ptr = playground.pass_pointer_to_app_via_pointer_handle();
 playground.pass_pointer_to_host_via_pointer_handle(ptr);
+
+// arrays
+var arr = [1, 2, 3];
+playground.pass_array_to_host(arr);
+playground.pass_array_to_app_via_function_handle(js_libs_function_handle("array_receiver"));

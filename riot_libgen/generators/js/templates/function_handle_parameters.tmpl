@@ -1,16 +1,39 @@
-{%- macro pointer_handle(library, handle, param, state) %}
-    args[{{ state.counter }}] = {{ param.name }} != NULL ? jerry_create_number(pointer_handles_get_or_add{{ library.name }}_{{ param.pointer_handle }}((void*) {{ param.name }})) : jerry_create_null();
+{%- macro array(library, handle, param, dest) %}
+    if ({{ param.name }} != NULL) {
+        {{ dest }} = jerry_create_array({{ param.array_size }});
+        for (uint32_t i = 0; i < (uint32_t) ({{ param.array_size }}); ++i) {
+            {# TODO this might fail with pointer handles, doesn't it #}
+            {{ param._element_parameter.type }} {{ param.name }}_elem = {{ param.name }}[i];
+        {%- if param._element_parameter.is_pointer_handle() %}
+            {{ pointer_handle(library, handle, param._element_parameter, 'jerry_value_t value_' ~ param.name) }}
+        {%- elif param._element_parameter.is_number() %}
+            {{ number(library, handle, param._element_parameter, 'jerry_value_t value_' ~ param.name) }}
+        {%- elif param._element_parameter.is_string() %}
+            {{ string_byte_array(library, handle, param._element_parameter, 'jerry_value_t value_' ~ param.name) }}
+        {%- else %}
+            {% raise "library '" ~ library.name ~ "', function handle'" ~ handle.name ~ "', parameter '" ~ param.name ~ "': element type '" ~ param._element_parameter.type ~ "' of array not supported" %}
+        {% endif %}
+            jerry_set_property_by_index({{ dest }}, i, value_{{ param.name }});
+            jerry_release_value(value_{{ param.name }});
+        }
+    } else {
+        {{ dest }} = jerry_create_null();
+    }
 {%- endmacro %}
 
-{%- macro number(library, handle, param, state) %}
-    args[{{ state.counter }}] = jerry_create_number({{ param.name }});
+{%- macro pointer_handle(library, handle, param, dest) %}
+    {{ dest }} = {{ param.name }} != NULL ? jerry_create_number(pointer_handles_get_or_add{{ library.name }}_{{ param.pointer_handle }}((void*) {{ param.name }})) : jerry_create_null();
 {%- endmacro %}
 
-{%- macro string(library, handle, param, state) %}
-    args[{{ state.counter }}] = jerry_create_string((const jerry_char_t*) {{ param.name }});
+{%- macro number(library, handle, param, dest) %}
+    {{ dest }} = jerry_create_number({{ param.name }});
 {%- endmacro %}
 
-{%- macro byte_array(library, handle, param, state) %}
+{%- macro string(library, handle, param, dest) %}
+    {{ dest }} = jerry_create_string((const jerry_char_t*) {{ param.name }});
+{%- endmacro %}
+
+{%- macro byte_array(library, handle, param, dest) %}
     {%- if param.length_parameter not in handle.parameters -%}
         {% raise "library '" ~ library.name ~ "', function handle'" ~ handle.name ~ "', parameter '" ~ param.name ~ "': length parameter '" ~ param.length_parameter ~ "' does not exist as parameter" %}
     {%- endif -%}
@@ -18,8 +41,8 @@
         {% raise "library '" ~ library.name ~ "', function handle'" ~ handle.name ~ "', parameter '" ~ param.name ~ "': length parameter '" ~ param.length_parameter ~ "' is not a number" %}
     {%- endif %}
     if ({{ param.name }} != NULL) {
-        args[{{ state.counter }}] = jerry_create_string_sz((const jerry_char_t*) {{ param.name }}, {{ param.length_parameter }});
+        {{ dest }} = jerry_create_string_sz((const jerry_char_t*) {{ param.name }}, {{ param.length_parameter }});
     } else {
-        args[{{ state.counter }}] = jerry_create_null();
+        {{ dest }} = jerry_create_null();
     }
 {%- endmacro %}

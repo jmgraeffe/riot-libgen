@@ -107,6 +107,8 @@ NATIVE_TYPES_MAPPING = {
     'uint8_t*': 'i' #TODO this might become variable in the future
 }
 
+POINTER_TYPE = 'i' #TODO this might become variable in the future
+
 
 class WasmLibrary(Library):
     def __init__(self, name, config: dict, factory):
@@ -123,7 +125,9 @@ class WasmFunction(Function):
         # add parameters
         signature = '('
         for parameter in self.parameters.values():
-            if parameter.type in self._library.function_handles:
+            if parameter.is_array():
+                signature += POINTER_TYPE
+            elif parameter.type in self._library.function_handles:
                 signature += NATIVE_TYPES_MAPPING[FUNCTION_HANDLE_TYPE]
             elif parameter.type in self._library.pointer_handles:
                 signature += NATIVE_TYPES_MAPPING[POINTER_HANDLE_TYPE]

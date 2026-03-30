@@ -28,6 +28,12 @@ libraries:
       pass_pointer_to_host_via_pointer_handle:
         parameters:
           ptr: int_ptr
+      pass_array_to_host:
+        parameters:
+          arr: int[3]
+      pass_array_to_app_via_function_handle:
+        parameters:
+          func: array_receiver
     function_handles:
       string_sender:
         return_type: const char*
@@ -42,5 +48,8 @@ libraries:
             type: const uint8_t*
             length_parameter: len
           len: size_t
+      array_receiver:
+        parameters:
+          arr: int[3]
     pointer_handles:
       int_ptr: int*
