@@ -125,7 +125,7 @@ class WasmFunction(Function):
         # add parameters
         signature = '('
         for parameter in self.parameters.values():
-            if parameter.is_array():
+            if parameter.is_array() or parameter.is_struct():
                 signature += POINTER_TYPE
             elif parameter.type in self._library.function_handles:
                 signature += NATIVE_TYPES_MAPPING[FUNCTION_HANDLE_TYPE]
@@ -139,7 +139,9 @@ class WasmFunction(Function):
         signature += ')'
 
         # add return type
-        if self.return_type in NATIVE_TYPES_MAPPING:
+        if self.returns_struct():
+            signature += POINTER_TYPE
+        elif self.return_type in NATIVE_TYPES_MAPPING:
             signature += NATIVE_TYPES_MAPPING[self.return_type]
         elif self.return_type in self._library.pointer_handles:
             signature += NATIVE_TYPES_MAPPING[POINTER_HANDLE_TYPE]
@@ -165,7 +167,9 @@ class WasmParameter(Parameter):
 
 class WasmFunctionHandle(FunctionHandle):
     def get_wasm_runtime_signature_for_return_type(self) -> str | None:
-        if self.return_type in NATIVE_TYPES_MAPPING:
+        if self.return_type in self._library.structs:
+            return POINTER_TYPE
+        elif self.return_type in NATIVE_TYPES_MAPPING:
             return NATIVE_TYPES_MAPPING[self.return_type]
         return None
 

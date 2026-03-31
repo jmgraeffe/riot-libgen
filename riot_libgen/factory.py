@@ -4,6 +4,7 @@ from riot_libgen.function_handle import FunctionHandle
 from riot_libgen.pointer_handle import PointerHandle
 from riot_libgen.library import Library
 from riot_libgen.parameter import Parameter
+from riot_libgen.struct import Struct
 
 
 class Factory:
@@ -24,3 +25,6 @@ class Factory:
 
     def create_pointer_handle(self, name: str, config: dict, library: Library):
         return PointerHandle(name, config, self, library)
+
+    def create_struct(self, name: str, config: dict, library: Library):
+        return Struct(name, config, self, library)

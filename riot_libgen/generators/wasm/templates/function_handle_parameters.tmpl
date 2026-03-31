@@ -1,3 +1,10 @@
+{%- macro struct(library, handle, param, dest) %}
+    {# TODO consider NULL!? #}
+    {# TODO 32bit memory model assumed, might become variable in the future #}
+    {{ dest }}.kind = WASM_I32;
+    {{ dest }}.of.i32 = (int32_t) wasm_runtime_module_dup_data(wasm_module_inst, (const char*) &({{ param.name }}), sizeof({{ param.name }}));
+{%- endmacro %}
+
 {%- macro array(library, handle, param, dest) %}
     {# TODO consider NULL!? #}
     {# TODO 32bit memory model assumed, might become variable in the future #}

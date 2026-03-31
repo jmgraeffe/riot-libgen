@@ -58,6 +58,35 @@ void pass_array_to_app_via_function_handle(void (*func)(int arr[3])) {
     func(a);
 }
 
+void pass_struct_to_host(phydat_t s) {
+    printf("Got struct with following fields from app: ");
+    printf("val %d %d %d, unit %d, scale %d\n", s.val[0], s.val[1], s.val[2], s.unit, s.scale);
+}
+
+phydat_t pass_struct_to_app_via_return(void) {
+    phydat_t data = {
+        .val = {111, 222, 333},
+        .unit = 42,
+        .scale = 17
+    };
+    return data;
+}
+
+void pass_struct_to_app_via_function_handle(void (*func)(phydat_t s)) {
+    phydat_t data = {
+        .val = {111, 222, 333},
+        .unit = 42,
+        .scale = 17
+    };
+    func(data);
+}
+
+void pass_struct_to_host_via_function_handle(phydat_t (*func)(void)) {
+    phydat_t s = func();
+    printf("Got struct with following fields from app: ");
+    printf("val %d %d %d, unit %d, scale %d\n", s.val[0], s.val[1], s.val[2], s.unit, s.scale);
+}
+
 int main(void)
 {
     uint8_t* bytecode = malloc(hello_wasm_len);

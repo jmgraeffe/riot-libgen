@@ -18,7 +18,16 @@ typedef ssize_t {{ library.prefix }}{{ handle.name }}_t;
 	{%- endfor %}
 {%- endfor %}
 {% for library in libraries.values() -%}
+	{%- for struct in library.structs.values() %}
+typedef struct {
+	{%- for field in struct.fields.values() %}
+	{% if field.is_function_handle() %}wasm_libs_function_handle_t{% elif field.is_array() %}{{ field._element_parameter.type }}{% else %}{{ field.type }}{% endif %} {{ field.name }}{% if field.is_array() %}[{{ field.array_size }}]{% endif %};
+	{%- endfor %}
+} {{ library.prefix }}{{ struct.name }}_t;
+	{%- endfor %}
+{%- endfor %}
+{% for library in libraries.values() -%}
 	{%- for function in library.functions.values() %}
-{{ function.return_type }} {{ library.prefix }}{{ function.name }}({% for parameter in function.parameters.values() %}{% if parameter.is_function_handle() %}wasm_libs_function_handle_t{% elif parameter.is_array() %}{{ parameter._element_parameter.type }}{% else %}{{ parameter.type }}{% endif %} {{ parameter.name }}{% if parameter.is_array() %}[{{ parameter.array_size }}]{% endif %}{% if not loop.last %}, {% endif %}{% endfor %});
+{% if function.returns_struct() %}{{ library.prefix }}{{ library.structs[function.returned_struct].name }}_t*{% else %}{{ function.return_type }}{% endif %} {{ library.prefix }}{{ function.name }}({% for parameter in function.parameters.values() %}{% if parameter.is_struct() %}{{ library.prefix }}{{ library.structs[parameter.struct].name }}_t*{% elif parameter.is_function_handle() %}wasm_libs_function_handle_t{% elif parameter.is_array() %}{{ parameter._element_parameter.type }}{% else %}{{ parameter.type }}{% endif %} {{ parameter.name }}{% if parameter.is_array() %}[{{ parameter.array_size }}]{% endif %}{% if not loop.last %}, {% endif %}{% endfor %});
 	{%- endfor %}
 {%- endfor %}

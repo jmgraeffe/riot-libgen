@@ -24,6 +24,10 @@ class Function:
             return self._return_type
 
     @property
+    def returned_struct(self) -> str:
+        return self._return_type
+
+    @property
     def returned_pointer_handle(self) -> str:
         return self._return_type
 
@@ -35,7 +39,7 @@ class Function:
             self.original_name = dict_['original_name']
 
         if 'return_type' in dict_:
-            if dict_['return_type'] not in NATIVE_TYPES and dict_['return_type'] not in self._library.pointer_handles:
+            if dict_['return_type'] not in NATIVE_TYPES and dict_['return_type'] not in self._library.pointer_handles and dict_['return_type'] not in self._library.structs:
                 raise LibGenConfigException('unknown return type \'{}\' for \'{}\''.format(dict_['return_type'], self.name))
             self._return_type = dict_['return_type']
 
@@ -62,5 +66,10 @@ class Function:
 
     def returns_pointer_handle(self) -> bool:
         if self._return_type in self._library.pointer_handles:
+            return True
+        return False
+
+    def returns_struct(self) -> bool:
+        if self._return_type in self._library.structs:
             return True
         return False

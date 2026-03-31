@@ -18,10 +18,12 @@ static wasm_module_inst_t wasm_module_inst = NULL;
 {% for library in libraries.values() %}
     {%- for handle in library.function_handles.values() %}
 static char function_handle_next_function_name_{{ library.name }}_{{ handle.name }}[WASM_LIBS_FUNCTION_HANDLE_MAX_LENGTH + 1] = {'\0'};
-static {{ handle.return_type }} function_handle_internal_function_{{ library.name }}_{{ handle.name }}(
+static {% if handle.returns_struct() %}{{ library.structs[handle.returned_struct].type }}{% else %}{{ handle.return_type }}{% endif %} function_handle_internal_function_{{ library.name }}_{{ handle.name }}(
         {%- if handle.parameters|length == 0 %}void{% endif -%}
         {%- for parameter in handle.parameters.values() %}
-            {%- if parameter.is_array() %}
+            {%- if parameter.is_struct() %}
+    {{ library.structs[parameter.struct].type }} {{ parameter.name }}{% if not loop.last %}, {% endif %}
+            {%- elif parameter.is_array() %}
     {{ parameter._element_parameter.type }} {{ parameter.name }}[{{ parameter.array_size }}]{%- if not loop.last %}, {% endif -%}
             {%- else %}
     {{ parameter.type }} {{ parameter.name }}{% if not loop.last %}, {% endif %}
@@ -51,7 +53,9 @@ static {{ handle.return_type }} function_handle_internal_function_{{ library.nam
     wasm_val_t args[{{ [handle.parameters|length, 1]|max }}];
         {%- set state = namespace(counter=0) -%}
         {%- for param in handle.parameters.values() %}
-            {%- if param.is_array() %}
+            {%- if param.is_struct() %}
+                {{ tmpl_function_handle_parameters.struct(library, handle, param, 'args[' ~ state.counter ~ ']') }}
+            {%- elif param.is_array() %}
                 {{ tmpl_function_handle_parameters.array(library, handle, param, 'args[' ~ state.counter ~ ']') }}
             {%- elif param.get_wasm_runtime_signature() == '$' %}
                 {{ tmpl_function_handle_parameters.string(library, handle, param, 'args[' ~ state.counter ~ ']') }}
@@ -104,6 +108,9 @@ static {{ handle.return_type }} function_handle_internal_function_{{ library.nam
             {%- if handle.get_wasm_runtime_signature_for_return_type() == '$' or handle.returns_byte_array() -%}
                 
                 {{ tmpl_function_handle_returns.string_byte_array(library, handle, param) }}
+            {%- elif handle.returns_struct() %}
+                
+                {{ tmpl_function_handle_returns.struct(library, handle, param) }}
             {%- elif handle.returns_pointer_handle() %}
                 
                 {{ tmpl_function_handle_returns.pointer_handle(library, handle, param) }}
@@ -127,29 +134,34 @@ static {{ handle.return_type }} function_handle_internal_function_{{ library.nam
     {% endfor %}
 
     {%- for function in library.functions.values() %}
-{{ function.return_type }} {{ library.name }}_{{ function.name }}_native(wasm_exec_env_t exec_env{% for parameter in function.parameters.values() %}, {% if parameter.is_array() %}{{ parameter._element_parameter.type }}{% else %}{{ parameter.type }}{% endif %} {{ parameter.name }}{% if parameter.is_array() %}[{{ parameter.array_size }}]{% endif %}{% endfor %}) {
+{% if function.returns_struct() %}int64_t{% else %}{{ function.return_type }}{% endif %} {{ library.name }}_{{ function.name }}_native(wasm_exec_env_t exec_env{% for parameter in function.parameters.values() %}, {% if parameter.is_struct() %}{{ library.structs[parameter.struct].type }}*{% else %}{% if parameter.is_array() %}{{ parameter._element_parameter.type }}{% else %}{{ parameter.type }}{% endif %}{% endif %} {{ parameter.name }}{% if parameter.is_array() %}[{{ parameter.array_size }}]{% endif %}{% endfor %}) {
     (void) exec_env;
 
     // prepare parameters
+    {# TODO maybe just do it with param_raw -> param for the function call, the whole function parameters and function call template thing seems too complicated #}
     {%- set state = namespace(counter=0) -%}
     {%- for parameter in function.parameters.values() %}
-        {%- if parameter.is_array() -%}
-            {{ tmpl_function_parameters.array(library, function, parameter, state) }}
+        {%- if parameter.is_struct() -%}
+            {{ tmpl_function_parameters.struct(library, function, parameter) }}
+        {%- elif parameter.is_array() -%}
+            {{ tmpl_function_parameters.array(library, function, parameter) }}
         {%- elif parameter.is_function_handle() -%}
-            {{ tmpl_function_parameters.function_handle(library, function, parameter, state) }}
+            {{ tmpl_function_parameters.function_handle(library, function, parameter) }}
         {%- elif parameter.is_byte_array() -%}
-            {{ tmpl_function_parameters.byte_array(library, function, parameter, state) }}
+            {{ tmpl_function_parameters.byte_array(library, function, parameter) }}
         {%- elif parameter.is_pointer_handle() -%}
-            {{ tmpl_function_parameters.pointer_handle(library, function, parameter, state) }}
+            {{ tmpl_function_parameters.pointer_handle(library, function, parameter) }}
         {%- endif -%}
         {%- set state.counter = state.counter + 1 -%}
     {%- endfor %}
 
     // call function
-    {% if function.return_type != 'void' %}{% if function.returns_pointer_handle() %}{{ library.pointer_handles[function.returned_pointer_handle].type }}{% else %}{{ function.return_type }}{% endif %} res = {% endif %}{{ function.original_name }}(
+    {% if function.return_type != 'void' %}{% if function.returns_struct() %}{{ library.structs[function.returned_struct].type }}{% elif function.returns_pointer_handle() %}{{ library.pointer_handles[function.returned_pointer_handle].type }}{% else %}{{ function.return_type }}{% endif %} res = {% endif %}{{ function.original_name }}(
     {%- for parameter in function.parameters.values() -%}
         {%- set state = namespace(last=loop.last) -%}
-        {%- if parameter.is_function_handle() %}
+        {%- if parameter.is_struct() %}
+            {{ tmpl_function_call.struct(library, function, parameter, state) }}
+        {%- elif parameter.is_function_handle() %}
             {{ tmpl_function_call.function_handle(library, function, parameter, state) }}
         {%- elif parameter.is_pointer_handle() %}
             {{ tmpl_function_call.pointer_handle(library, function, parameter, state) }}
@@ -160,8 +172,10 @@ static {{ handle.return_type }} function_handle_internal_function_{{ library.nam
     );
 
     {%- if function.return_type != 'void' %}
-        {%- if function.returns_pointer_handle() %}
-            {{ tmpl_function_returns.pointer_handle(library, function, parameter) }}
+        {%- if function.returns_struct() %}
+            {{ tmpl_function_returns.struct(library, function) }}
+        {%- elif function.returns_pointer_handle() %}
+            {{ tmpl_function_returns.pointer_handle(library, function) }}
         {%- else %}
     return res;
         {%- endif -%}
@@ -171,7 +185,7 @@ static {{ handle.return_type }} function_handle_internal_function_{{ library.nam
 // (on some systems, function pointers may be different from data pointers so this might not be universal)
 static union {
     void* void_ptr;
-    {{ function.return_type }} (*func_ptr)(wasm_exec_env_t{% for parameter in function.parameters.values() %}, {{ parameter.type }}{% endfor %});
+    {% if function.returns_struct() %}int64_t{% else %}{{ function.return_type }}{% endif %} (*func_ptr)(wasm_exec_env_t{% for parameter in function.parameters.values() %}, {% if parameter.is_struct() %}{{ library.structs[parameter.struct].type }}*{% else %}{{ parameter.type }}{% endif %}{% endfor %});
 } {{ library.name }}_{{ function.name }}_ptr = {
     .func_ptr = {{ library.name }}_{{ function.name }}_native
 };

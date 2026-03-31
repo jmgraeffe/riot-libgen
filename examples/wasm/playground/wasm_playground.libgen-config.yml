@@ -1,5 +1,7 @@
 libraries:
   playground:
+    includes:
+      - phydat.h
     functions:
       pass_string_to_host:
         parameters:
@@ -34,6 +36,17 @@ libraries:
       pass_array_to_app_via_function_handle:
         parameters:
           func: array_receiver
+      pass_struct_to_host:
+        parameters:
+          s: phydat
+      pass_struct_to_app_via_return:
+        return_type: phydat
+      pass_struct_to_app_via_function_handle:
+        parameters:
+          func: struct_receiver
+      pass_struct_to_host_via_function_handle:
+        parameters:
+          func: struct_sender
     function_handles:
       string_sender:
         return_type: const char*
@@ -51,5 +64,17 @@ libraries:
       array_receiver:
         parameters:
           arr: int[3]
+      struct_receiver:
+        parameters:
+          s: phydat
+      struct_sender:
+        return_type: phydat
     pointer_handles:
       int_ptr: int*
+    structs:
+      phydat:
+        type: phydat_t
+        fields:
+          val: int16_t[3]
+          unit: uint8_t
+          scale: int8_t

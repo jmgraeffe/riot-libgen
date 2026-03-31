@@ -1,17 +1,22 @@
 // forward declarations so that functions are well declared even if defined in user code
 {%- for library in libraries.values() -%}
     {%- for function in library.functions.values() %}
-{% if function.returns_pointer_handle() %}{{ library.pointer_handles[function.returned_pointer_handle].type }}{% else %}{{ function.return_type }}{% endif %} {{ function.original_name }}(
+{% if function.returns_struct() %}{{ library.structs[function.returned_struct].type }}{% elif function.returns_pointer_handle() %}{{ library.pointer_handles[function.returned_pointer_handle].type }}{% else %}{{ function.return_type }}{% endif %} {{ function.original_name }}(
         {%- if function.parameters|length == 0 -%}void{%- endif -%}
         {%- for parameter in function.parameters.values() -%}
             {%- if parameter.is_array() -%}
     {{ parameter._element_parameter.type }} {{ parameter.name }}[{{ parameter.array_size }}]{%- if not loop.last %}, {% endif -%}
+            {%- elif parameter.is_struct() -%}
+    {{ library.structs[parameter.struct].type }} {{ parameter.name }}{%- if not loop.last %}, {% endif -%}
             {%- elif parameter.is_function_handle() -%}
-    {{ library.function_handles[parameter.function_handle].return_type }} (*{{ parameter.name }})(
+                {% set handle=library.function_handles[parameter.function_handle] %}
+    {% if handle.returns_struct() %}{{ library.structs[handle.returned_struct].type }}{% else %}{{ handle.return_type }}{% endif %} (*{{ parameter.name }})(
                 {%- if library.function_handles[parameter.function_handle].parameters|length == 0 -%}void{%- endif -%}
                 {%- for parameter2 in library.function_handles[parameter.function_handle].parameters.values() -%}
                     {%- if parameter2.is_array() -%}
         {{ parameter2._element_parameter.type }} {{ parameter2.name }}[{{ parameter2.array_size }}]{%- if not loop.last %}, {% endif -%}
+                    {%- elif parameter2.is_struct() -%}
+        {{ library.structs[parameter2.struct].type }} {{ parameter2.name }}{%- if not loop.last %}, {% endif -%}
                     {%- else -%}
         {{ parameter2.type }} {{ parameter2.name }}{%- if not loop.last %}, {% endif -%}
                     {%- endif -%}

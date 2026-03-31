@@ -1,5 +1,43 @@
+{%- import 'generators/js/templates/function_parameters.tmpl' as tmpl_function_parameters -%}
+
+{%- macro struct(library, handle, param) %}
+    {{ library.structs[handle.returned_struct].type }} res = {0};
+    if (!jerry_value_is_object(res_value)) {
+        char msg[512] = {'\0'};
+        sprintf(msg, "js_libs: returned type of function handle '%s' is not as expected (not a struct/object)", function_handle_next_function_name_{{ library.name }}_{{ handle.name }});
+        core_panic(PANIC_GENERAL_ERROR, msg);
+    }
+    {%- for field in library.structs[handle.returned_struct].fields.values() %}
+        jerry_value_t field_property_name_{{ field.name }} = jerry_create_string((const jerry_char_t*) ("{{ field.name }}"));
+        jerry_value_t field_value_{{ field.name }} = jerry_get_property(res_value, field_property_name_{{ field.name }});
+        {%- if field.is_array() %}
+            {# TODO technically the handle is passed as a function, which is not correct... #}
+            {{ tmpl_function_parameters.array(library, handle, field, 'field_value_' ~ field.name) }}
+            for (uint32_t i = 0; i < (uint32_t) ({{ field.array_size }}); ++i) {
+                res.{{ field.name }}[i] = {{ field.name }}[i];
+            }
+        {%- elif field.is_pointer_handle() %}
+            {{ tmpl_function_parameters.pointer_handle(library, handle, field, 'field_value_' ~ field.name) }}
+            res.{{ field.name }} = {{ field.name }};
+        {%- elif field.is_number() %}
+            {{ tmpl_function_parameters.number(library, handle, field, 'field_value_' ~ field.name) }}
+            res.{{ field.name }} = {{ field.name }};
+        {%- elif field.is_string() %}
+            {{ tmpl_function_parameters.string(library, handle, field, 'field_value_' ~ field.name) }}
+            res.{{ field.name }} = {{ field.name }};
+        {%- elif field.is_byte_array() -%}
+            {{ tmpl_function_parameters.byte_array(library, handle, field, 'field_value_' ~ field.name) }}
+            res.{{ field.name }} = {{ field.name }};
+        {%- else %}
+            {% raise "library '" ~ library.name ~ "', function handle '" ~ handle.name ~ "', returned struct: unsupported type '" ~ field.type ~ "' for struct field" %}
+        {%- endif %}
+        jerry_release_value(field_property_name_{{ field.name }});
+        jerry_release_value(field_value_{{ field.name }});
+    {%- endfor %}
+{%- endmacro %}
+
 {%- macro pointer_handle(library, handle, param) %}
-	//TODO maybe don't panic if it is out of bounds but let users decide what happens, because atm an application run by a runtime can "force" a panic which might not be desirable
+    //TODO maybe don't panic if it is out of bounds but let users decide what happens, because atm an application run by a runtime can "force" a panic which might not be desirable
     pointer_handle_check_bounds_{{ library.name }}_{{ handle.returned_pointer_handle }}({{ param.name }});
     {{ library.pointer_handles[handle.returned_pointer_handle].type }} res = ({{ library.pointer_handles[handle.returned_pointer_handle].type }}) pointer_handles_{{ library.name }}_{{ handle.returned_pointer_handle }}[jerry_get_number_value(res_value) - 1];
 {%- endmacro %}
@@ -7,7 +45,7 @@
 {%- macro number(library, handle, param) %}
     if (!jerry_value_is_number(res_value)) {
         char msg[512] = {'\0'};
-        sprintf(msg, "js_libs: returned type of function handle '%s' is as expected (not a number)", function_handle_next_function_name_{{ library.name }}_{{ handle.name }});
+        sprintf(msg, "js_libs: returned type of function handle '%s' is not as expected (not a number)", function_handle_next_function_name_{{ library.name }}_{{ handle.name }});
         core_panic(PANIC_GENERAL_ERROR, msg);
     }
     {{ handle.return_type }} res = ({{ handle.return_type }}) jerry_get_number_value(res_value);

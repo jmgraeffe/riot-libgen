@@ -7,6 +7,7 @@ class Library:
         self.function_handles = {}
         self.constants = {}
         self.pointer_handles = {}
+        self.structs = {}
 
         self.name = name
         self.prefix = None
@@ -21,6 +22,10 @@ class Library:
 
         if 'prefix' in dict_:
             self.prefix = dict_['prefix']
+
+        if 'structs' in dict_:
+            for name, config in dict_['structs'].items():
+                self.structs[name] = self._factory.create_struct(name, config, self)
 
         if 'function_handles' in dict_:
             for name, config in dict_['function_handles'].items():

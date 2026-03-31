@@ -1,3 +1,36 @@
+{%- macro struct(library, function, parameter, container) %}
+    {{ library.structs[parameter.struct].type }} {{ parameter.name }} = {0};
+    if (!jerry_value_is_object({{ container }})) {
+        core_panic(PANIC_GENERAL_ERROR, "js_libs: library '{{ library.name }}', function '{{ function.name }}', parameter '{{ parameter.name }}': not an object");
+    }
+    {%- for field in library.structs[parameter.struct].fields.values() %}
+        jerry_value_t field_property_name_{{ field.name }} = jerry_create_string((const jerry_char_t*) ("{{ field.name }}"));
+        jerry_value_t field_value_{{ field.name }} = jerry_get_property({{ container }}, field_property_name_{{ field.name }});
+        {%- if field.is_array() %}
+            {{ array(library, function, field, 'field_value_' ~ field.name) }}
+            for (uint32_t i = 0; i < (uint32_t) ({{ field.array_size }}); ++i) {
+                {{ parameter.name }}.{{ field.name }}[i] = {{ field.name }}[i];
+            }
+        {%- elif field.is_pointer_handle() %}
+            {{ pointer_handle(library, function, field, 'field_value_' ~ field.name) }}
+            {{ parameter.name }}.{{ field.name }} = {{ field.name }};
+        {%- elif field.is_number() %}
+            {{ number(library, function, field, 'field_value_' ~ field.name) }}
+            {{ parameter.name }}.{{ field.name }} = {{ field.name }};
+        {%- elif field.is_string() %}
+            {{ string(library, function, field, 'field_value_' ~ field.name) }}
+            {{ parameter.name }}.{{ field.name }} = {{ field.name }};
+        {%- elif field.is_byte_array() -%}
+            {{ byte_array(library, function, field, 'field_value_' ~ field.name) }}
+            {{ parameter.name }}.{{ field.name }} = {{ field.name }};
+        {%- else %}
+            {% raise "library '" ~ library.name ~ "', function handle '" ~ handle.name ~ "', parameter '" ~ parameter.name ~ "': unsupported type '" ~ field.type ~ "' for struct field" %}
+        {%- endif %}
+        jerry_release_value(field_property_name_{{ field.name }});
+        jerry_release_value(field_value_{{ field.name }});
+    {%- endfor %}
+{%- endmacro %}
+
 {%- macro array(library, function, parameter, container) %}
     {{ parameter._element_parameter.type }} {{ parameter.name }}[{{ parameter.array_size }}] = {0};
     if (!jerry_value_is_array({{ container }})) {

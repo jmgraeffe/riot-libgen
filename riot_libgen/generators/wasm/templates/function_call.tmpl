@@ -1,3 +1,7 @@
+{%- macro struct(library, function, parameter, state) -%}
+	{{ parameter.name }}_struct{% if not state.last %}, {% endif %}
+{%- endmacro %}
+
 {%- macro function_handle(library, function, parameter, state) -%}
 	function_handle_internal_function_{{ library.name }}_{{ parameter.function_handle }}{% if not state.last %}, {% endif %}
 {%- endmacro %}

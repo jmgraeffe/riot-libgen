@@ -33,6 +33,12 @@ class Parameter:
         return int(match.group(2))
 
     @property
+    def struct(self):
+        if self._type not in self._library.structs:
+            raise LibGenRuntimeException('struct name is requested from a parameter that is not a struct')
+        return self._type
+
+    @property
     def function_handle(self):
         if self._type not in self._library.function_handles:
             raise LibGenRuntimeException('function handle name is requested from a parameter that is not a function handle')
@@ -50,11 +56,11 @@ class Parameter:
 
         if 'type' not in dict_:
             raise LibGenConfigException('missing parameter type for \'{}\''.format(self.name))
-        elif dict_['type'] not in NATIVE_TYPES and dict_['type'] not in self._library.function_handles and dict_['type'] not in self._library.pointer_handles:
+        elif dict_['type'] not in NATIVE_TYPES and dict_['type'] not in self._library.function_handles and dict_['type'] not in self._library.pointer_handles and dict_['type'] not in self._library.structs:
             match = re.match(ARRAY_PATTERN, dict_['type'])
             if match:
                 type_ = match.group(1)
-                if type_ in NATIVE_TYPES or type_ in self._library.function_handles or type_ in self._library.pointer_handles:
+                if type_ in NATIVE_TYPES or type_ in self._library.function_handles or type_ in self._library.pointer_handles or type_ in self._library.structs:
                     self._element_parameter = self._factory.create_parameter(self.name + '_elem', {'type': type_}, self._library)
                 else:
                     raise LibGenConfigException('unknown element type \'{}\' for parameter \'{}\''.format(type_, self.name))
@@ -69,6 +75,11 @@ class Parameter:
                 raise LibGenConfigException('parameter length of \'{}\' is not a string, so it cannot be a parameter name'.format(self.name))
             #TODO it would be best to also do a check if the specified length parameter actually exists, but that requires doing that after adding all parameters...
             self.length_parameter = dict_['length_parameter']
+
+    def is_struct(self) -> bool:
+        if self._type in self._library.structs:
+            return True
+        return False
 
     def is_array(self) -> bool:
         if self._element_parameter is not None:

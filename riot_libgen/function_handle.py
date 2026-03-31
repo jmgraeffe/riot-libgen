@@ -22,6 +22,10 @@ class FunctionHandle:
             return self._return_type
 
     @property
+    def returned_struct(self) -> str:
+        return self._return_type
+
+    @property
     def returned_pointer_handle(self) -> str:
         return self._return_type
 
@@ -30,7 +34,7 @@ class FunctionHandle:
            return
 
         if 'return_type' in dict_:
-            if dict_['return_type'] not in NATIVE_TYPES:
+            if dict_['return_type'] not in NATIVE_TYPES and dict_['return_type'] not in self._library.structs:
                 raise LibGenConfigException('unknown parameter type \'{}\' for \'{}\''.format(dict_['return_type'], self.name))
             self._return_type = dict_['return_type']
 
@@ -40,6 +44,11 @@ class FunctionHandle:
                 if isinstance(config, str):
                     config = {'type': config}
                 self.parameters[name] = self._factory.create_parameter(name, config, self._library)
+
+    def returns_struct(self) -> bool:
+        if self._return_type in self._library.structs:
+            return True
+        return False
 
     def returns_byte_array(self) -> bool:
         if self._return_type in BYTE_ARRAY_TYPES:
