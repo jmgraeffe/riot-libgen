@@ -35,14 +35,14 @@ BLOBS += hello.wasm
 DEVELHELP ?= 0
 
 # measurements for thesis evaluation
-ifeq ($(BOARD),nucleo-f429zi)
-	MEASURE_SYSTICKS ?= 1
+ifneq ($(BOARD),native)
+	MEASURE_CPU_CYCLES ?= 0
 	MEASURE_HEAP ?= 0
-	RESET_LOOP ?= 1
+	RESET_LOOP ?= 0
 
 	CFLAGS += -DRESET_LOOP=$(RESET_LOOP)
-	ifeq ($(MEASURE_SYSTICKS),1)
-		CFLAGS += -DMEASURE_SYSTICKS=1
+	ifeq ($(MEASURE_CPU_CYCLES),1)
+		CFLAGS += -DMEASURE_CPU_CYCLES=1
 	endif
 	ifeq ($(MEASURE_HEAP),1)
 		USEMODULE += malloc_monitor

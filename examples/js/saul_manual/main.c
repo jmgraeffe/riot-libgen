@@ -9,8 +9,10 @@
 #include "blob/main.js.h"
 #include "panic.h"
 
-#if (defined(MEASURE_SYSTICKS) && MEASURE_SYSTICKS > 0) || (defined(MEASURE_HEAP) && MEASURE_HEAP > 0)
+#if (defined(MEASURE_CPU_CYCLES) && MEASURE_CPU_CYCLES > 0) || (defined(MEASURE_HEAP) && MEASURE_HEAP > 0)
 #include "../../../external/measurements.h"
+#endif
+#if defined(RESET_LOOP) && RESET_LOOP > 0
 #include "periph/pm.h"
 #endif
 
@@ -44,7 +46,6 @@ static jerry_value_t easysaul_reg_find_and_read_native(const jerry_value_t func_
 
     // cleanup
     free(name);
-    printf("power = %d\n", power);
     return jerry_create_number(easysaul_reg_read(dev, power));
 }
 
@@ -146,7 +147,7 @@ static int register_easysaul_natives(void) {
 }
 
 int main(void) {
-#if (defined(MEASURE_SYSTICKS) && MEASURE_SYSTICKS > 0) || (defined(MEASURE_HEAP) && MEASURE_HEAP > 0)
+#if (defined(MEASURE_CPU_CYCLES) && MEASURE_CPU_CYCLES > 0) || (defined(MEASURE_HEAP) && MEASURE_HEAP > 0)
     measurements_start();
 #endif
 
@@ -187,11 +188,11 @@ int main(void) {
     // cleanup engine
     jerry_cleanup();
 
-#if (defined(MEASURE_SYSTICKS) && MEASURE_SYSTICKS > 0) || (defined(MEASURE_HEAP) && MEASURE_HEAP > 0)
+#if (defined(MEASURE_CPU_CYCLES) && MEASURE_CPU_CYCLES > 0) || (defined(MEASURE_HEAP) && MEASURE_HEAP > 0)
     measurements_stop();
-    #if defined(RESET_LOOP) && RESET_LOOP > 0
+#endif
+#if defined(RESET_LOOP) && RESET_LOOP > 0
     pm_reboot();
-    #endif
 #endif
 
     return res;

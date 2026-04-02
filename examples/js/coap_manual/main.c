@@ -9,8 +9,10 @@
 
 #include "blob/main.js.h"
 
-#if (defined(MEASURE_SYSTICKS) && MEASURE_SYSTICKS > 0) || (defined(MEASURE_HEAP) && MEASURE_HEAP > 0)
+#if (defined(MEASURE_CPU_CYCLES) && MEASURE_CPU_CYCLES > 0) || (defined(MEASURE_HEAP) && MEASURE_HEAP > 0)
 #include "../../../external/measurements.h"
+#endif
+#if defined(RESET_LOOP) && RESET_LOOP > 0
 #include "periph/pm.h"
 #endif
 
@@ -238,7 +240,7 @@ static int register_natives(void) {
 }
 
 int main(void) {
-#if (defined(MEASURE_SYSTICKS) && MEASURE_SYSTICKS > 0) || (defined(MEASURE_HEAP) && MEASURE_HEAP > 0)
+#if (defined(MEASURE_CPU_CYCLES) && MEASURE_CPU_CYCLES > 0) || (defined(MEASURE_HEAP) && MEASURE_HEAP > 0)
     measurements_start();
 #endif
 
@@ -275,11 +277,11 @@ int main(void) {
     // cleanup engine
     jerry_cleanup();
 
-#if (defined(MEASURE_SYSTICKS) && MEASURE_SYSTICKS > 0) || (defined(MEASURE_HEAP) && MEASURE_HEAP > 0)
+#if (defined(MEASURE_CPU_CYCLES) && MEASURE_CPU_CYCLES > 0) || (defined(MEASURE_HEAP) && MEASURE_HEAP > 0)
     measurements_stop();
-    #if defined(RESET_LOOP) && RESET_LOOP > 0
+#endif
+#if defined(RESET_LOOP) && RESET_LOOP > 0
     pm_reboot();
-    #endif
 #endif
 
     return res;

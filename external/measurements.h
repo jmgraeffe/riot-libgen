@@ -4,9 +4,13 @@
 #include <stdio.h>
 #include <math.h>
 
-#if defined(MEASURE_SYSTICKS) && MEASURE_SYSTICKS > 0
+#if defined(MEASURE_CPU_CYCLES) && MEASURE_CPU_CYCLES > 0
+#if defined(CPU_STM32)
 #include "cpu.h"
 #include "clk.h"
+#elif defined(CPU_FAM_ESP32)
+#include "xtensa/hal.h"
+#endif
 #endif
 
 #if defined(MEASURE_HEAP) && MEASURE_HEAP > 0
@@ -15,19 +19,30 @@
 static size_t _heap_before;
 #endif
 
-#if defined(MEASURE_SYSTICKS) && MEASURE_SYSTICKS > 0
-static void _systick_start(uint32_t ticks) {
-    /* disable SysTick, clear value */
+#if defined(MEASURE_CPU_CYCLES) && MEASURE_CPU_CYCLES > 0
+#if defined(CPU_FAM_ESP32)
+static uint32_t _cpu_cycles_before;
+#endif
+
+static void _cpu_cycles_start(void) {
+#if defined(CPU_STM32)
+    // disable SysTick, clear value
     SysTick->CTRL = 0;
     SysTick->VAL = 0;
-    /* prepare value in re-load register */
-    SysTick->LOAD = ticks;
-    /* start and wait for the load value to be applied */
+    // prepare value in re-load register
+    SysTick->LOAD = SysTick_LOAD_RELOAD_Msk;
+    // start and wait for the load value to be applied
     SysTick->CTRL = SysTick_CTRL_CLKSOURCE_Msk | SysTick_CTRL_ENABLE_Msk;
-    while (SysTick->VAL == 0) { /* Wait for SysTick to start and spin */ }
+    while (SysTick->VAL == 0) { /* wait for SysTick to start and spin */ }
+#elif defined(CPU_FAM_ESP32)
+    _cpu_cycles_before = xthal_get_ccount();
+#else
+    #error "Cycle counter not implemented for this platform!"
+#endif
 }
 
-static void _systick_stop(void) {
+static void _cpu_cycles_stop(void) {
+#if defined(CPU_STM32)
     uint32_t ticks = SysTick_LOAD_RELOAD_Msk - SysTick->VAL;
     //uint32_t ticks_per_sec = coreclk();
     printf("=== %ld\n", ticks);
@@ -38,6 +53,12 @@ static void _systick_stop(void) {
     /*printf("Calculated nanoseconds: %f\n", nsecs);
     printf("Calculated microseconds: %f\n", nsecs/1000.0);
     printf("Calculated milliseconds: %f\n", nsecs/1000000.0);*/
+#elif defined(CPU_FAM_ESP32)
+    uint32_t ticks = xthal_get_ccount() - _cpu_cycles_before;
+    printf("=== %ld\n", ticks);
+#else
+    #error "Cycle counter not implemented for this platform!"
+#endif
 }
 #endif
 
@@ -54,8 +75,8 @@ static void _heap_stop(void) {
 #endif
 
 static void measurements_start(void) {
-#if defined(MEASURE_SYSTICKS) && MEASURE_SYSTICKS > 0
-    _systick_start(SysTick_LOAD_RELOAD_Msk);
+#if defined(MEASURE_CPU_CYCLES) && MEASURE_CPU_CYCLES > 0
+    _cpu_cycles_start();
 #endif
 
 #if defined(MEASURE_HEAP) && MEASURE_HEAP > 0
@@ -64,8 +85,8 @@ static void measurements_start(void) {
 }
 
 static void measurements_stop(void) {
-#if defined(MEASURE_SYSTICKS) && MEASURE_SYSTICKS > 0
-    _systick_stop();
+#if defined(MEASURE_CPU_CYCLES) && MEASURE_CPU_CYCLES > 0
+    _cpu_cycles_stop();
 #endif
 
 #if defined(MEASURE_HEAP) && MEASURE_HEAP > 0

@@ -8,8 +8,10 @@
 #include "blob/hello.wasm.h"
 #include "wasm_libs.h"
 
-#if (defined(MEASURE_SYSTICKS) && MEASURE_SYSTICKS > 0) || (defined(MEASURE_HEAP) && MEASURE_HEAP > 0)
+#if (defined(MEASURE_CPU_CYCLES) && MEASURE_CPU_CYCLES > 0) || (defined(MEASURE_HEAP) && MEASURE_HEAP > 0)
 #include "../../../external/measurements.h"
+#endif
+#if defined(RESET_LOOP) && RESET_LOOP > 0
 #include "periph/pm.h"
 #endif
 
@@ -26,7 +28,7 @@ void printi32(int32_t i) {
 }
 
 int main(void) {
-#if (defined(MEASURE_SYSTICKS) && MEASURE_SYSTICKS > 0) || (defined(MEASURE_HEAP) && MEASURE_HEAP > 0)
+#if (defined(MEASURE_CPU_CYCLES) && MEASURE_CPU_CYCLES > 0) || (defined(MEASURE_HEAP) && MEASURE_HEAP > 0)
     measurements_start();
 #endif
 
@@ -105,11 +107,11 @@ int main(void) {
     // destroy WASM runtime
     iwasm_runtime_destroy();
 
-#if (defined(MEASURE_SYSTICKS) && MEASURE_SYSTICKS > 0) || (defined(MEASURE_HEAP) && MEASURE_HEAP > 0)
+#if (defined(MEASURE_CPU_CYCLES) && MEASURE_CPU_CYCLES > 0) || (defined(MEASURE_HEAP) && MEASURE_HEAP > 0)
     measurements_stop();
-    #if defined(RESET_LOOP) && RESET_LOOP > 0
+#endif
+#if defined(RESET_LOOP) && RESET_LOOP > 0
     pm_reboot();
-    #endif
 #endif
 
     return 0;
