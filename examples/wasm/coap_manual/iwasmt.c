@@ -12,6 +12,10 @@
 
 #include "wasm_export.h"
 
+#define APP_HEAP_SIZE (32 * 1024)
+
+static uint8_t app_heap[APP_HEAP_SIZE] __attribute__((aligned(8)));
+
 /* execs the main function in an instantiated module */
 static int iwasm_instance_exec_main(wasm_module_inst_t module_inst, int argc, char **argv)
 {
@@ -77,7 +81,11 @@ bool iwasm_runtime_init(void)
     /* using default system allocator, pool allocator and
      * and allocator function hooks are available
      * see <wamr>/core/iwasm/include/wasm_export.h l99..*/
-    init_args.mem_alloc_type = Alloc_With_System_Allocator;
+    //init_args.mem_alloc_type = Alloc_With_System_Allocator;
+
+    init_args.mem_alloc_type = Alloc_With_Pool;
+    init_args.mem_alloc_option.pool.heap_buf  = app_heap;
+    init_args.mem_alloc_option.pool.heap_size = APP_HEAP_SIZE;
 
     /* initialize runtime environment */
     if (!wasm_runtime_full_init(&init_args)) {
