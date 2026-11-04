@@ -235,6 +235,16 @@ def test_wasm_array_sizes(tmp_path, element_type):
     assert source.count('sizeof(values[0]) * (3)') == 2
 
 
+def test_wasm_struct_size(tmp_path):
+    """Struct parameters are checked with the size of the struct, not the size of a pointer to it."""
+    render('wasm', {'lib': {
+        'functions': {'f': {'parameters': {'m': 'measurement'}}},
+        'structs': {'measurement': {'type': 'measurement_t', 'fields': {'val': 'int16_t[3]'}}},
+    }}, tmp_path)
+    source = (tmp_path / 'wasm_libs.c').read_text()
+    assert 'wasm_runtime_validate_app_addr(wasm_module_inst, (uintptr_t) m, sizeof(measurement_t))' in source
+
+
 def test_js_pointer_handle_release_function(tmp_path):
     render('js', {'lib': {'pointer_handles': {'ptr': 'thing_t*'}}}, tmp_path)
     source = (tmp_path / 'js_libs.c').read_text()
