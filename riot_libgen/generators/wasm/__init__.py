@@ -108,6 +108,7 @@ NATIVE_TYPES_MAPPING = {
 }
 
 POINTER_TYPE = 'i' #TODO this might become variable in the future
+STRING_TYPE = 'const char*'
 
 
 class WasmLibrary(Library):
@@ -127,10 +128,13 @@ class WasmFunction(Function):
         for parameter in self.parameters.values():
             if parameter.is_array() or parameter.is_struct():
                 signature += POINTER_TYPE
-            elif parameter.type in self._library.function_handles:
+            elif parameter.is_function_handle():
                 signature += NATIVE_TYPES_MAPPING[FUNCTION_HANDLE_TYPE]
-            elif parameter.type in self._library.pointer_handles:
+            elif parameter.is_pointer_handle():
                 signature += NATIVE_TYPES_MAPPING[POINTER_HANDLE_TYPE]
+            elif parameter.type == STRING_TYPE:
+                # passed as pointer and converted by the generated code, so that NULL can be passed as well
+                signature += POINTER_TYPE
             elif parameter.type in NATIVE_TYPES_MAPPING:
                 signature += NATIVE_TYPES_MAPPING[parameter.type]
             else:

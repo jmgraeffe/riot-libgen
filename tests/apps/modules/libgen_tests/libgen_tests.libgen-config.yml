@@ -82,6 +82,13 @@ libraries:
             type: uint8_t*
             length_parameter: len
           len: size_t
+      bytes_is_null:
+        parameters:
+          data:
+            type: const uint8_t*
+            length_parameter: len
+          len: size_t
+        return_type: int
 
       # function handles
       apply_int_op:

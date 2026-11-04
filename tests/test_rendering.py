@@ -163,7 +163,9 @@ def test_wasm_native_symbols(tmp_path):
     }, tmp_path)
     source = (tmp_path / 'wasm_libs.c').read_text()
     signatures = dict(re.findall(r'"lib_(\w+)",\s*NULL,[^\n]*\n\s*"([^"]*)"', source))
-    assert signatures == {'f': '(iIfF$$Iii)F', 'g': '()I', 'h': '()i'}
+    # strings are passed as i32 and converted by the generated code (so that NULL can be passed), function
+    # handles (names of guest functions) are converted by WAMR ($)
+    assert signatures == {'f': '(iIfFi$Iii)F', 'g': '()I', 'h': '()i'}
 
 
 @pytest.mark.parametrize('generator,type_', [
@@ -256,6 +258,20 @@ def test_wasm_byte_array_range(tmp_path):
     """The whole range of a byte array (as given by the length parameter) is checked to be in the WASM memory."""
     source = _byte_array_function('wasm', tmp_path)
     assert 'wasm_runtime_validate_app_addr(wasm_module_inst, (uintptr_t) data, len)' in source
+
+
+def test_wasm_string_and_byte_array_null(tmp_path):
+    """Strings and byte arrays from the guest are validated and converted, except for NULL (0)."""
+    render('wasm', {'lib': {'functions': {'f': {'parameters': {
+        's': 'const char*',
+        'data': {'type': 'const uint8_t*', 'length_parameter': 'len'},
+        'len': 'size_t',
+    }}}}}, tmp_path)
+    source = (tmp_path / 'wasm_libs.c').read_text()
+    assert re.search(r'if \(s != NULL\) \{\s+if \(!wasm_runtime_validate_app_str_addr\(wasm_module_inst, \(uintptr_t\) s\)\)',
+                     source)
+    assert re.search(r'if \(data != NULL\) \{\s+if \(!wasm_runtime_validate_app_addr\(wasm_module_inst, \(uintptr_t\) data, len\)\)',
+                     source)
 
 
 def test_js_byte_array_length(tmp_path):

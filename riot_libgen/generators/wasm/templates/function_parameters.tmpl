@@ -42,9 +42,24 @@ strcpy(function_handle_next_function_name_{{ library.name }}_{{ parameter.functi
 if (wasm_module_inst == NULL) {
     core_panic(PANIC_GENERAL_ERROR, "wasm_libs: WASM module instance is not set (use wasm_libs_set_wasm_module_inst)");
 }
-{# the whole range given by the length parameter needs to be in the WASM memory #}
-if (!wasm_runtime_validate_app_addr(wasm_module_inst, (uintptr_t) {{ parameter.name }}, {{ parameter.length_parameter }})) {
-    core_panic(PANIC_GENERAL_ERROR, "wasm_libs: function '{{ library.prefix }}{{ function.name }}' was called with a byte array parameter '{{ parameter.name }}' that does not lie in the WASM memory region (with length '{{ parameter.length_parameter }}')");
+{# NULL (0) is passed as is, otherwise the whole range given by the length parameter needs to be in the WASM memory #}
+if ({{ parameter.name }} != NULL) {
+    if (!wasm_runtime_validate_app_addr(wasm_module_inst, (uintptr_t) {{ parameter.name }}, {{ parameter.length_parameter }})) {
+        core_panic(PANIC_GENERAL_ERROR, "wasm_libs: function '{{ library.prefix }}{{ function.name }}' was called with a byte array parameter '{{ parameter.name }}' that does not lie in the WASM memory region (with length '{{ parameter.length_parameter }}')");
+    }
+    {{ parameter.name }} = ({{ parameter.type }}) wasm_runtime_addr_app_to_native(wasm_module_inst, (uintptr_t) {{ parameter.name }});
 }
-{{ parameter.name }} = ({{ parameter.type }}) wasm_runtime_addr_app_to_native(wasm_module_inst, (uintptr_t) {{ parameter.name }});
+{% endmacro %}
+
+{% macro string(library, function, parameter) %}
+if (wasm_module_inst == NULL) {
+    core_panic(PANIC_GENERAL_ERROR, "wasm_libs: WASM module instance is not set (use wasm_libs_set_wasm_module_inst)");
+}
+{# NULL (0) is passed as is, otherwise the string (including its terminating '\0') needs to be in the WASM memory #}
+if ({{ parameter.name }} != NULL) {
+    if (!wasm_runtime_validate_app_str_addr(wasm_module_inst, (uintptr_t) {{ parameter.name }})) {
+        core_panic(PANIC_GENERAL_ERROR, "wasm_libs: function '{{ library.prefix }}{{ function.name }}' was called with a string parameter '{{ parameter.name }}' that does not lie in the WASM memory region");
+    }
+    {{ parameter.name }} = ({{ parameter.type }}) wasm_runtime_addr_app_to_native(wasm_module_inst, (uintptr_t) {{ parameter.name }});
+}
 {% endmacro %}

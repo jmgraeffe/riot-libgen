@@ -151,6 +151,9 @@ static {{ c.function_handle_return_type(library, handle) }} function_handle_inte
             {% elif parameter.is_function_handle() %}
 {{ tmpl_function_parameters.function_handle(library, function, parameter)|trim }}
 
+            {% elif parameter.get_wasm_runtime_signature() == '$' %}
+{{ tmpl_function_parameters.string(library, function, parameter)|trim }}
+
             {% elif parameter.is_byte_array() %}
 {{ tmpl_function_parameters.byte_array(library, function, parameter)|trim }}
 

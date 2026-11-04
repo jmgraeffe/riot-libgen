@@ -181,7 +181,7 @@ WASM_EXPORT int main(void) {
     check("strings.content", tests_string_checksum("hello"), 99162322);
     check("strings.utf8", tests_string_checksum("h\xc3\xa9llo"), 3162660225LL);
     check("strings.empty", tests_string_length(""), 0);
-    /* strings.null: JS only, there is no null for strings in WASM */
+    check("strings.null", tests_string_is_null(NULL), 1);
 
     /* byte arrays */
 
@@ -192,6 +192,7 @@ WASM_EXPORT int main(void) {
         tests_fill_bytes(buf, 4);
         CHECK_ALL("byte_arrays.writable", { buf[0], 'a' }, { buf[1], 'b' }, { buf[2], 'c' }, { buf[3], 'd' });
     }
+    check("byte_arrays.null", tests_bytes_is_null(NULL, 0), 1);
     /* not tested, as panics end the test run: a length parameter that exceeds the WASM memory */
 
     /* function handles */

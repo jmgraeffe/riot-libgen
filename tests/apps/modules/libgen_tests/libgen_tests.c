@@ -93,6 +93,11 @@ void fill_bytes(uint8_t* buf, size_t len) {
     }
 }
 
+int bytes_is_null(const uint8_t* data, size_t len) {
+    (void) len;
+    return data == NULL;
+}
+
 /* function handles */
 
 int apply_int_op(int a, int b, int (*op)(int a, int b)) {

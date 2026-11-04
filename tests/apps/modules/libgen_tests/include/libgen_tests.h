@@ -47,6 +47,7 @@ int string_is_null(const char* s);
 /* byte arrays */
 uint32_t bytes_checksum(const uint8_t* data, size_t len);
 void fill_bytes(uint8_t* buf, size_t len);
+int bytes_is_null(const uint8_t* data, size_t len);
 
 /* function handles */
 int apply_int_op(int a, int b, int (*op)(int a, int b));

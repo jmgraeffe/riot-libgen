@@ -57,6 +57,7 @@ check("strings.null", tests.string_is_null(null), 1);
 check("byte_arrays.content", tests.bytes_checksum("abc", 3), 96354);
 check("byte_arrays.length_parameter", tests.bytes_checksum("abcdef", 3), 96354);
 check("byte_arrays.writable", typeof tests.fill_bytes("xxxx", 4), "undefined");
+check("byte_arrays.null", tests.bytes_is_null(null, 0), 1);
 // not tested, as panics end the test run: a length parameter larger than the byte array
 
 // function handles
