@@ -53,6 +53,7 @@ check_all("primitives.bool_parameter", [
 // constants
 
 check("constants.number", tests.ANSWER, 42);
+check("constants.float", tests.HALF, 0.5);
 check("constants.string", tests.GREETING, "hello");
 
 // strings

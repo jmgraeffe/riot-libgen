@@ -84,3 +84,19 @@ def test_struct():
 ])
 def test_struct_invalid(struct):
     assert errors({'libraries': {'mylib': {'structs': {'my_struct': struct}}}}) != []
+
+
+def test_library_prefix():
+    assert errors({'libraries': {'mylib': {'prefix': 'my', 'functions': {'my_func': None}}}}) == []
+
+
+def test_library_unknown_property():
+    assert errors({'libraries': {'mylib': {'struct': {}}}}) != []
+
+
+def test_constants():
+    assert errors({'libraries': {'mylib': {'constants': {
+        'answer': 42,
+        'pi_ish': 3.14,
+        'greeting': 'hello',
+    }}}}) == []

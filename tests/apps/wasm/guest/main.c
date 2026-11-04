@@ -183,6 +183,7 @@ WASM_EXPORT int main(void) {
     /* constants */
 
     check("constants.number", TESTS_ANSWER, 42);
+    check_double("constants.float", TESTS_HALF, 0.5);
     check("constants.string", streq(TESTS_GREETING, "hello"), true);
 
     /* strings */

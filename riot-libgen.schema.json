@@ -13,6 +13,12 @@
 					"description": "Object whose properties represent the contents of a library, such as functions, function handles, pointer handles, constants et cetera.",
 					"type": "object",
 					"properties": {
+						"prefix": {
+							"description": "String that is used instead of the library name as prefix for the names of exported functions and constants, e.g. in the WASM runtime environment.",
+							"type": "string",
+							"pattern": "^[a-z][a-z0-9\\_]*$",
+							"examples": ["my_lib"]
+						},
 						"includes": {
 							"description": "List of strings that contain the (relative) paths to C header files to be included by the generated export code, so that the host C functions are available to it.",
 							"type": "array",
@@ -153,9 +159,9 @@
 							"type": "object",
 							"patternProperties": {
 								"^[a-z][a-z0-9\\_]+[a-z0-9]$": {
-									"description": "String or integer with the constant value. This cannot be a macro or an expression or anything other than a string or an integer.",
-									"type": ["string", "integer"],
-									"examples": [42, "Hello World!"]
+									"description": "String or number with the constant value. This cannot be a macro or an expression or anything other than a string or a number.",
+									"type": ["string", "number"],
+									"examples": [42, 3.14, "Hello World!"]
 								}
 							}
 						},
@@ -188,7 +194,8 @@
 								}
 							}
 						}
-					}
+					},
+					"additionalProperties": false
 				}
 			}	
 		}

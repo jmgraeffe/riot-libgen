@@ -43,6 +43,7 @@ CASES = {
     'primitives.bool_return': BOTH,
     'primitives.bool_parameter': BOTH,
     'constants.number': BOTH,
+    'constants.float': BOTH,
     'constants.string': BOTH,
     'strings.length': BOTH,
     'strings.content': BOTH,
