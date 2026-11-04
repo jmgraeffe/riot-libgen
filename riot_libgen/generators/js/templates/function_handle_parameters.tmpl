@@ -60,7 +60,7 @@ for (uint32_t i = 0; i < (uint32_t) ({{ param.array_size }}); ++i) {
 {% endmacro %}
 
 {% macro string(library, handle, param, dest) %}
-{{ dest }} = jerry_create_string((const jerry_char_t*) {{ param.name }});
+{{ dest }} = {{ param.name }} != NULL ? jerry_create_string((const jerry_char_t*) {{ param.name }}) : jerry_create_null();
 {% endmacro %}
 
 {% macro byte_array(library, handle, param, dest) %}

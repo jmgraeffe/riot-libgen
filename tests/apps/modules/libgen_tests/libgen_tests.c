@@ -118,6 +118,10 @@ size_t call_with_strings(void (*cb)(const char* s)) {
     return total;
 }
 
+void call_with_null_string(void (*cb)(const char* s)) {
+    cb(NULL);
+}
+
 void call_with_bytes(void (*cb)(const uint8_t* data, size_t len)) {
     static const uint8_t data[] = { 1, 2, 3, 0, 127 };
     cb(data, sizeof(data));

@@ -94,6 +94,11 @@ WASM_EXPORT void guest_string_length_receiver(const char* s) {
     }
 }
 
+static bool received_null_string = false;
+WASM_EXPORT void guest_null_string_receiver(const char* s) {
+    received_null_string = (s == NULL);
+}
+
 static int void_calls = 0;
 WASM_EXPORT void guest_count(void) {
     ++void_calls;
@@ -172,6 +177,8 @@ WASM_EXPORT int main(void) {
         size_t sent_length = tests_call_with_strings(WASM_LIBS_FUNCTION_HANDLE("guest_string_length_receiver"));
         check("function_handles.string_parameter_terminated", received_length, sent_length);
     }
+    tests_call_with_null_string(WASM_LIBS_FUNCTION_HANDLE("guest_null_string_receiver"));
+    check("function_handles.string_parameter_null", received_null_string, true);
 
     tests_call_with_bytes(WASM_LIBS_FUNCTION_HANDLE("guest_bytes_receiver"));
     CHECK_ALL("function_handles.byte_array_parameter",

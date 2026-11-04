@@ -97,6 +97,9 @@ libraries:
         parameters:
           cb: string_receiver
         return_type: size_t
+      call_with_null_string:
+        parameters:
+          cb: string_receiver
       call_with_bytes:
         parameters:
           cb: bytes_receiver

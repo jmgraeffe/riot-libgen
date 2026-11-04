@@ -44,6 +44,6 @@
 {% macro string(library, handle, param, dest) %}
 {# TODO 32bit memory model assumed, might become variable in the future #}
 {{ dest }}.kind = WASM_I32;
-{# + 1 to copy the terminating '\0' as well #}
-{{ dest }}.of.i32 = (int32_t) wasm_runtime_module_dup_data(wasm_module_inst, (const char*) {{ param.name }}, strlen((const char*) {{ param.name }}) + 1);
+{# + 1 to copy the terminating '\0' as well, NULL is passed as 0 #}
+{{ dest }}.of.i32 = {{ param.name }} != NULL ? (int32_t) wasm_runtime_module_dup_data(wasm_module_inst, (const char*) {{ param.name }}, strlen((const char*) {{ param.name }}) + 1) : 0;
 {% endmacro %}

@@ -217,8 +217,9 @@ def test_wasm_function_handle_with_string_parameter(tmp_path):
         'function_handles': {'handler': {'parameters': {'s': 'const char*'}}},
     }}, tmp_path)
     source = (tmp_path / 'wasm_libs.c').read_text()
-    # the name of the parameter is used, and the terminating '\0' is copied as well
-    assert 'wasm_runtime_module_dup_data(wasm_module_inst, (const char*) s, strlen((const char*) s) + 1)' in source
+    # the name of the parameter is used, the terminating '\0' is copied as well, and NULL is passed as 0
+    assert 's != NULL ? (int32_t) wasm_runtime_module_dup_data(wasm_module_inst, (const char*) s, ' \
+           'strlen((const char*) s) + 1) : 0;' in source
 
 
 def test_js_pointer_handle_release_function(tmp_path):

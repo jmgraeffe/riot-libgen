@@ -80,6 +80,13 @@ function js_string_length_receiver(s) {
 check("function_handles.string_parameter_terminated",
       tests.call_with_strings("js_string_length_receiver"), received_length);
 
+var received_null_string = false;
+function js_null_string_receiver(s) {
+    received_null_string = (s === null);
+}
+tests.call_with_null_string("js_null_string_receiver");
+check("function_handles.string_parameter_null", received_null_string, true);
+
 var received_data = null;
 var received_len = null;
 function js_bytes_receiver(data, len) {
