@@ -1,0 +1,33 @@
+{# shared macros for rendering C declarations; all macros render a single line without trailing newline #}
+{% macro type_and_name(library, parameter) %}
+{% if parameter.is_array() %}
+{{ parameter._element_parameter.type }} {{ parameter.name }}[{{ parameter.array_size }}]
+{%- elif parameter.is_struct() %}
+{{ library.structs[parameter.struct].type }} {{ parameter.name }}
+{%- else %}
+{{ parameter.type }} {{ parameter.name }}
+{%- endif %}
+{% endmacro %}
+{% macro parameter_list(library, function) %}
+{% for parameter in function.parameters.values() %}
+{{ type_and_name(library, parameter) }}{{ ", " if not loop.last }}
+{%- else %}
+void
+{%- endfor %}
+{% endmacro %}
+{% macro function_handle_return_type(library, handle) %}
+{% if handle.returns_struct() %}
+{{ library.structs[handle.returned_struct].type }}
+{%- else %}
+{{ handle.return_type }}
+{%- endif %}
+{% endmacro %}
+{% macro function_return_type(library, function) %}
+{% if function.returns_struct() %}
+{{ library.structs[function.returned_struct].type }}
+{%- elif function.returns_pointer_handle() %}
+{{ library.pointer_handles[function.returned_pointer_handle].type }}
+{%- else %}
+{{ function.return_type }}
+{%- endif %}
+{% endmacro %}

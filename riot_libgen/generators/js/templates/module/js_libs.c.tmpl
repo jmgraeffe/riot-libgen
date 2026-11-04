@@ -1,9 +1,10 @@
-{%- import 'generators/js/templates/function_parameters.tmpl' as tmpl_function_parameters -%}
-{%- import 'generators/js/templates/function_call.tmpl' as tmpl_function_call -%}
-{%- import 'generators/js/templates/function_cleanup.tmpl' as tmpl_function_cleanup -%}
-{%- import 'generators/js/templates/function_returns.tmpl' as tmpl_function_returns -%}
-{%- import 'generators/js/templates/function_handle_parameters.tmpl' as tmpl_function_handle_parameters -%}
-{%- import 'generators/js/templates/function_handle_returns.tmpl' as tmpl_function_handle_returns -%}
+{% import 'templates/c.tmpl' as c %}
+{% import 'generators/js/templates/function_parameters.tmpl' as tmpl_function_parameters %}
+{% import 'generators/js/templates/function_call.tmpl' as tmpl_function_call %}
+{% import 'generators/js/templates/function_cleanup.tmpl' as tmpl_function_cleanup %}
+{% import 'generators/js/templates/function_returns.tmpl' as tmpl_function_returns %}
+{% import 'generators/js/templates/function_handle_parameters.tmpl' as tmpl_function_handle_parameters %}
+{% import 'generators/js/templates/function_handle_returns.tmpl' as tmpl_function_handle_returns %}
 #include <stdlib.h>
 #include <string.h>
 #include <panic.h>
@@ -24,23 +25,11 @@ static jerry_value_t empty_constructor(const jerry_value_t func_val,
 
     return jerry_create_undefined();
 }
-
-{%- for library in libraries.values() -%}
-    {%- for handle in library.function_handles.values() %}
+{% for library in libraries.values() %}
+{% for handle in library.function_handles.values() %}
 
 static char function_handle_next_function_name_{{ library.name }}_{{ handle.name }}[JS_LIBS_FUNCTION_HANDLE_MAX_LENGTH + 1] = {'\0'};
-static {% if handle.returns_struct() %}{{ library.structs[handle.returned_struct].type }}{% else %}{{ handle.return_type }}{% endif %} function_handle_internal_function_{{ library.name }}_{{ handle.name }}(
-        {%- if handle.parameters|length == 0 %}void{% endif %}
-        {%- for parameter in handle.parameters.values() %}
-            {%- if parameter.is_array() %}
-    {{ parameter._element_parameter.type }} {{ parameter.name }}[{{ parameter.array_size }}]{%- if not loop.last %}, {% endif -%}
-            {%- elif parameter.is_struct() %}
-    {{ library.structs[parameter.struct].type }} {{ parameter.name }}{%- if not loop.last %}, {% endif -%}
-            {%- else %}
-    {{ parameter.type }} {{ parameter.name }}{% if not loop.last %}, {% endif %}
-            {%- endif %}
-        {%- endfor %}
-) {
+static {{ c.function_handle_return_type(library, handle) }} function_handle_internal_function_{{ library.name }}_{{ handle.name }}({{ c.parameter_list(library, handle) }}) {
     // lookup name of function handle in engine context
     jerry_value_t global_object = jerry_get_global_object();
     jerry_value_t name = jerry_create_string((const jerry_char_t *) function_handle_next_function_name_{{ library.name }}_{{ handle.name }});
@@ -53,58 +42,55 @@ static {% if handle.returns_struct() %}{{ library.structs[handle.returned_struct
 
     // construct parameters for upcoming call
     jerry_value_t args[{{ [handle.parameters|length, 1]|max }}];
-        {% set state = namespace(counter=0) %}
-        {%- for param in handle.parameters.values() -%}
-            {%- if param.is_struct() %}
-                {{ tmpl_function_handle_parameters.struct(library, handle, param, 'args[' ~ state.counter ~ ']') }}
-            {%- elif param.is_array() %}
-                {{ tmpl_function_handle_parameters.array(library, handle, param, 'args[' ~ state.counter ~ ']') }}
-            {%- elif param.is_pointer_handle() %}
-                {{ tmpl_function_handle_parameters.pointer_handle(library, handle, param, 'args[' ~ state.counter ~ ']') }}
-            {%- elif param.is_number() %}
-                {{ tmpl_function_handle_parameters.number(library, handle, param, 'args[' ~ state.counter ~ ']') }}
-            {%- elif param.is_string() %}
-                {{ tmpl_function_handle_parameters.string(library, handle, param, 'args[' ~ state.counter ~ ']') }}
-            {%- elif param.is_byte_array() -%}
-                {{ tmpl_function_handle_parameters.byte_array(library, handle, param, 'args[' ~ state.counter ~ ']') }}
-            {%- else %}
-                {% raise "library '" ~ library.name ~ "', function handle '" ~ handle.name ~ "', parameter '" ~ param.name ~ "': unsupported type '" ~ param.type ~ "' (Maybe it is a function handle? Function handles as parameters of function handles not supported yet.)" %}
-            {%- endif %}
-            {%- set state.counter = state.counter + 1 -%}
-        {%- endfor %}
+    {% for param in handle.parameters.values() %}
+        {% set dest = 'args[' ~ loop.index0 ~ ']' %}
+        {% if param.is_struct() %}
+    {{ tmpl_function_handle_parameters.struct(library, handle, param, dest)|trim|indent(4) }}
+        {% elif param.is_array() %}
+    {{ tmpl_function_handle_parameters.array(library, handle, param, dest)|trim|indent(4) }}
+        {% elif param.is_pointer_handle() %}
+    {{ tmpl_function_handle_parameters.pointer_handle(library, handle, param, dest)|trim|indent(4) }}
+        {% elif param.is_number() %}
+    {{ tmpl_function_handle_parameters.number(library, handle, param, dest)|trim|indent(4) }}
+        {% elif param.is_string() %}
+    {{ tmpl_function_handle_parameters.string(library, handle, param, dest)|trim|indent(4) }}
+        {% elif param.is_byte_array() %}
+    {{ tmpl_function_handle_parameters.byte_array(library, handle, param, dest)|trim|indent(4) }}
+        {% else %}
+            {% raise "library '" ~ library.name ~ "', function handle '" ~ handle.name ~ "', parameter '" ~ param.name ~ "': unsupported type '" ~ param.type ~ "' (Maybe it is a function handle? Function handles as parameters of function handles not supported yet.)" %}
+        {% endif %}
+    {% endfor %}
 
     // call function handle
     jerry_value_t res_value = jerry_call_function(func, global_object, args, {{ handle.parameters|length }});
+    {% if handle.return_type != 'void' %}
 
-        {%- if handle.return_type != 'void' %}
-            {%- if handle.returns_struct() %}
-                {{ tmpl_function_handle_returns.struct(library, handle, param) }}
-            {%- elif handle.returns_pointer_handle() %}
-                {{ tmpl_function_handle_returns.pointer_handle(library, handle, param) }}
-            {%- elif handle.returns_number() %}
-                {{ tmpl_function_handle_returns.number(library, handle, param) }}
-            {%- else -%}
-                {% raise "library '" ~ library.name ~ "', function handle '" ~ handle.name ~ "', return type: unsupported type '" ~ handle.return_type ~ "' (Maybe it is a function handle? Function handles as parameters of function handles not supported yet.)" %}
-            {%- endif %}
-        {%- endif %}
+        {% if handle.returns_struct() %}
+    {{ tmpl_function_handle_returns.struct(library, handle, param)|trim|indent(4) }}
+        {% elif handle.returns_pointer_handle() %}
+    {{ tmpl_function_handle_returns.pointer_handle(library, handle, param)|trim|indent(4) }}
+        {% elif handle.returns_number() %}
+    {{ tmpl_function_handle_returns.number(library, handle, param)|trim|indent(4) }}
+        {% else %}
+            {% raise "library '" ~ library.name ~ "', function handle '" ~ handle.name ~ "', return type: unsupported type '" ~ handle.return_type ~ "' (Maybe it is a function handle? Function handles as parameters of function handles not supported yet.)" %}
+        {% endif %}
+    {% endif %}
 
     // cleanup
     jerry_release_value(global_object);
     jerry_release_value(name);
     jerry_release_value(func);
-        {%- for param in handle.parameters.values() %}
+    {% for param in handle.parameters.values() %}
     jerry_release_value(args[{{ loop.index0 }}]);
-        {%- endfor %}
+    {% endfor %}
     jerry_release_value(res_value);
-
-        {%- if handle.return_type != 'void' %}
+    {% if handle.return_type != 'void' %}
 
     return res;
-        {%- endif %}
+    {% endif %}
 }
-    {%- endfor %}
-
-    {%- for function in library.functions.values() %}
+{% endfor %}
+{% for function in library.functions.values() %}
 
 static jerry_value_t {{ library.name }}_{{ function.name }}_native(
     const jerry_value_t func_val,
@@ -115,75 +101,94 @@ static jerry_value_t {{ library.name }}_{{ function.name }}_native(
     (void) func_val;
     (void) this_val;
     (void) argc;
-    {%- if function.parameters|length == 0 %}
+    {% if not function.parameters %}
     (void) argv;
-    {%- endif %}
+    {% endif %}
+    {% set prepare %}
+        {% for parameter in function.parameters.values() %}
+            {% set container = 'argv[' ~ loop.index0 ~ ']' %}
+            {% if parameter.is_struct() %}
+{{ tmpl_function_parameters.struct(library, function, parameter, container)|trim }}
+
+            {% elif parameter.is_array() %}
+{{ tmpl_function_parameters.array(library, function, parameter, container)|trim }}
+
+            {% elif parameter.is_function_handle() %}
+{{ tmpl_function_parameters.function_handle(library, function, parameter, container)|trim }}
+
+            {% elif parameter.is_pointer_handle() %}
+{{ tmpl_function_parameters.pointer_handle(library, function, parameter, container)|trim }}
+
+            {% elif parameter.is_number() %}
+{{ tmpl_function_parameters.number(library, function, parameter, container)|trim }}
+
+            {% elif parameter.is_string() or parameter.is_byte_array() %}
+{{ tmpl_function_parameters.string_byte_array(library, function, parameter, container)|trim }}
+
+            {% else %}
+                {% raise "library '" ~ library.name ~ "', function '" ~ function.name ~ "', parameter '" ~ parameter.name ~ "': unsupported type '" ~ parameter.type ~ "'" %}
+            {% endif %}
+        {% endfor %}
+    {% endset %}
+    {% if prepare|trim %}
 
     // prepare function parameters
     {# TODO argv length check #}
-    {%- set state = namespace(counter=0) -%}
-    {%- for parameter in function.parameters.values() -%}
-        {%- if parameter.is_struct() %}
-            {{ tmpl_function_parameters.struct(library, function, parameter, 'argv[' ~ state.counter ~ ']') }}
-        {%- elif parameter.is_array() %}
-            {{ tmpl_function_parameters.array(library, function, parameter, 'argv[' ~ state.counter ~ ']') }}
-        {%- elif parameter.is_function_handle() %}
-            {{ tmpl_function_parameters.function_handle(library, function, parameter, 'argv[' ~ state.counter ~ ']') }}
-        {%- elif parameter.is_pointer_handle() %}
-            {{ tmpl_function_parameters.pointer_handle(library, function, parameter, 'argv[' ~ state.counter ~ ']') }}
-        {%- elif parameter.is_number() %}
-            {{ tmpl_function_parameters.number(library, function, parameter, 'argv[' ~ state.counter ~ ']') }}
-        {%- elif parameter.is_string() or parameter.is_byte_array() -%}
-            {{ tmpl_function_parameters.string_byte_array(library, function, parameter, 'argv[' ~ state.counter ~ ']') }}
-        {%- else %}
-            {% raise "library '" ~ library.name ~ "', function '" ~ function.name ~ "', parameter '" ~ parameter.name ~ "': unsupported type '" ~ parameter.type ~ "'" %}
-        {%- endif %}
-        {%- set state.counter = state.counter + 1 -%}
-    {%- endfor %}
+    {{ prepare|trim|indent(4) }}
+    {% endif %}
 
     // call native function
-    {% if function.return_type != 'void' %}{% if function.returns_struct() %}{{ library.structs[function.returned_struct].type }}{% elif function.returns_pointer_handle() %}{{ library.pointer_handles[function.returned_pointer_handle].type }}{% else %}{{ function.return_type }}{% endif %} res = {% endif %}{{ function.original_name }}(
-    {%- for parameter in function.parameters.values() -%}
-        {%- set state = namespace(last=loop.last) -%}
-        {%- if parameter.is_function_handle() %}
-            {{ tmpl_function_call.function_handle(library, function, parameter, state) }}
-        {%- elif parameter.is_string() or parameter.is_byte_array() %}
-            {{ tmpl_function_call.string_byte_array(library, function, parameter, state) }}
-        {%- else %}
-        {{ parameter.name }}{% if not state.last %}, {% endif %}
-        {%- endif %}
-    {%- endfor %}
+    {% set result %}{% if function.return_type != 'void' %}{{ c.function_return_type(library, function) }} res = {% endif %}{% endset %}
+    {% if function.parameters %}
+    {{ result }}{{ function.original_name }}(
+        {% for parameter in function.parameters.values() %}
+            {% if parameter.is_function_handle() %}
+        {{ tmpl_function_call.function_handle(library, function, parameter)|trim }}{{ "," if not loop.last }}
+            {% elif parameter.is_string() or parameter.is_byte_array() %}
+        {{ tmpl_function_call.string_byte_array(library, function, parameter)|trim }}{{ "," if not loop.last }}
+            {% else %}
+        {{ parameter.name }}{{ "," if not loop.last }}
+            {% endif %}
+        {% endfor %}
     );
+    {% else %}
+    {{ result }}{{ function.original_name }}();
+    {% endif %}
+    {% set cleanup %}
+        {% for parameter in function.parameters.values() %}
+            {% if parameter.is_string() or parameter.is_byte_array() %}
+{{ tmpl_function_cleanup.string_byte_array(library, function, parameter)|trim }}
+            {% endif %}
+        {% endfor %}
+    {% endset %}
+    {% if cleanup|trim %}
 
     // cleanup
-    {%- for parameter in function.parameters.values() -%}
-        {%- if parameter.is_string() or parameter.is_byte_array() %}
-            {{ tmpl_function_cleanup.string_byte_array(library, function, parameter) }}
-        {%- endif %}
-    {%- endfor %}
+    {{ cleanup|trim|indent(4) }}
+    {% endif %}
 
-    {% if function.return_type == 'void' -%}
-        {{ tmpl_function_returns.void(library, function) }}
-    {%- elif function.returns_struct() -%}
-        {{ tmpl_function_returns.struct(library, function) }}
-    {%- elif function.returns_pointer_handle() -%}
-        {{ tmpl_function_returns.pointer_handle(library, function) }}
-    {%- elif function.returns_number() -%}
-        {{ tmpl_function_returns.number(library, function) }}
-    {%- else -%}
-         {% raise "library '" ~ library.name ~ "', function '" ~ function.name ~ "', return type: unsupported type '" ~ function.return_type ~ "' (Maybe it is a function handle? Function handles as return types are not supported yet.)" %}
-    {%- endif %}
+    {% if function.return_type == 'void' %}
+    {{ tmpl_function_returns.void(library, function)|trim|indent(4) }}
+    {% elif function.returns_struct() %}
+    {{ tmpl_function_returns.struct(library, function)|trim|indent(4) }}
+    {% elif function.returns_pointer_handle() %}
+    {{ tmpl_function_returns.pointer_handle(library, function)|trim|indent(4) }}
+    {% elif function.returns_number() %}
+    {{ tmpl_function_returns.number(library, function)|trim|indent(4) }}
+    {% else %}
+        {% raise "library '" ~ library.name ~ "', function '" ~ function.name ~ "', return type: unsupported type '" ~ function.return_type ~ "' (Maybe it is a function handle? Function handles as return types are not supported yet.)" %}
+    {% endif %}
 }
-    {%- endfor -%}
 {% endfor %}
+{% endfor %}
+{% for library in libraries.values() %}
 
-{% for library in libraries.values() -%}
 int js_libs_register_{{ library.name }}_natives(void) {
     jerry_value_t constructor = jerry_create_external_function(empty_constructor);
     jerry_value_t library_object = jerry_construct_object(constructor, NULL, 0);
-    
+
     // export natives and add them to library object
-    {%- for function in library.functions.values() %}
+    {% for function in library.functions.values() %}
     {
         jerry_value_t property_name_function = jerry_create_string((const jerry_char_t*) ("{{ function.name }}"));
         jerry_value_t property_value_function = jerry_create_external_function({{ library.name }}_{{ function.name }}_native);
@@ -200,10 +205,10 @@ int js_libs_register_{{ library.name }}_natives(void) {
         jerry_release_value(property_value_function);
         jerry_release_value(res);
     }
-    {%- endfor %}
+    {% endfor %}
 
     // define constants and add them to library object
-    {%- for name, value in library.constants.items() %}
+    {% for name, value in library.constants.items() %}
     {
         jerry_value_t property_name_constant = jerry_create_string((const jerry_char_t*) ("{{ library.get_constant_identifier(name) }}"));
         {% if value is string %}
@@ -226,7 +231,7 @@ int js_libs_register_{{ library.name }}_natives(void) {
         jerry_release_value(property_value_constant);
         jerry_release_value(res);
     }
-    {%- endfor %}
+    {% endfor %}
 
     // put library as property into global object
     jerry_value_t global_object = jerry_get_global_object();
@@ -251,7 +256,7 @@ int js_libs_register_{{ library.name }}_natives(void) {
 
     return {{ library.functions|length }};
 }
-{%- endfor %}
+{% endfor %}
 
 void js_libs_extract_error_message(jerry_value_t error_value) {
     if (!jerry_value_is_error(error_value)) {

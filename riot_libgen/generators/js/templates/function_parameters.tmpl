@@ -1,115 +1,115 @@
-{%- macro struct(library, function, parameter, container) %}
-    {{ library.structs[parameter.struct].type }} {{ parameter.name }} = {0};
-    if (!jerry_value_is_object({{ container }})) {
-        core_panic(PANIC_GENERAL_ERROR, "js_libs: library '{{ library.name }}', function '{{ function.name }}', parameter '{{ parameter.name }}': not an object");
-    }
-    {%- for field in library.structs[parameter.struct].fields.values() %}
-        jerry_value_t field_property_name_{{ field.name }} = jerry_create_string((const jerry_char_t*) ("{{ field.name }}"));
-        jerry_value_t field_value_{{ field.name }} = jerry_get_property({{ container }}, field_property_name_{{ field.name }});
-        {%- if field.is_array() %}
-            {{ array(library, function, field, 'field_value_' ~ field.name) }}
-            for (uint32_t i = 0; i < (uint32_t) ({{ field.array_size }}); ++i) {
-                {{ parameter.name }}.{{ field.name }}[i] = {{ field.name }}[i];
-            }
-        {%- elif field.is_pointer_handle() %}
-            {{ pointer_handle(library, function, field, 'field_value_' ~ field.name) }}
-            {{ parameter.name }}.{{ field.name }} = {{ field.name }};
-        {%- elif field.is_number() %}
-            {{ number(library, function, field, 'field_value_' ~ field.name) }}
-            {{ parameter.name }}.{{ field.name }} = {{ field.name }};
-        {%- elif field.is_string() %}
-            {{ string(library, function, field, 'field_value_' ~ field.name) }}
-            {{ parameter.name }}.{{ field.name }} = {{ field.name }};
-        {%- elif field.is_byte_array() -%}
-            {{ byte_array(library, function, field, 'field_value_' ~ field.name) }}
-            {{ parameter.name }}.{{ field.name }} = {{ field.name }};
-        {%- else %}
-            {% raise "library '" ~ library.name ~ "', function handle '" ~ handle.name ~ "', parameter '" ~ parameter.name ~ "': unsupported type '" ~ field.type ~ "' for struct field" %}
-        {%- endif %}
-        jerry_release_value(field_property_name_{{ field.name }});
-        jerry_release_value(field_value_{{ field.name }});
-    {%- endfor %}
-{%- endmacro %}
+{% macro struct(library, function, parameter, container) %}
+{{ library.structs[parameter.struct].type }} {{ parameter.name }} = {0};
+if (!jerry_value_is_object({{ container }})) {
+    core_panic(PANIC_GENERAL_ERROR, "js_libs: library '{{ library.name }}', function '{{ function.name }}', parameter '{{ parameter.name }}': not an object");
+}
+{% for field in library.structs[parameter.struct].fields.values() %}
+jerry_value_t field_property_name_{{ field.name }} = jerry_create_string((const jerry_char_t*) ("{{ field.name }}"));
+jerry_value_t field_value_{{ field.name }} = jerry_get_property({{ container }}, field_property_name_{{ field.name }});
+    {% if field.is_array() %}
+{{ array(library, function, field, 'field_value_' ~ field.name)|trim }}
+for (uint32_t i = 0; i < (uint32_t) ({{ field.array_size }}); ++i) {
+    {{ parameter.name }}.{{ field.name }}[i] = {{ field.name }}[i];
+}
+    {% elif field.is_pointer_handle() %}
+{{ pointer_handle(library, function, field, 'field_value_' ~ field.name)|trim }}
+{{ parameter.name }}.{{ field.name }} = {{ field.name }};
+    {% elif field.is_number() %}
+{{ number(library, function, field, 'field_value_' ~ field.name)|trim }}
+{{ parameter.name }}.{{ field.name }} = {{ field.name }};
+    {% elif field.is_string() %}
+{{ string(library, function, field, 'field_value_' ~ field.name)|trim }}
+{{ parameter.name }}.{{ field.name }} = {{ field.name }};
+    {% elif field.is_byte_array() %}
+{{ byte_array(library, function, field, 'field_value_' ~ field.name)|trim }}
+{{ parameter.name }}.{{ field.name }} = {{ field.name }};
+    {% else %}
+        {% raise "library '" ~ library.name ~ "', function handle '" ~ handle.name ~ "', parameter '" ~ parameter.name ~ "': unsupported type '" ~ field.type ~ "' for struct field" %}
+    {% endif %}
+jerry_release_value(field_property_name_{{ field.name }});
+jerry_release_value(field_value_{{ field.name }});
+{% endfor %}
+{% endmacro %}
 
-{%- macro array(library, function, parameter, container) %}
-    {{ parameter._element_parameter.type }} {{ parameter.name }}[{{ parameter.array_size }}] = {0};
-    if (!jerry_value_is_array({{ container }})) {
-        core_panic(PANIC_GENERAL_ERROR, "js_libs: library '{{ library.name }}', function '{{ function.name }}', parameter '{{ parameter.name }}': not an array");
-    }
-    if (jerry_get_array_length({{ container }}) != (uint32_t) ({{ parameter.array_size }})) {
-        core_panic(PANIC_GENERAL_ERROR, "js_libs: library '{{ library.name }}', function '{{ function.name }}', parameter '{{ parameter.name }}': invalid array size");
-    }
-    for (uint32_t i = 0; i < (uint32_t) ({{ parameter.array_size }}); ++i) {
-        jerry_value_t value_{{ parameter.name }} = jerry_get_property_by_index({{ container }}, i);
-        {%- if parameter._element_parameter.is_function_handle() %}
-            {{ function_handle(library, function, parameter._element_parameter, 'value_' ~ parameter.name) }}
-        {%- elif parameter._element_parameter.is_pointer_handle() %}
-            {{ pointer_handle(library, function, parameter._element_parameter, 'value_' ~ parameter.name) }}
-        {%- elif parameter._element_parameter.is_number() %}
-            {{ number(library, function, parameter._element_parameter, 'value_' ~ parameter.name) }}
-        {%- elif parameter._element_parameter.is_string() %}
-            {{ string_byte_array(library, function, parameter._element_parameter, 'value_' ~ parameter.name) }}
-        {%- else %}
-            {% raise "library '" ~ library.name ~ "', function '" ~ function.name ~ "', parameter '" ~ parameter.name ~ "': unsupported array element type '" ~ parameter._element_parameter.type ~ "'" %}
-        {% endif %}
-        {{ parameter.name }}[i] = {{ parameter.name }}_elem;
-        jerry_release_value(value_{{ parameter.name }});
-    }
-{%- endmacro %}
+{% macro array(library, function, parameter, container) %}
+{{ parameter._element_parameter.type }} {{ parameter.name }}[{{ parameter.array_size }}] = {0};
+if (!jerry_value_is_array({{ container }})) {
+    core_panic(PANIC_GENERAL_ERROR, "js_libs: library '{{ library.name }}', function '{{ function.name }}', parameter '{{ parameter.name }}': not an array");
+}
+if (jerry_get_array_length({{ container }}) != (uint32_t) ({{ parameter.array_size }})) {
+    core_panic(PANIC_GENERAL_ERROR, "js_libs: library '{{ library.name }}', function '{{ function.name }}', parameter '{{ parameter.name }}': invalid array size");
+}
+for (uint32_t i = 0; i < (uint32_t) ({{ parameter.array_size }}); ++i) {
+    jerry_value_t value_{{ parameter.name }} = jerry_get_property_by_index({{ container }}, i);
+    {% if parameter._element_parameter.is_function_handle() %}
+    {{ function_handle(library, function, parameter._element_parameter, 'value_' ~ parameter.name)|trim|indent(4) }}
+    {% elif parameter._element_parameter.is_pointer_handle() %}
+    {{ pointer_handle(library, function, parameter._element_parameter, 'value_' ~ parameter.name)|trim|indent(4) }}
+    {% elif parameter._element_parameter.is_number() %}
+    {{ number(library, function, parameter._element_parameter, 'value_' ~ parameter.name)|trim|indent(4) }}
+    {% elif parameter._element_parameter.is_string() %}
+    {{ string_byte_array(library, function, parameter._element_parameter, 'value_' ~ parameter.name)|trim|indent(4) }}
+    {% else %}
+        {% raise "library '" ~ library.name ~ "', function '" ~ function.name ~ "', parameter '" ~ parameter.name ~ "': unsupported array element type '" ~ parameter._element_parameter.type ~ "'" %}
+    {% endif %}
+    {{ parameter.name }}[i] = {{ parameter.name }}_elem;
+    jerry_release_value(value_{{ parameter.name }});
+}
+{% endmacro %}
 
-{%- macro function_handle(library, function, parameter, container) %}
+{% macro function_handle(library, function, parameter, container) %}
+jerry_value_t value_{{ parameter.name }} = jerry_value_to_string({{ container }});
+if (jerry_value_is_error(value_{{ parameter.name }})) {
+    core_panic(PANIC_GENERAL_ERROR, "js_libs: library '{{ library.name }}', function '{{ function.name }}', parameter '{{ parameter.name }}': invalid name for function handle (not a string?)");
+}
+size_t length_{{ parameter.name }} = jerry_get_string_length(value_{{ parameter.name }});
+if (length_{{ parameter.name }} == 0 || length_{{ parameter.name }} > JS_LIBS_FUNCTION_HANDLE_MAX_LENGTH) {
+    core_panic(PANIC_GENERAL_ERROR, "js_libs: library '{{ library.name }}', function '{{ function.name }}', parameter '{{ parameter.name }}': invalid length of function handle name (0 < name < JS_LIBS_FUNCTION_HANDLE_MAX_LENGTH)");
+}
+char* {{ parameter.name }} = calloc(length_{{ parameter.name }} + 1, sizeof(char));
+if ({{ parameter.name }} == NULL) {
+    core_panic(PANIC_GENERAL_ERROR, "js_libs: could not allocate memory");
+}
+jerry_string_to_char_buffer(value_{{ parameter.name }}, (jerry_char_t*) {{ parameter.name }}, length_{{ parameter.name }});
+jerry_release_value(value_{{ parameter.name }});
+strcpy(function_handle_next_function_name_{{ library.name }}_{{ parameter.function_handle }}, {{ parameter.name }});
+{% endmacro %}
+
+{% macro pointer_handle(library, function, parameter, container) %}
+if (!jerry_value_is_number({{ container }})) {
+    core_panic(PANIC_GENERAL_ERROR, "js_libs: library '{{ library.name }}', function '{{ function.name }}', parameter '{{ parameter.name }}': invalid value for pointer handle (not a number?)");
+}
+ssize_t value_{{ parameter.name }} = ({{ parameter.type }}) jerry_get_number_value({{ container }});
+pointer_handle_check_bounds_{{ library.name }}_{{ parameter.pointer_handle }}(value_{{ parameter.name }});
+{{ library.pointer_handles[parameter.pointer_handle].type }} {{ parameter.name }} = ({{ library.pointer_handles[parameter.pointer_handle].type }}) pointer_handles_{{ library.name }}_{{ parameter.pointer_handle }}[value_{{ parameter.name }} - 1];
+{% endmacro %}
+
+{% macro number(library, function, parameter, container) %}
+{{ parameter.type }} {{ parameter.name }} = ({{ parameter.type }}) jerry_get_number_value({{ container }});
+{% endmacro %}
+
+{% macro string_byte_array(library, function, parameter, container) %}
+{# if byte array, we need to ensure there is a length parameter, and it is of number type #}
+{% if parameter.is_byte_array() %}
+    {% if parameter.length_parameter not in function.parameters %}
+        {% raise "library '" ~ library.name ~ "', function '" ~ function.name ~ "', parameter '" ~ parameter.name ~ "': length parameter '" ~ parameter.length_parameter ~ "' does not exist as parameter" %}
+    {% endif %}
+    {% if not function.parameters[parameter.length_parameter].is_number() %}
+        {% raise "library '" ~ library.name ~ "', function '" ~ function.name ~ "', parameter '" ~ parameter.name ~ "': length parameter '" ~ parameter.length_parameter ~ "' is not a number" %}
+    {% endif %}
+{% endif %}
+char* {{ parameter.name}} = NULL;
+if (!jerry_value_is_null({{ container }})) {
     jerry_value_t value_{{ parameter.name }} = jerry_value_to_string({{ container }});
     if (jerry_value_is_error(value_{{ parameter.name }})) {
-        core_panic(PANIC_GENERAL_ERROR, "js_libs: library '{{ library.name }}', function '{{ function.name }}', parameter '{{ parameter.name }}': invalid name for function handle (not a string?)");
+        core_panic(PANIC_GENERAL_ERROR, "js_libs: library '{{ library.name }}', function '{{ function.name }}', parameter '{{ parameter.name }}': invalid value for string/byte array");
     }
-    size_t length_{{ parameter.name }} = jerry_get_string_length(value_{{ parameter.name }});
-    if (length_{{ parameter.name }} == 0 || length_{{ parameter.name }} > JS_LIBS_FUNCTION_HANDLE_MAX_LENGTH) {
-        core_panic(PANIC_GENERAL_ERROR, "js_libs: library '{{ library.name }}', function '{{ function.name }}', parameter '{{ parameter.name }}': invalid length of function handle name (0 < name < JS_LIBS_FUNCTION_HANDLE_MAX_LENGTH)");
-    }
-    char* {{ parameter.name }} = calloc(length_{{ parameter.name }} + 1, sizeof(char));
+    size_t length_{{ parameter.name }} = jerry_get_string_size(value_{{ parameter.name }});
+    {{ parameter.name }} = (char*) calloc(length_{{ parameter.name }} + 1, sizeof(char));
     if ({{ parameter.name }} == NULL) {
         core_panic(PANIC_GENERAL_ERROR, "js_libs: could not allocate memory");
     }
     jerry_string_to_char_buffer(value_{{ parameter.name }}, (jerry_char_t*) {{ parameter.name }}, length_{{ parameter.name }});
     jerry_release_value(value_{{ parameter.name }});
-    strcpy(function_handle_next_function_name_{{ library.name }}_{{ parameter.function_handle }}, {{ parameter.name }});
-{%- endmacro %}
-
-{%- macro pointer_handle(library, function, parameter, container) %}
-    if (!jerry_value_is_number({{ container }})) {
-        core_panic(PANIC_GENERAL_ERROR, "js_libs: library '{{ library.name }}', function '{{ function.name }}', parameter '{{ parameter.name }}': invalid value for pointer handle (not a number?)");
-    }
-    ssize_t value_{{ parameter.name }} = ({{ parameter.type }}) jerry_get_number_value({{ container }});
-    pointer_handle_check_bounds_{{ library.name }}_{{ parameter.pointer_handle }}(value_{{ parameter.name }});
-    {{ library.pointer_handles[parameter.pointer_handle].type }} {{ parameter.name }} = ({{ library.pointer_handles[parameter.pointer_handle].type }}) pointer_handles_{{ library.name }}_{{ parameter.pointer_handle }}[value_{{ parameter.name }} - 1];
-{%- endmacro %}
-
-{%- macro number(library, function, parameter, container) %}
-    {{ parameter.type }} {{ parameter.name }} = ({{ parameter.type }}) jerry_get_number_value({{ container }});
-{%- endmacro %}
-
-{%- macro string_byte_array(library, function, parameter, container) %}
-    {# if byte array, we need to ensure there is a length parameter, and it is of number type #}
-    {%- if parameter.is_byte_array() -%}
-        {%- if parameter.length_parameter not in function.parameters -%}
-            {% raise "library '" ~ library.name ~ "', function '" ~ function.name ~ "', parameter '" ~ parameter.name ~ "': length parameter '" ~ parameter.length_parameter ~ "' does not exist as parameter" %}
-        {%- endif -%}
-        {%- if not function.parameters[parameter.length_parameter].is_number() -%}
-            {% raise "library '" ~ library.name ~ "', function '" ~ function.name ~ "', parameter '" ~ parameter.name ~ "': length parameter '" ~ parameter.length_parameter ~ "' is not a number" %}
-        {%- endif -%}
-    {%- endif %}
-    char* {{ parameter.name}} = NULL;
-    if (!jerry_value_is_null({{ container }})) {
-        jerry_value_t value_{{ parameter.name }} = jerry_value_to_string({{ container }});
-        if (jerry_value_is_error(value_{{ parameter.name }})) {
-            core_panic(PANIC_GENERAL_ERROR, "js_libs: library '{{ library.name }}', function '{{ function.name }}', parameter '{{ parameter.name }}': invalid value for string/byte array");
-        }
-        size_t length_{{ parameter.name }} = jerry_get_string_size(value_{{ parameter.name }});
-        {{ parameter.name }} = (char*) calloc(length_{{ parameter.name }} + 1, sizeof(char));
-        if ({{ parameter.name }} == NULL) {
-            core_panic(PANIC_GENERAL_ERROR, "js_libs: could not allocate memory");
-        }
-        jerry_string_to_char_buffer(value_{{ parameter.name }}, (jerry_char_t*) {{ parameter.name }}, length_{{ parameter.name }});
-        jerry_release_value(value_{{ parameter.name }});
-    }
-{%- endmacro %}
+}
+{% endmacro %}

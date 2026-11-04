@@ -46,7 +46,15 @@ class LibGen:
 
         module_template_path = self._generator_template_path.joinpath(Path('module'))
 
-        env = Environment(loader=FileSystemLoader(self._template_path), extensions=[RaiseExtension])
+        # trim_blocks/lstrip_blocks: lines that only contain block tags ({% ... %}) do not produce any output,
+        # so that template logic can be indented freely without affecting the rendered code
+        env = Environment(
+            loader=FileSystemLoader(self._template_path),
+            extensions=[RaiseExtension],
+            trim_blocks=True,
+            lstrip_blocks=True,
+            keep_trailing_newline=True
+        )
 
         for entity_path in module_template_path.rglob('*'):
             rel_path = entity_path.relative_to(module_template_path)

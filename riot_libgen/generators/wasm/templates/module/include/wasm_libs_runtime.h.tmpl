@@ -1,33 +1,67 @@
+{% macro parameter(library, parameter) %}
+{% if parameter.is_struct() %}
+{{ library.prefix }}{{ library.structs[parameter.struct].name }}_t* {{ parameter.name }}
+{%- elif parameter.is_function_handle() %}
+wasm_libs_function_handle_t {{ parameter.name }}
+{%- elif parameter.is_array() %}
+{{ parameter._element_parameter.type }} {{ parameter.name }}[{{ parameter.array_size }}]
+{%- else %}
+{{ parameter.type }} {{ parameter.name }}
+{%- endif %}
+{% endmacro %}
+{% macro field(library, field) %}
+{% if field.is_function_handle() %}
+wasm_libs_function_handle_t {{ field.name }}
+{%- elif field.is_array() %}
+{{ field._element_parameter.type }} {{ field.name }}[{{ field.array_size }}]
+{%- else %}
+{{ field.type }} {{ field.name }}
+{%- endif %}
+{% endmacro %}
 #define WASM_LIBS_FUNCTION_HANDLE(name) (name)
 
 // no sys/types.h present in libc implementation of embedded WAMR, just using a shortcut here
 #ifndef ssize_t
 #define ssize_t intmax_t
 #endif
+{% for library in libraries.values() if library.constants %}
 
-{%- for library in libraries.values() -%}
-	{%- for name, value in library.constants.items() %}
-#define {{ library.get_constant_identifier(name) }} ({%- if value is string -%}"{%- endif -%}{{ value }}{%- if value is string -%}"{%- endif -%})
-	{%- endfor %}
-{%- endfor %}
+    {% for name, value in library.constants.items() %}
+        {% if value is string %}
+#define {{ library.get_constant_identifier(name) }} ("{{ value }}")
+        {% else %}
+#define {{ library.get_constant_identifier(name) }} ({{ value }})
+        {% endif %}
+    {% endfor %}
+{% endfor %}
 
 typedef const char* wasm_libs_function_handle_t;
-{%- for library in libraries.values() -%}
-	{%- for handle in library.pointer_handles.values() %}
+{% for library in libraries.values() %}
+    {% for handle in library.pointer_handles.values() %}
 typedef ssize_t {{ library.prefix }}{{ handle.name }}_t;
-	{%- endfor %}
-{%- endfor %}
-{% for library in libraries.values() -%}
-	{%- for struct in library.structs.values() %}
+    {% endfor %}
+{% endfor %}
+{% for library in libraries.values() %}
+    {% for struct in library.structs.values() %}
+
 typedef struct {
-	{%- for field in struct.fields.values() %}
-	{% if field.is_function_handle() %}wasm_libs_function_handle_t{% elif field.is_array() %}{{ field._element_parameter.type }}{% else %}{{ field.type }}{% endif %} {{ field.name }}{% if field.is_array() %}[{{ field.array_size }}]{% endif %};
-	{%- endfor %}
+        {% for field_ in struct.fields.values() %}
+    {{ field(library, field_) }};
+        {% endfor %}
 } {{ library.prefix }}{{ struct.name }}_t;
-	{%- endfor %}
+    {% endfor %}
+{% endfor %}
+{% for library in libraries.values() if library.functions %}
+
+    {% for function in library.functions.values() %}
+        {% if function.returns_struct() %}
+{{ library.prefix }}{{ library.structs[function.returned_struct].name }}_t* {{ library.prefix }}{{ function.name }}(
+        {%- else %}
+{{ function.return_type }} {{ library.prefix }}{{ function.name }}(
+        {%- endif %}
+{%- for parameter_ in function.parameters.values() %}
+{{ parameter(library, parameter_) }}{{ ", " if not loop.last }}
 {%- endfor %}
-{% for library in libraries.values() -%}
-	{%- for function in library.functions.values() %}
-{% if function.returns_struct() %}{{ library.prefix }}{{ library.structs[function.returned_struct].name }}_t*{% else %}{{ function.return_type }}{% endif %} {{ library.prefix }}{{ function.name }}({% for parameter in function.parameters.values() %}{% if parameter.is_struct() %}{{ library.prefix }}{{ library.structs[parameter.struct].name }}_t*{% elif parameter.is_function_handle() %}wasm_libs_function_handle_t{% elif parameter.is_array() %}{{ parameter._element_parameter.type }}{% else %}{{ parameter.type }}{% endif %} {{ parameter.name }}{% if parameter.is_array() %}[{{ parameter.array_size }}]{% endif %}{% if not loop.last %}, {% endif %}{% endfor %});
-	{%- endfor %}
-{%- endfor %}
+);
+    {% endfor %}
+{% endfor %}

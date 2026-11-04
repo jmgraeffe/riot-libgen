@@ -1,5 +1,6 @@
-{%- for library in libraries.values() -%}
-    {%- for handle in library.pointer_handles.values() %}
+{% for library in libraries.values() %}
+{% for handle in library.pointer_handles.values() %}
+
 static void* pointer_handles_{{ library.name }}_{{ handle.name }}[{{ handle.max_entries }}] = { 0 };
 
 static int64_t pointer_handles_get_or_add_{{ library.name }}_{{ handle.name }}(void* pointer) {
@@ -22,5 +23,5 @@ static void pointer_handle_check_bounds_{{ library.name }}_{{ handle.name }}(int
         core_panic(PANIC_GENERAL_ERROR, "pointer handle '{{ handle.name }}' is out of bounds (needs to be 0 < handle < {{ handle.max_entries }})");
     }
 }
-    {%- endfor -%}
-{%- endfor -%}
+{% endfor %}
+{% endfor %}

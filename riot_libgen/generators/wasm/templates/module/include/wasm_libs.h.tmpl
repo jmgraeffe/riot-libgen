@@ -1,16 +1,16 @@
 #include <stddef.h>
 
 #include "wasm_export.h"
-{%- for include in includes %}
+{% for include in includes %}
 #include "{{ include }}"
-{%- endfor %}
+{% endfor %}
 
 void wasm_libs_set_wasm_module_inst(wasm_module_inst_t module_inst);
-{%- for library in libraries.values() %}
+{% for library in libraries.values() %}
 int wasm_libs_register_{{ library.name }}_natives(const char* env);
-    {%- for handle in library.pointer_handles.values() %}
+    {% for handle in library.pointer_handles.values() %}
 int wasm_libs_release_{{ library.name }}_{{ handle.name }}_pointer_handle(void* pointer);
-    {%- endfor %}
-{%- endfor %}
+    {% endfor %}
+{% endfor %}
 
 {% include 'templates/forward_declarations.tmpl' %}

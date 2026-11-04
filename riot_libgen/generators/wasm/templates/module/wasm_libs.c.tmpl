@@ -1,9 +1,26 @@
-{%- import 'generators/wasm/templates/function_parameters.tmpl' as tmpl_function_parameters -%}
-{%- import 'generators/wasm/templates/function_call.tmpl' as tmpl_function_call -%}
-{%- import 'generators/wasm/templates/function_returns.tmpl' as tmpl_function_returns -%}
-{%- import 'generators/wasm/templates/function_handle_parameters.tmpl' as tmpl_function_handle_parameters -%}
-{%- import 'generators/wasm/templates/function_handle_cleanup.tmpl' as tmpl_function_handle_cleanup -%}
-{%- import 'generators/wasm/templates/function_handle_returns.tmpl' as tmpl_function_handle_returns -%}
+{% import 'templates/c.tmpl' as c %}
+{% import 'generators/wasm/templates/function_parameters.tmpl' as tmpl_function_parameters %}
+{% import 'generators/wasm/templates/function_call.tmpl' as tmpl_function_call %}
+{% import 'generators/wasm/templates/function_returns.tmpl' as tmpl_function_returns %}
+{% import 'generators/wasm/templates/function_handle_parameters.tmpl' as tmpl_function_handle_parameters %}
+{% import 'generators/wasm/templates/function_handle_cleanup.tmpl' as tmpl_function_handle_cleanup %}
+{% import 'generators/wasm/templates/function_handle_returns.tmpl' as tmpl_function_handle_returns %}
+{% macro native_parameter(library, parameter) %}
+{% if parameter.is_struct() %}
+{{ library.structs[parameter.struct].type }}* {{ parameter.name }}
+{%- elif parameter.is_array() %}
+{{ parameter._element_parameter.type }} {{ parameter.name }}[{{ parameter.array_size }}]
+{%- else %}
+{{ parameter.type }} {{ parameter.name }}
+{%- endif %}
+{% endmacro %}
+{% macro native_return_type(library, function) %}
+{% if function.returns_struct() %}
+int64_t
+{%- else %}
+{{ function.return_type }}
+{%- endif %}
+{% endmacro %}
 #include <stdio.h>
 #include <string.h>
 #include <panic.h>
@@ -13,23 +30,12 @@
 #define WASM_LIBS_FUNCTION_HANDLE_MAX_LENGTH (255)
 
 static wasm_module_inst_t wasm_module_inst = NULL;
-
-{%- include 'templates/pointer_handles.tmpl' %}
+{% include 'templates/pointer_handles.tmpl' %}
 {% for library in libraries.values() %}
-    {%- for handle in library.function_handles.values() %}
+{% for handle in library.function_handles.values() %}
+
 static char function_handle_next_function_name_{{ library.name }}_{{ handle.name }}[WASM_LIBS_FUNCTION_HANDLE_MAX_LENGTH + 1] = {'\0'};
-static {% if handle.returns_struct() %}{{ library.structs[handle.returned_struct].type }}{% else %}{{ handle.return_type }}{% endif %} function_handle_internal_function_{{ library.name }}_{{ handle.name }}(
-        {%- if handle.parameters|length == 0 %}void{% endif -%}
-        {%- for parameter in handle.parameters.values() %}
-            {%- if parameter.is_struct() %}
-    {{ library.structs[parameter.struct].type }} {{ parameter.name }}{% if not loop.last %}, {% endif %}
-            {%- elif parameter.is_array() %}
-    {{ parameter._element_parameter.type }} {{ parameter.name }}[{{ parameter.array_size }}]{%- if not loop.last %}, {% endif -%}
-            {%- else %}
-    {{ parameter.type }} {{ parameter.name }}{% if not loop.last %}, {% endif %}
-            {%- endif %}
-        {%- endfor %}
-) {
+static {{ c.function_handle_return_type(library, handle) }} function_handle_internal_function_{{ library.name }}_{{ handle.name }}({{ c.parameter_list(library, handle) }}) {
     if (wasm_module_inst == NULL) {
         core_panic(PANIC_GENERAL_ERROR, "wasm_libs: WASM module instance is not set (use wasm_libs_set_wasm_module_inst)");
     }
@@ -51,38 +57,37 @@ static {% if handle.returns_struct() %}{{ library.structs[handle.returned_struct
     // construct parameters for upcoming function call
     size_t num_args = {{ handle.parameters|length }};
     wasm_val_t args[{{ [handle.parameters|length, 1]|max }}];
-        {%- set state = namespace(counter=0) -%}
-        {%- for param in handle.parameters.values() %}
-            {%- if param.is_struct() %}
-                {{ tmpl_function_handle_parameters.struct(library, handle, param, 'args[' ~ state.counter ~ ']') }}
-            {%- elif param.is_array() %}
-                {{ tmpl_function_handle_parameters.array(library, handle, param, 'args[' ~ state.counter ~ ']') }}
-            {%- elif param.get_wasm_runtime_signature() == '$' %}
-                {{ tmpl_function_handle_parameters.string(library, handle, param, 'args[' ~ state.counter ~ ']') }}
-            {%- elif param.is_byte_array() -%}
-                {{ tmpl_function_handle_parameters.byte_array(library, handle, param, 'args[' ~ state.counter ~ ']') }}
-            {%- elif param.is_pointer_handle() %}
-                {{ tmpl_function_handle_parameters.pointer_handle(library, handle, param, 'args[' ~ state.counter ~ ']') }}
-            {%- elif param.get_wasm_runtime_signature() == 'i' %}
-    args[{{ state.counter }}].kind = WASM_I32;
-    args[{{ state.counter }}].of.i32 = (int32_t) {{ param.name }};
-            {%- elif param.get_wasm_runtime_signature() == 'I' %}
-    args[{{ state.counter }}].kind = WASM_I64;
-    args[{{ state.counter }}].of.i64 = (int64_t) {{ param.name }};
-            {%- elif param.get_wasm_runtime_signature() == 'f' %}
-    args[{{ state.counter }}].kind = WASM_f32;
-    args[{{ state.counter }}].of.f32 = (float) {{ param.name }};
-            {%- elif param.get_wasm_runtime_signature() == 'F' %}
-    args[{{ state.counter }}].kind = WASM_f64;
-    args[{{ state.counter }}].of.f64 = (double) {{ param.name }};
-            {%- else -%}
-                {% raise "library '" ~ library.name ~ "', function handle '" ~ handle.name ~ "', parameter '" ~ param.name ~ "': unsupported type '" ~ param.type ~ "' (Maybe it is a function handle? Function handles as parameters of function handles not supported yet.)" %}
-            {%- endif -%}
-            {%- set state.counter = state.counter + 1 -%}
-        {%- endfor %}
+    {% for param in handle.parameters.values() %}
+        {% set dest = 'args[' ~ loop.index0 ~ ']' %}
+        {% if param.is_struct() %}
+    {{ tmpl_function_handle_parameters.struct(library, handle, param, dest)|trim|indent(4) }}
+        {% elif param.is_array() %}
+    {{ tmpl_function_handle_parameters.array(library, handle, param, dest)|trim|indent(4) }}
+        {% elif param.get_wasm_runtime_signature() == '$' %}
+    {{ tmpl_function_handle_parameters.string(library, handle, param, dest)|trim|indent(4) }}
+        {% elif param.is_byte_array() %}
+    {{ tmpl_function_handle_parameters.byte_array(library, handle, param, dest)|trim|indent(4) }}
+        {% elif param.is_pointer_handle() %}
+    {{ tmpl_function_handle_parameters.pointer_handle(library, handle, param, dest)|trim|indent(4) }}
+        {% elif param.get_wasm_runtime_signature() == 'i' %}
+    {{ dest }}.kind = WASM_I32;
+    {{ dest }}.of.i32 = (int32_t) {{ param.name }};
+        {% elif param.get_wasm_runtime_signature() == 'I' %}
+    {{ dest }}.kind = WASM_I64;
+    {{ dest }}.of.i64 = (int64_t) {{ param.name }};
+        {% elif param.get_wasm_runtime_signature() == 'f' %}
+    {{ dest }}.kind = WASM_f32;
+    {{ dest }}.of.f32 = (float) {{ param.name }};
+        {% elif param.get_wasm_runtime_signature() == 'F' %}
+    {{ dest }}.kind = WASM_f64;
+    {{ dest }}.of.f64 = (double) {{ param.name }};
+        {% else %}
+            {% raise "library '" ~ library.name ~ "', function handle '" ~ handle.name ~ "', parameter '" ~ param.name ~ "': unsupported type '" ~ param.type ~ "' (Maybe it is a function handle? Function handles as parameters of function handles not supported yet.)" %}
+        {% endif %}
+    {% endfor %}
 
     // make space for return value
-    size_t num_results = {% if handle.return_type == 'void' %}0{% else %}1{% endif %};
+    size_t num_results = {{ 0 if handle.return_type == 'void' else 1 }};
     wasm_val_t results[1];
 
     // call function handle
@@ -94,123 +99,131 @@ static {% if handle.returns_struct() %}{{ library.structs[handle.returned_struct
             core_panic(PANIC_GENERAL_ERROR, msg);
         }
     }
+    {% set cleanup %}
+        {% for param in handle.parameters.values() %}
+            {% if param.get_wasm_runtime_signature() == '$' or param.is_byte_array() %}
+{{ tmpl_function_handle_cleanup.string_byte_array(library, handle, param, loop.index0)|trim }}
+            {% endif %}
+        {% endfor %}
+    {% endset %}
+    {% if cleanup|trim %}
 
     // cleanup
-        {%- set state = namespace(counter=0) -%}
-        {%- for param in handle.parameters.values() %}
-            {%- if param.get_wasm_runtime_signature() == '$' or param.is_byte_array() -%}
-                {{ tmpl_function_handle_cleanup.string_byte_array(library, handle, param, state) }}
-            {%- endif -%}
-            {%- set state.counter = state.counter + 1 -%}
-        {%- endfor %}
+    {{ cleanup|trim|indent(4) }}
+    {% endif %}
+    {% if handle.return_type != 'void' %}
 
-        {%- if handle.return_type != 'void' -%}
-            {%- if handle.get_wasm_runtime_signature_for_return_type() == '$' or handle.returns_byte_array() -%}
-                
-                {{ tmpl_function_handle_returns.string_byte_array(library, handle, param) }}
-            {%- elif handle.returns_struct() %}
-                
-                {{ tmpl_function_handle_returns.struct(library, handle, param) }}
-            {%- elif handle.returns_pointer_handle() %}
-                
-                {{ tmpl_function_handle_returns.pointer_handle(library, handle, param) }}
-            {%- elif handle.get_wasm_runtime_signature_for_return_type() == 'i' %}
-    
+        {% if handle.get_wasm_runtime_signature_for_return_type() == '$' or handle.returns_byte_array() %}
+    {{ tmpl_function_handle_returns.string_byte_array(library, handle, param)|trim|indent(4) }}
+        {% elif handle.returns_struct() %}
+    {{ tmpl_function_handle_returns.struct(library, handle, param)|trim|indent(4) }}
+        {% elif handle.returns_pointer_handle() %}
+    {{ tmpl_function_handle_returns.pointer_handle(library, handle, param)|trim|indent(4) }}
+        {% elif handle.get_wasm_runtime_signature_for_return_type() == 'i' %}
     return ({{ handle.return_type }}) results[0].of.i32;
-            {%- elif handle.get_wasm_runtime_signature_for_return_type() == 'I' %}
-    
+        {% elif handle.get_wasm_runtime_signature_for_return_type() == 'I' %}
     return ({{ handle.return_type }}) results[0].of.i64;
-            {%- elif handle.get_wasm_runtime_signature_for_return_type() == 'f' %}
-    
+        {% elif handle.get_wasm_runtime_signature_for_return_type() == 'f' %}
     return ({{ handle.return_type }}) results[0].of.f32;
-            {%- elif handle.get_wasm_runtime_signature_for_return_type() == 'F' %}
-    
+        {% elif handle.get_wasm_runtime_signature_for_return_type() == 'F' %}
     return ({{ handle.return_type }}) results[0].of.f64;
-            {%- else -%}
-                {% raise "library '" ~ library.name ~ "', function handle '" ~ handle.name ~ "', return type: unsupported type '" ~ handle.return_type ~ "' (Maybe it is a function handle? Function handles as parameters of function handles not supported yet.)" %}
-            {%- endif -%}
-        {%- endif %}
+        {% else %}
+            {% raise "library '" ~ library.name ~ "', function handle '" ~ handle.name ~ "', return type: unsupported type '" ~ handle.return_type ~ "' (Maybe it is a function handle? Function handles as parameters of function handles not supported yet.)" %}
+        {% endif %}
+    {% endif %}
 }
-    {% endfor %}
+{% endfor %}
+{% for function in library.functions.values() %}
 
-    {%- for function in library.functions.values() %}
-{% if function.returns_struct() %}int64_t{% else %}{{ function.return_type }}{% endif %} {{ library.name }}_{{ function.name }}_native(wasm_exec_env_t exec_env{% for parameter in function.parameters.values() %}, {% if parameter.is_struct() %}{{ library.structs[parameter.struct].type }}*{% else %}{% if parameter.is_array() %}{{ parameter._element_parameter.type }}{% else %}{{ parameter.type }}{% endif %}{% endif %} {{ parameter.name }}{% if parameter.is_array() %}[{{ parameter.array_size }}]{% endif %}{% endfor %}) {
+{{ native_return_type(library, function) }} {{ library.name }}_{{ function.name }}_native(wasm_exec_env_t exec_env{% for parameter in function.parameters.values() %}, {{ native_parameter(library, parameter) }}{% endfor %}) {
     (void) exec_env;
+    {% set prepare %}
+        {% for parameter in function.parameters.values() %}
+            {% if parameter.is_struct() %}
+{{ tmpl_function_parameters.struct(library, function, parameter)|trim }}
+
+            {% elif parameter.is_array() %}
+{{ tmpl_function_parameters.array(library, function, parameter)|trim }}
+
+            {% elif parameter.is_function_handle() %}
+{{ tmpl_function_parameters.function_handle(library, function, parameter)|trim }}
+
+            {% elif parameter.is_byte_array() %}
+{{ tmpl_function_parameters.byte_array(library, function, parameter)|trim }}
+
+            {% elif parameter.is_pointer_handle() %}
+{{ tmpl_function_parameters.pointer_handle(library, function, parameter)|trim }}
+
+            {% endif %}
+        {% endfor %}
+    {% endset %}
+    {% if prepare|trim %}
 
     // prepare parameters
-    {# TODO maybe just do it with param_raw -> param for the function call, the whole function parameters and function call template thing seems too complicated #}
-    {%- set state = namespace(counter=0) -%}
-    {%- for parameter in function.parameters.values() %}
-        {%- if parameter.is_struct() -%}
-            {{ tmpl_function_parameters.struct(library, function, parameter) }}
-        {%- elif parameter.is_array() -%}
-            {{ tmpl_function_parameters.array(library, function, parameter) }}
-        {%- elif parameter.is_function_handle() -%}
-            {{ tmpl_function_parameters.function_handle(library, function, parameter) }}
-        {%- elif parameter.is_byte_array() -%}
-            {{ tmpl_function_parameters.byte_array(library, function, parameter) }}
-        {%- elif parameter.is_pointer_handle() -%}
-            {{ tmpl_function_parameters.pointer_handle(library, function, parameter) }}
-        {%- endif -%}
-        {%- set state.counter = state.counter + 1 -%}
-    {%- endfor %}
+    {{ prepare|trim|indent(4) }}
+    {% endif %}
 
     // call function
-    {% if function.return_type != 'void' %}{% if function.returns_struct() %}{{ library.structs[function.returned_struct].type }}{% elif function.returns_pointer_handle() %}{{ library.pointer_handles[function.returned_pointer_handle].type }}{% else %}{{ function.return_type }}{% endif %} res = {% endif %}{{ function.original_name }}(
-    {%- for parameter in function.parameters.values() -%}
-        {%- set state = namespace(last=loop.last) -%}
-        {%- if parameter.is_struct() %}
-            {{ tmpl_function_call.struct(library, function, parameter, state) }}
-        {%- elif parameter.is_function_handle() %}
-            {{ tmpl_function_call.function_handle(library, function, parameter, state) }}
-        {%- elif parameter.is_pointer_handle() %}
-            {{ tmpl_function_call.pointer_handle(library, function, parameter, state) }}
-        {%- else %}
-            {{ parameter.name }}{% if not state.last %}, {% endif %}
-        {%- endif %}
-    {%- endfor %}
+    {% set result %}{% if function.return_type != 'void' %}{{ c.function_return_type(library, function) }} res = {% endif %}{% endset %}
+    {% if function.parameters %}
+    {{ result }}{{ function.original_name }}(
+        {% for parameter in function.parameters.values() %}
+            {% if parameter.is_struct() %}
+        {{ tmpl_function_call.struct(library, function, parameter)|trim }}{{ "," if not loop.last }}
+            {% elif parameter.is_function_handle() %}
+        {{ tmpl_function_call.function_handle(library, function, parameter)|trim }}{{ "," if not loop.last }}
+            {% elif parameter.is_pointer_handle() %}
+        {{ tmpl_function_call.pointer_handle(library, function, parameter)|trim }}{{ "," if not loop.last }}
+            {% else %}
+        {{ parameter.name }}{{ "," if not loop.last }}
+            {% endif %}
+        {% endfor %}
     );
+    {% else %}
+    {{ result }}{{ function.original_name }}();
+    {% endif %}
+    {% if function.return_type != 'void' %}
 
-    {%- if function.return_type != 'void' %}
-        {%- if function.returns_struct() %}
-            {{ tmpl_function_returns.struct(library, function) }}
-        {%- elif function.returns_pointer_handle() %}
-            {{ tmpl_function_returns.pointer_handle(library, function) }}
-        {%- else %}
+        {% if function.returns_struct() %}
+    {{ tmpl_function_returns.struct(library, function)|trim|indent(4) }}
+        {% elif function.returns_pointer_handle() %}
+    {{ tmpl_function_returns.pointer_handle(library, function)|trim|indent(4) }}
+        {% else %}
     return res;
-        {%- endif -%}
-    {%- endif %}
+        {% endif %}
+    {% endif %}
 }
+
 // union just to avoid ISO C warning when initializing void* with function pointer
 // (on some systems, function pointers may be different from data pointers so this might not be universal)
 static union {
     void* void_ptr;
-    {% if function.returns_struct() %}int64_t{% else %}{{ function.return_type }}{% endif %} (*func_ptr)(wasm_exec_env_t{% for parameter in function.parameters.values() %}, {% if parameter.is_struct() %}{{ library.structs[parameter.struct].type }}*{% else %}{{ parameter.type }}{% endif %}{% endfor %});
+    {{ native_return_type(library, function) }} (*func_ptr)(wasm_exec_env_t{% for parameter in function.parameters.values() %}, {% if parameter.is_struct() %}{{ library.structs[parameter.struct].type }}*{% else %}{{ parameter.type }}{% endif %}{% endfor %});
 } {{ library.name }}_{{ function.name }}_ptr = {
     .func_ptr = {{ library.name }}_{{ function.name }}_native
 };
-    {% endfor %}
 {% endfor %}
+{% endfor %}
+{% for library in libraries.values() %}
 
-{%- for library in libraries.values() %}
 static NativeSymbol native_symbols_{{ library.name }}_library[] = {
-    {% for function in library.functions.values() -%}
+    {% for function in library.functions.values() %}
     {
         "{{ library.prefix }}{{ function.name }}",
         NULL, // function pointer, will be set in `wasm_runtime_register_{{ library.name }}_natives()`
-        "{{ function.get_wasm_runtime_signature() }}", // {{ function.return_type }} {{ library.prefix }}{{ function.name }}({% for parameter in function.parameters.values() %}{{ parameter.name }}{% if not loop.last %}, {% endif %}{% endfor %})
+        "{{ function.get_wasm_runtime_signature() }}", // {{ function.return_type }} {{ library.prefix }}{{ function.name }}({% for parameter in function.parameters.values() %}{{ parameter.name }}{{ ", " if not loop.last }}{% endfor %})
         NULL
-    }{% if not loop.last %},{% endif %}
+    }{{ "," if not loop.last }}
     {% endfor %}
 };
 static int num_native_symbols_{{ library.name }}_library = sizeof(native_symbols_{{ library.name }}_library) / sizeof(NativeSymbol);
 {% endfor %}
+{% for library in libraries.values() %}
 
-{%- for library in libraries.values() %}
 int wasm_libs_register_{{ library.name }}_natives(const char* env) {
-    {%- for function in library.functions.values() %}
+    {% for function in library.functions.values() %}
     native_symbols_{{ library.name }}_library[{{ loop.index0 }}].func_ptr = {{ library.name }}_{{ function.name }}_ptr.void_ptr;
-    {%- endfor %}
+    {% endfor %}
 
     if (!wasm_runtime_register_natives(env, native_symbols_{{ library.name }}_library, num_native_symbols_{{ library.name }}_library)) {
         printf("wasm_libs: could not register natives for library '%s'", "{{ library.name }}");
@@ -219,8 +232,8 @@ int wasm_libs_register_{{ library.name }}_natives(const char* env) {
 
     return num_native_symbols_{{ library.name }}_library;
 }
-
     {% for handle in library.pointer_handles.values() %}
+
 int wasm_libs_release_{{ library.name }}_{{ handle.name }}_pointer_handle(void* pointer) {
     for (int64_t i = 0; i < {{ handle.max_entries }}; ++i) {
         if (pointer_handles_{{ library.name }}_{{ handle.name }}[i] == pointer) {
