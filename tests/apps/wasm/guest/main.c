@@ -199,12 +199,9 @@ WASM_EXPORT int main(void) {
     tests_call_void_twice(WASM_LIBS_FUNCTION_HANDLE("guest_count"));
     check("function_handles.void", void_calls, 2);
 
-    /* BUG: sizeof(&values[0]) instead of sizeof(values[0]) is used for copying the array to the WASM
-     * memory, which reads beyond the array on the host (caught by AddressSanitizer)
     tests_call_with_array(WASM_LIBS_FUNCTION_HANDLE("guest_array_receiver"));
     CHECK_ALL("function_handles.array_parameter",
               { received_array[0], 11 }, { received_array[1], 22 }, { received_array[2], 33 });
-    */
 
     tests_call_with_measurement(WASM_LIBS_FUNCTION_HANDLE("guest_measurement_receiver"));
     CHECK_ALL("function_handles.struct_parameter",

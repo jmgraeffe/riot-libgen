@@ -58,7 +58,7 @@ CASES = {
     'function_handles.byte_array_parameter': BOTH,
     'function_handles.byte_array_parameter_null': BOTH,
     'function_handles.void': BOTH,
-    'function_handles.array_parameter': (JS,),  # WASM: disabled, see BUG in apps/wasm/guest/main.c
+    'function_handles.array_parameter': BOTH,
     'function_handles.struct_parameter': BOTH,
     'function_handles.struct_return': BOTH,
     'function_handles.string_return': (WASM,),  # not supported by the JS generator
