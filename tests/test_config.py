@@ -46,6 +46,22 @@ class TestFunctions:
         assert function.return_type == 'void'
         assert function.parameters == {}
 
+    @pytest.mark.xfail(reason='decided to change: the string shortcut of functions is the return type (as for '
+                              'parameters, fields and pointer handles), but currently it is the original name')
+    def test_shortcut_is_return_type(self, libgen):
+        function = load_library(libgen, {'functions': {'f': 'int'}}).functions['f']
+        assert function.return_type == 'int'
+        assert function.original_name == 'f'
+        assert function.parameters == {}
+
+    @pytest.mark.xfail(raises=LibGenConfigException,
+                       reason='BUG: functions without value (allowed by the schema) are rejected')
+    def test_null_shortcut(self, libgen):
+        function = load_library(libgen, {'functions': {'f': None}}).functions['f']
+        assert function.return_type == 'void'
+        assert function.original_name == 'f'
+        assert function.parameters == {}
+
     def test_original_name(self, libgen):
         function = load_library(libgen, {'functions': {'f': {'original_name': 'native_f'}}}).functions['f']
         assert function.name == 'f'
