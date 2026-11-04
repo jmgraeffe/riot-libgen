@@ -69,12 +69,11 @@
 											"additionalProperties": false
 										},
 										{
-											"description": "Shortcut for representation of a function that has no parameters and no return type. String that contains the original name of the C host function to be exported.",
-											"type": "string",
-											"examples": ["my_pointer_handle"]
+											"description": "Shortcut for representation of a function that has no parameters. String that contains the return type of the function. The name of the original C host function will be derived from the function name.",
+											"$ref": "#/$defs/return_type"
 										},
 										{
-											"description": "Shortcut for representation of a function that has no parameters and no return type. The name of the original C host function will be deferred from the function name.",
+											"description": "Shortcut for representation of a function that has no parameters and no return type. The name of the original C host function will be derived from the function name.",
 											"type": "null"
 										}
 									]

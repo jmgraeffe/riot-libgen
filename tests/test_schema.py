@@ -51,6 +51,10 @@ def test_function_shortcuts():
     }}}}) == []
 
 
+def test_function_shortcut_needs_to_be_a_return_type():
+    assert errors({'libraries': {'mylib': {'functions': {'my_func': 42}}}}) != []
+
+
 @pytest.mark.xfail(reason='BUG: the schema does not allow the object form of pointer handles (with max_entries)')
 def test_pointer_handle_object():
     assert errors({'libraries': {'mylib': {'pointer_handles': {

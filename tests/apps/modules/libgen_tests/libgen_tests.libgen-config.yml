@@ -42,9 +42,10 @@ libraries:
         parameters:
           n: size_t
         return_type: size_t
-      get_answer:
-        return_type: int
-      count_call: {}
+      # shortcut for functions without parameters: return type
+      get_answer: int
+      # shortcut for functions without parameters and return type
+      count_call:
       get_call_count:
         return_type: int
       renamed_function:

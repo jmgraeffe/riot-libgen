@@ -40,9 +40,12 @@ class Library:
 
         if 'functions' in dict_:
             for name, config in dict_['functions'].items():
-                # shortcut for original name
+                # shortcut for return type
                 if isinstance(config, str):
-                    config = {'original_name': config}
+                    config = {'return_type': config}
+                # shortcut for function without parameters and return type
+                elif config is None:
+                    config = {}
                 self.functions[name] = self._factory.create_function(name, config, self)
 
         if 'constants' in dict_:
