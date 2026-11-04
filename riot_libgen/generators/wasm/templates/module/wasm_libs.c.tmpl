@@ -6,7 +6,9 @@
 {% import 'generators/wasm/templates/function_handle_cleanup.tmpl' as tmpl_function_handle_cleanup %}
 {% import 'generators/wasm/templates/function_handle_returns.tmpl' as tmpl_function_handle_returns %}
 {% macro native_parameter_type(library, parameter) %}
-{% if parameter.is_struct() %}
+{% if parameter.is_array() %}
+void*
+{%- elif parameter.is_struct() %}
 {{ library.structs[parameter.struct].type }}*
 {%- elif parameter.is_output() and not parameter.is_array() and not parameter.is_byte_array() %}
 {{ parameter.type }}*
@@ -15,15 +17,11 @@
 {%- endif %}
 {% endmacro %}
 {% macro native_parameter(library, parameter) %}
-{% if parameter.is_array() %}
-{{ parameter._element_parameter.type }} {{ parameter.name }}[{{ parameter.array_size }}]
-{%- else %}
 {{ native_parameter_type(library, parameter) }} {{ parameter.name }}
-{%- endif %}
 {% endmacro %}
 {% macro native_return_type(library, function) %}
 {% if function.returns_struct() %}
-int64_t
+uint32_t
 {%- else %}
 {{ function.return_type }}
 {%- endif %}
@@ -188,6 +186,8 @@ static {{ c.function_handle_return_type(library, handle) }} function_handle_inte
         {{ tmpl_function_call.output(library, function, parameter)|trim }}{{ "," if not loop.last }}
             {% elif parameter.is_struct() %}
         {{ tmpl_function_call.struct(library, function, parameter)|trim }}{{ "," if not loop.last }}
+            {% elif parameter.is_array() %}
+        {{ tmpl_function_call.array(library, function, parameter)|trim }}{{ "," if not loop.last }}
             {% elif parameter.is_function_handle() %}
         {{ tmpl_function_call.function_handle(library, function, parameter)|trim }}{{ "," if not loop.last }}
             {% elif parameter.is_pointer_handle() %}

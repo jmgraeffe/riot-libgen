@@ -1,23 +1,40 @@
+{% import 'generators/wasm/templates/conversion.tmpl' as conversion %}
+
 {% macro struct(library, function, parameter) %}
 {% set struct = library.structs[parameter.struct] %}
 if (wasm_module_inst == NULL) {
     core_panic(PANIC_GENERAL_ERROR, "wasm_libs: WASM module instance is not set (use wasm_libs_set_wasm_module_inst)");
 }
-if (!wasm_runtime_validate_app_addr(wasm_module_inst, (uintptr_t) {{ parameter.name }}, sizeof({{ struct.type }}))) {
-    core_panic(PANIC_GENERAL_ERROR, "wasm_libs: function '{{ library.prefix }}{{ function.name }}' was called with a struct parameter that points outside of WASM memory region");
+if (!wasm_runtime_validate_app_addr(wasm_module_inst, (uintptr_t) {{ parameter.name }}, {{ struct.guest_size }})) {
+    core_panic(PANIC_GENERAL_ERROR, "wasm_libs: function '{{ library.prefix }}{{ function.name }}' was called with a struct parameter '{{ parameter.name }}' that does not lie in the WASM memory region");
 }
-{# TODO this is reaaaally unsafe #}
-{{ struct.type }} {{ parameter.name }}_struct = *(({{ struct.type }}*) wasm_runtime_addr_app_to_native(wasm_module_inst, (uintptr_t) {{ parameter.name }}));
+{# fields that are not declared keep their zero values #}
+{{ struct.type }} {{ parameter.name }}_struct = { 0 };
+{
+    const uint8_t* libgen_guest = (const uint8_t*) wasm_runtime_addr_app_to_native(wasm_module_inst, (uintptr_t) {{ parameter.name }});
+    {{ conversion.to_host(library, parameter, 'libgen_guest', parameter.name ~ '_struct')|trim|indent(4) }}
+}
 {% endmacro %}
 
 {% macro array(library, function, parameter) %}
 if (wasm_module_inst == NULL) {
     core_panic(PANIC_GENERAL_ERROR, "wasm_libs: WASM module instance is not set (use wasm_libs_set_wasm_module_inst)");
 }
-if (!wasm_runtime_validate_app_addr(wasm_module_inst, (uintptr_t) {{ parameter.name }}, sizeof({{ parameter.name }}[0]) * ({{ parameter.array_size }}))) {
-    core_panic(PANIC_GENERAL_ERROR, "wasm_libs: function '{{ library.prefix }}{{ function.name }}' was called with an array parameter that points outside of WASM memory region");
+{# NULL (0) is passed as is, otherwise the array is converted to a host array (and back for output parameters) #}
+uint8_t* {{ parameter.name }}_guest = NULL;
+if ({{ parameter.name }} != NULL) {
+    if (!wasm_runtime_validate_app_addr(wasm_module_inst, (uintptr_t) {{ parameter.name }}, {{ parameter.guest_size() }})) {
+        core_panic(PANIC_GENERAL_ERROR, "wasm_libs: function '{{ library.prefix }}{{ function.name }}' was called with an array parameter '{{ parameter.name }}' that does not lie in the WASM memory region");
+    }
+    {{ parameter.name }}_guest = (uint8_t*) wasm_runtime_addr_app_to_native(wasm_module_inst, (uintptr_t) {{ parameter.name }});
 }
-{{ parameter.name }} = ({{ parameter._element_parameter.type }}*) wasm_runtime_addr_app_to_native(wasm_module_inst, (uintptr_t) {{ parameter.name }});
+{{ conversion.host_type(library, parameter._element_parameter) }} {{ parameter.name }}_array[{{ parameter.array_size }}];
+memset({{ parameter.name }}_array, 0, sizeof({{ parameter.name }}_array));
+{% if not parameter.is_output() %}
+if ({{ parameter.name }}_guest != NULL) {
+    {{ conversion.to_host(library, parameter, parameter.name ~ '_guest', parameter.name ~ '_array')|trim|indent(4) }}
+}
+{% endif %}
 {% endmacro %}
 
 {% macro function_handle(library, function, parameter) %}
@@ -65,27 +82,28 @@ if ({{ parameter.name }} != NULL) {
 {% endmacro %}
 
 {% macro output(library, function, parameter) %}
-{% set type = library.structs[parameter.struct].type ~ '*' if parameter.is_struct() else parameter.type ~ '*' %}
 if (wasm_module_inst == NULL) {
     core_panic(PANIC_GENERAL_ERROR, "wasm_libs: WASM module instance is not set (use wasm_libs_set_wasm_module_inst)");
 }
-{# NULL (0) is passed as is, otherwise the output parameter needs to be in the WASM memory #}
+{# NULL (0) is passed as is, otherwise the host function fills a host value, which is converted afterwards #}
+uint8_t* {{ parameter.name }}_guest = NULL;
 if ({{ parameter.name }} != NULL) {
-    if (!wasm_runtime_validate_app_addr(wasm_module_inst, (uintptr_t) {{ parameter.name }}, sizeof(*{{ parameter.name }}))) {
+    if (!wasm_runtime_validate_app_addr(wasm_module_inst, (uintptr_t) {{ parameter.name }}, {{ parameter.guest_size() }})) {
         core_panic(PANIC_GENERAL_ERROR, "wasm_libs: function '{{ library.prefix }}{{ function.name }}' was called with an output parameter '{{ parameter.name }}' that does not lie in the WASM memory region");
     }
-    {{ parameter.name }} = ({{ type }}) wasm_runtime_addr_app_to_native(wasm_module_inst, (uintptr_t) {{ parameter.name }});
+    {{ parameter.name }}_guest = (uint8_t*) wasm_runtime_addr_app_to_native(wasm_module_inst, (uintptr_t) {{ parameter.name }});
 }
-{% if parameter.is_pointer_handle() %}
-{# the host function sets a native pointer, which is stored as pointer handle afterwards #}
-{{ library.pointer_handles[parameter.pointer_handle].type }} {{ parameter.name }}_ptr = NULL;
-{% endif %}
+{{ conversion.host_type(library, parameter) }} {{ parameter.name }}_value = { 0 };
 {% endmacro %}
 
 {% macro store_output(library, function, parameter) %}
-{% if parameter.is_pointer_handle() %}
-if ({{ parameter.name }} != NULL) {
-    *{{ parameter.name }} = pointer_handles_get_or_add_{{ library.name }}_{{ parameter.pointer_handle }}((void*) {{ parameter.name }}_ptr);
+{% if parameter.is_array() %}
+if ({{ parameter.name }}_guest != NULL) {
+    {{ conversion.to_guest(library, parameter, parameter.name ~ '_guest', parameter.name ~ '_array')|trim|indent(4) }}
+}
+{% elif not parameter.is_byte_array() %}
+if ({{ parameter.name }}_guest != NULL) {
+    {{ conversion.to_guest(library, parameter, parameter.name ~ '_guest', parameter.name ~ '_value')|trim|indent(4) }}
 }
 {% endif %}
 {% endmacro %}

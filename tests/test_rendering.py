@@ -238,9 +238,9 @@ def test_wasm_function_handle_with_string_parameter(tmp_path):
            'strlen((const char*) s) + 1) : 0;' in source
 
 
-@pytest.mark.parametrize('element_type', ['uint8_t', 'int', 'double'])
-def test_wasm_array_sizes(tmp_path, element_type):
-    """Arrays are checked and copied with the size of their elements, not the size of a pointer to them."""
+@pytest.mark.parametrize('element_type,guest_size', [('uint8_t', 3), ('int', 12), ('double', 24), ('size_t', 12)])
+def test_wasm_array_sizes(tmp_path, element_type, guest_size):
+    """Arrays are checked and copied with their size in the WASM memory (which may differ from the host)."""
     render('wasm', {'lib': {
         'functions': {'f': {'parameters': {'values': f'{element_type}[3]'}},
                       'g': {'parameters': {'cb': 'handler'}}},
@@ -248,52 +248,62 @@ def test_wasm_array_sizes(tmp_path, element_type):
     }}, tmp_path)
     source = (tmp_path / 'wasm_libs.c').read_text()
     assert 'sizeof(&' not in source
-    # range check of the array passed to f(), and copy of the array passed to the function handle
-    assert source.count('sizeof(values[0]) * (3)') == 2
+    # range check of the array passed to f(), and memory allocated for the array passed to the function handle
+    assert f'wasm_runtime_validate_app_addr(wasm_module_inst, (uintptr_t) values, {guest_size})' in source
+    assert f'wasm_runtime_module_malloc(wasm_module_inst, {guest_size}, ' in source
 
 
 def test_wasm_struct_size(tmp_path):
-    """Struct parameters are checked with the size of the struct, not the size of a pointer to it."""
+    """Struct parameters are checked with the size of the struct in the WASM memory."""
     render('wasm', {'lib': {
         'functions': {'f': {'parameters': {'m': 'measurement'}}},
         'structs': {'measurement': {'type': 'measurement_t', 'fields': {'val': 'int16_t[3]'}}},
     }}, tmp_path)
     source = (tmp_path / 'wasm_libs.c').read_text()
-    assert 'wasm_runtime_validate_app_addr(wasm_module_inst, (uintptr_t) m, sizeof(measurement_t))' in source
+    assert 'wasm_runtime_validate_app_addr(wasm_module_inst, (uintptr_t) m, 6)' in source
 
 
-def _byte_array_function(generator: str, tmp_path: Path) -> str:
-    render(generator, {'lib': {'functions': {'f': {'parameters': {
-        'data': {'type': 'const uint8_t*', 'length_parameter': 'len'},
-        'len': 'size_t',
-    }}}}}, tmp_path)
-    return read(tmp_path, generator, '{g}_libs.c')
+def test_wasm_struct_layout(tmp_path):
+    """Structs are laid out like in wasm32 (natural alignment), which is checked when compiling the WASM application."""
+    render('wasm', {'lib': {
+        'functions': {'f': {'parameters': {'e': 'envelope'}}},
+        'pointer_handles': {'ptr': 'thing_t*'},
+        'structs': {
+            'measurement': {'type': 'measurement_t', 'fields': {'val': 'int16_t[3]', 'unit': 'uint8_t', 'scale': 'int8_t'}},
+            'envelope': {'type': 'envelope_t', 'fields': {
+                'tag': 'uint8_t', 'm': 'measurement', 'weight': 'double', 'count': 'size_t', 'p': 'ptr', 'l': 'long',
+            }},
+        },
+    }}, tmp_path)
+    header = (tmp_path / 'include' / 'wasm_libs_runtime.h').read_text()
+    assert re.search(r'typedef struct \{\s+uint8_t tag;\s+lib_measurement_t m;\s+double weight;\s+size_t count;\s+'
+                     r'int64_t p;\s+long l;\s+\} lib_envelope_t;', header)
+    assert '_Static_assert(sizeof(lib_envelope_t) == 48, ' in header
+    offsets = dict(re.findall(r'__builtin_offsetof\(lib_envelope_t, (\w+)\) == (\d+)', header))
+    assert offsets == {'tag': '0', 'm': '2', 'weight': '16', 'count': '24', 'p': '32', 'l': '40'}
 
 
-def test_wasm_byte_array_range(tmp_path):
-    """The whole range of a byte array (as given by the length parameter) is checked to be in the WASM memory."""
-    source = _byte_array_function('wasm', tmp_path)
-    assert 'wasm_runtime_validate_app_addr(wasm_module_inst, (uintptr_t) data, len)' in source
-
-
-def test_wasm_string_and_byte_array_null(tmp_path):
-    """Strings and byte arrays from the guest are validated and converted, except for NULL (0)."""
-    render('wasm', {'lib': {'functions': {'f': {'parameters': {
-        's': 'const char*',
-        'data': {'type': 'const uint8_t*', 'length_parameter': 'len'},
-        'len': 'size_t',
-    }}}}}, tmp_path)
+def test_wasm_partial_struct(tmp_path):
+    """Only declared fields are part of the struct in the WASM application, and converted by the host."""
+    render('wasm', {'lib': {
+        'functions': {'f': {'parameters': {'p': 'partial'}}},
+        'structs': {'partial': {'type': 'partial_t', 'fields': {'a': 'int', 'b': 'int16_t'}}},
+    }}, tmp_path)
+    header = (tmp_path / 'include' / 'wasm_libs_runtime.h').read_text()
+    assert re.search(r'typedef struct \{\s+int a;\s+int16_t b;\s+\} lib_partial_t;', header)
     source = (tmp_path / 'wasm_libs.c').read_text()
-    assert re.search(r'if \(s != NULL\) \{\s+if \(!wasm_runtime_validate_app_str_addr\(wasm_module_inst, \(uintptr_t\) s\)\)',
-                     source)
-    assert re.search(r'if \(data != NULL\) \{\s+if \(!wasm_runtime_validate_app_addr\(wasm_module_inst, \(uintptr_t\) data, len\)\)',
-                     source)
+    assert 'partial_t p_struct = { 0 };' in source
+    assert set(re.findall(r'p_struct\.(\w+) =', source)) == {'a', 'b'}
 
 
-def test_js_byte_array_length(tmp_path):
-    """The length parameter must not be larger than the byte array (which is copied from a JS string)."""
-    source = _byte_array_function('js', tmp_path)
-    assert re.search(r'if \(\(size_t\) len > length_data\) \{\s+core_panic\(', source)
+@pytest.mark.parametrize('field_type', ['const char*', 'handler', 'long double'])
+def test_wasm_unsupported_struct_fields(tmp_path, field_type):
+    with pytest.raises(LibGenConfigException):
+        render('wasm', {'lib': {
+            'functions': {'f': {'parameters': {'s': 'data'}}},
+            'function_handles': {'handler': None},
+            'structs': {'data': {'type': 'data_t', 'fields': {'x': field_type}}},
+        }}, tmp_path)
 
 
 def test_js_pointer_handle_release_function(tmp_path):

@@ -1,15 +1,29 @@
+{% import 'generators/wasm/templates/conversion.tmpl' as conversion %}
+
 {% macro struct(library, handle, param, dest) %}
-{# TODO consider NULL!? #}
 {# TODO 32bit memory model assumed, might become variable in the future #}
-{{ dest }}.kind = WASM_I32;
-{{ dest }}.of.i32 = (int32_t) wasm_runtime_module_dup_data(wasm_module_inst, (const char*) &({{ param.name }}), sizeof({{ param.name }}));
+{
+    uint8_t* libgen_guest = NULL;
+    {{ dest }}.kind = WASM_I32;
+    {{ dest }}.of.i32 = (int32_t) wasm_runtime_module_malloc(wasm_module_inst, {{ library.structs[param.struct].guest_size }}, (void**) &libgen_guest);
+    if (libgen_guest == NULL) {
+        core_panic(PANIC_GENERAL_ERROR, "wasm_libs: could not allocate memory in the WASM application");
+    }
+    {{ conversion.to_guest(library, param, 'libgen_guest', param.name)|trim|indent(4) }}
+}
 {% endmacro %}
 
 {% macro array(library, handle, param, dest) %}
-{# TODO consider NULL!? #}
 {# TODO 32bit memory model assumed, might become variable in the future #}
-{{ dest }}.kind = WASM_I32;
-{{ dest }}.of.i32 = (int32_t) wasm_runtime_module_dup_data(wasm_module_inst, (const char*) {{ param.name }}, sizeof({{ param.name }}[0]) * ({{ param.array_size }}));
+{
+    uint8_t* libgen_guest = NULL;
+    {{ dest }}.kind = WASM_I32;
+    {{ dest }}.of.i32 = (int32_t) wasm_runtime_module_malloc(wasm_module_inst, {{ param.guest_size() }}, (void**) &libgen_guest);
+    if (libgen_guest == NULL) {
+        core_panic(PANIC_GENERAL_ERROR, "wasm_libs: could not allocate memory in the WASM application");
+    }
+    {{ conversion.to_guest(library, param, 'libgen_guest', param.name)|trim|indent(4) }}
+}
 {% endmacro %}
 
 {% macro pointer_handle(library, handle, param, dest) %}

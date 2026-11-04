@@ -31,6 +31,11 @@ res.{{ field.name }} = {{ field.name }};
     {% elif field.is_byte_array() %}
 {{ tmpl_function_parameters.byte_array(library, handle, field, 'field_value_' ~ field.name)|trim }}
 res.{{ field.name }} = {{ field.name }};
+    {% elif field.is_struct() %}
+{
+    {{ tmpl_function_parameters.struct(library, handle, namespace(name=field.name, struct=field.struct), 'field_value_' ~ field.name)|trim|indent(4) }}
+    res.{{ field.name }} = {{ field.name }};
+}
     {% else %}
         {% raise "library '" ~ library.name ~ "', function handle '" ~ handle.name ~ "', returned struct: unsupported type '" ~ field.type ~ "' for struct field" %}
     {% endif %}

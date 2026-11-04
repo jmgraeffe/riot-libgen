@@ -1,23 +1,29 @@
+{# type of a value in the WASM application (element type for arrays) #}
+{% macro guest_type(library, item) %}
+{% if item.is_struct() %}
+{{ library.prefix }}{{ library.structs[item.struct].name }}_t
+{%- elif item.is_function_handle() %}
+wasm_libs_function_handle_t
+{%- else %}
+{{ item.type }}
+{%- endif %}
+{% endmacro %}
 {% macro parameter(library, parameter) %}
 {% if parameter.is_struct() %}
-{{ library.prefix }}{{ library.structs[parameter.struct].name }}_t* {{ parameter.name }}
-{%- elif parameter.is_function_handle() %}
-wasm_libs_function_handle_t {{ parameter.name }}
+{{ guest_type(library, parameter) }}* {{ parameter.name }}
 {%- elif parameter.is_array() %}
-{{ parameter._element_parameter.type }} {{ parameter.name }}[{{ parameter.array_size }}]
+{{ guest_type(library, parameter._element_parameter) }} {{ parameter.name }}[{{ parameter.array_size }}]
 {%- elif parameter.is_output() and not parameter.is_byte_array() %}
-{{ parameter.type }}* {{ parameter.name }}
+{{ guest_type(library, parameter) }}* {{ parameter.name }}
 {%- else %}
-{{ parameter.type }} {{ parameter.name }}
+{{ guest_type(library, parameter) }} {{ parameter.name }}
 {%- endif %}
 {% endmacro %}
 {% macro field(library, field) %}
-{% if field.is_function_handle() %}
-wasm_libs_function_handle_t {{ field.name }}
-{%- elif field.is_array() %}
-{{ field._element_parameter.type }} {{ field.name }}[{{ field.array_size }}]
+{% if field.is_array() %}
+{{ guest_type(library, field._element_parameter) }} {{ field.name }}[{{ field.array_size }}]
 {%- else %}
-{{ field.type }} {{ field.name }}
+{{ guest_type(library, field) }} {{ field.name }}
 {%- endif %}
 {% endmacro %}
 #define WASM_LIBS_FUNCTION_HANDLE(name) (name)
@@ -51,6 +57,11 @@ typedef struct {
     {{ field(library, field_) }};
         {% endfor %}
 } {{ library.prefix }}{{ struct.name }}_t;
+        {# the host converts structs field by field with this layout #}
+_Static_assert(sizeof({{ library.prefix }}{{ struct.name }}_t) == {{ struct.guest_size }}, "unexpected layout of {{ library.prefix }}{{ struct.name }}_t");
+        {% for field_ in struct.fields.values() %}
+_Static_assert(__builtin_offsetof({{ library.prefix }}{{ struct.name }}_t, {{ field_.name }}) == {{ struct.guest_offsets[field_.name] }}, "unexpected layout of {{ library.prefix }}{{ struct.name }}_t");
+        {% endfor %}
     {% endfor %}
 {% endfor %}
 {% for library in libraries.values() if library.functions %}

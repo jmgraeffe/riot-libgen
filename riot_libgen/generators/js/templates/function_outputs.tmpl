@@ -5,6 +5,7 @@
  # host function.
  #}
 {% import 'generators/js/templates/function_handle_parameters.tmpl' as tmpl_function_handle_parameters %}
+{% import 'generators/js/templates/function_parameters.tmpl' as tmpl_function_parameters %}
 
 {% macro prepare(library, function, parameter, container) %}
 bool {{ parameter.name }}_is_null = jerry_value_is_null({{ container }});
@@ -12,7 +13,7 @@ bool {{ parameter.name }}_is_null = jerry_value_is_null({{ container }});
 if (!{{ parameter.name }}_is_null && !jerry_value_is_array({{ container }})) {
     core_panic(PANIC_GENERAL_ERROR, "js_libs: library '{{ library.name }}', function '{{ function.name }}', parameter '{{ parameter.name }}': output parameter needs to be an array (or null)");
 }
-{{ parameter._element_parameter.type }} {{ parameter.name }}[{{ parameter.array_size }}] = {0};
+{{ tmpl_function_parameters.host_type(library, parameter._element_parameter) }} {{ parameter.name }}[{{ parameter.array_size }}] = {0};
 {% else %}
 if (!{{ parameter.name }}_is_null && !jerry_value_is_object({{ container }})) {
     core_panic(PANIC_GENERAL_ERROR, "js_libs: library '{{ library.name }}', function '{{ function.name }}', parameter '{{ parameter.name }}': output parameter needs to be an object (or null)");

@@ -1,0 +1,77 @@
+{#
+ # Conversion of values between their representation in the memory of the WASM application (guest) and on the host,
+ # field by field and element by element: layouts may differ (e.g. sizes of long or size_t, pointer handles instead of
+ # pointers), and only the fields declared in the configuration are read from or written to the WASM memory (all other
+ # fields keep the values set by the host).
+ #
+ # guest: expression of a pointer (uint8_t*) to the value in the WASM memory, which needs to be validated beforehand
+ # host: lvalue of the value on the host
+ # depth: nesting depth, used for unique names of loop variables
+ #}
+
+{# C type of a value on the host #}
+{% macro host_type(library, item) %}
+{% if item.is_struct() %}
+{{ library.structs[item.struct].type }}
+{%- elif item.is_pointer_handle() %}
+{{ library.pointer_handles[item.pointer_handle].type }}
+{%- else %}
+{{ item.type }}
+{%- endif %}
+{% endmacro %}
+
+{% macro struct_to_host(library, struct, guest, host, depth=0) %}
+{% for field in struct.fields.values() %}
+{{ to_host(library, field, guest ~ ' + ' ~ struct.guest_offsets[field.name], host ~ '.' ~ field.name, depth)|trim }}
+{% endfor %}
+{% endmacro %}
+
+{% macro to_host(library, item, guest, host, depth=0) %}
+{% if item.is_struct() %}
+{{ struct_to_host(library, library.structs[item.struct], guest, host, depth)|trim }}
+{% elif item.is_array() %}
+{% set i = 'libgen_i' ~ depth %}
+for (size_t {{ i }} = 0; {{ i }} < {{ item.array_size }}; ++{{ i }}) {
+    {{ to_host(library, item._element_parameter, guest ~ ' + ' ~ item._element_parameter.guest_size() ~ ' * ' ~ i, host ~ '[' ~ i ~ ']', depth + 1)|trim|indent(4) }}
+}
+{% elif item.is_pointer_handle() %}
+{
+    int64_t libgen_handle;
+    memcpy(&libgen_handle, {{ guest }}, sizeof(libgen_handle));
+    {{ host }} = ({{ host_type(library, item) }}) pointer_handles_get_{{ library.name }}_{{ item.pointer_handle }}(libgen_handle);
+}
+{% else %}
+{
+    {{ item.guest_transfer_type() }} libgen_value;
+    memcpy(&libgen_value, {{ guest }}, sizeof(libgen_value));
+    {{ host }} = ({{ item.type }}) libgen_value;
+}
+{% endif %}
+{% endmacro %}
+
+{% macro struct_to_guest(library, struct, guest, host, depth=0) %}
+{% for field in struct.fields.values() %}
+{{ to_guest(library, field, guest ~ ' + ' ~ struct.guest_offsets[field.name], host ~ '.' ~ field.name, depth)|trim }}
+{% endfor %}
+{% endmacro %}
+
+{% macro to_guest(library, item, guest, host, depth=0) %}
+{% if item.is_struct() %}
+{{ struct_to_guest(library, library.structs[item.struct], guest, host, depth)|trim }}
+{% elif item.is_array() %}
+{% set i = 'libgen_i' ~ depth %}
+for (size_t {{ i }} = 0; {{ i }} < {{ item.array_size }}; ++{{ i }}) {
+    {{ to_guest(library, item._element_parameter, guest ~ ' + ' ~ item._element_parameter.guest_size() ~ ' * ' ~ i, host ~ '[' ~ i ~ ']', depth + 1)|trim|indent(4) }}
+}
+{% elif item.is_pointer_handle() %}
+{
+    int64_t libgen_handle = pointer_handles_get_or_add_{{ library.name }}_{{ item.pointer_handle }}((void*) {{ host }});
+    memcpy({{ guest }}, &libgen_handle, sizeof(libgen_handle));
+}
+{% else %}
+{
+    {{ item.guest_transfer_type() }} libgen_value = ({{ item.guest_transfer_type() }}) {{ host }};
+    memcpy({{ guest }}, &libgen_value, sizeof(libgen_value));
+}
+{% endif %}
+{% endmacro %}

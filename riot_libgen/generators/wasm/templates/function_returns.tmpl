@@ -1,5 +1,15 @@
+{% import 'generators/wasm/templates/conversion.tmpl' as conversion %}
+
 {% macro struct(library, function) %}
-return wasm_runtime_module_dup_data(wasm_module_inst, (const char*) &libgen_res, sizeof(libgen_res));
+{% set struct = library.structs[function.returned_struct] %}
+{# the struct is copied to memory allocated in the WASM application #}
+uint8_t* libgen_guest = NULL;
+uint32_t libgen_guest_res = (uint32_t) wasm_runtime_module_malloc(wasm_module_inst, {{ struct.guest_size }}, (void**) &libgen_guest);
+if (libgen_guest == NULL) {
+    core_panic(PANIC_GENERAL_ERROR, "wasm_libs: could not allocate memory in the WASM application");
+}
+{{ conversion.struct_to_guest(library, struct, 'libgen_guest', 'libgen_res')|trim }}
+return libgen_guest_res;
 {% endmacro %}
 
 {% macro pointer_handle(library, function) %}

@@ -11,9 +11,15 @@ function_handle_internal_function_{{ library.name }}_{{ parameter.function_handl
 {% endmacro %}
 
 {% macro output(library, function, parameter) %}
-{% if parameter.is_pointer_handle() %}
-{{ parameter.name }} != NULL ? &{{ parameter.name }}_ptr : NULL
-{% else %}
+{% if parameter.is_array() %}
+{{ parameter.name }}_guest != NULL ? {{ parameter.name }}_array : NULL
+{% elif parameter.is_byte_array() %}
 {{ parameter.name }}
+{% else %}
+{{ parameter.name }}_guest != NULL ? &{{ parameter.name }}_value : NULL
 {% endif %}
+{% endmacro %}
+
+{% macro array(library, function, parameter) %}
+{{ parameter.name }}_guest != NULL ? {{ parameter.name }}_array : NULL
 {% endmacro %}

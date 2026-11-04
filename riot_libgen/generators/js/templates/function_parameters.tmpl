@@ -1,3 +1,14 @@
+{# C type of a value on the host #}
+{% macro host_type(library, item) %}
+{% if item.is_struct() %}
+{{ library.structs[item.struct].type }}
+{%- elif item.is_pointer_handle() %}
+{{ library.pointer_handles[item.pointer_handle].type }}
+{%- else %}
+{{ item.type }}
+{%- endif %}
+{% endmacro %}
+
 {% macro struct(library, function, parameter, container) %}
 {{ library.structs[parameter.struct].type }} {{ parameter.name }} = {0};
 if (!jerry_value_is_object({{ container }})) {
@@ -26,6 +37,11 @@ for (uint32_t i = 0; i < (uint32_t) ({{ field.array_size }}); ++i) {
     {% elif field.is_byte_array() %}
 {{ byte_array(library, function, field, 'field_value_' ~ field.name)|trim }}
 {{ parameter.name }}.{{ field.name }} = {{ field.name }};
+    {% elif field.is_struct() %}
+{
+    {{ struct(library, function, namespace(name=parameter.name ~ '_' ~ field.name, struct=field.struct), 'field_value_' ~ field.name)|trim|indent(4) }}
+    {{ parameter.name }}.{{ field.name }} = {{ parameter.name }}_{{ field.name }};
+}
     {% else %}
         {% raise "library '" ~ library.name ~ "', function handle '" ~ handle.name ~ "', parameter '" ~ parameter.name ~ "': unsupported type '" ~ field.type ~ "' for struct field" %}
     {% endif %}
@@ -35,7 +51,7 @@ jerry_release_value(field_value_{{ field.name }});
 {% endmacro %}
 
 {% macro array(library, function, parameter, container) %}
-{{ parameter._element_parameter.type }} {{ parameter.name }}[{{ parameter.array_size }}] = {0};
+{{ host_type(library, parameter._element_parameter) }} {{ parameter.name }}[{{ parameter.array_size }}] = {0};
 if (!jerry_value_is_array({{ container }})) {
     core_panic(PANIC_GENERAL_ERROR, "js_libs: library '{{ library.name }}', function '{{ function.name }}', parameter '{{ parameter.name }}': not an array");
 }
@@ -54,6 +70,8 @@ for (uint32_t i = 0; i < (uint32_t) ({{ parameter.array_size }}); ++i) {
     {{ boolean(library, function, parameter._element_parameter, 'value_' ~ parameter.name)|trim|indent(4) }}
     {% elif parameter._element_parameter.is_string() %}
     {{ string_byte_array(library, function, parameter._element_parameter, 'value_' ~ parameter.name)|trim|indent(4) }}
+    {% elif parameter._element_parameter.is_struct() %}
+    {{ struct(library, function, parameter._element_parameter, 'value_' ~ parameter.name)|trim|indent(4) }}
     {% else %}
         {% raise "library '" ~ library.name ~ "', function '" ~ function.name ~ "', parameter '" ~ parameter.name ~ "': unsupported array element type '" ~ parameter._element_parameter.type ~ "'" %}
     {% endif %}

@@ -93,6 +93,16 @@ CASES = {
     'outputs.byte_array': BOTH,
     'outputs.null': BOTH,
     'outputs.string': (JS,),  # not supported by the WASM generator (yet)
+    'struct_conversion.partial': BOTH,
+    'struct_conversion.pointer_handle_field': BOTH,
+    'struct_conversion.nested_parameter': BOTH,
+    'struct_conversion.nested_return': BOTH,
+    'struct_conversion.nested_output': BOTH,
+    'struct_conversion.nested_function_handle_parameter': BOTH,
+    'struct_conversion.nested_function_handle_return': BOTH,
+    'struct_conversion.array_of_structs': BOTH,
+    'struct_conversion.array_of_size_t': BOTH,
+    'struct_conversion.array_of_structs_output': BOTH,
     'saul.find': BOTH,
     'saul.read': BOTH,
 }

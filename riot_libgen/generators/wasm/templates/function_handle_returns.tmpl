@@ -1,24 +1,20 @@
+{% import 'generators/wasm/templates/conversion.tmpl' as conversion %}
+
 {% macro struct(library, handle, param) %}
-{% set type = library.structs[handle.returned_struct].type %}
-{# considering pointer length already even though WAMR is 32bit memory model atm #}
-{# TODO 32bit memory model assumed for strings ($), might become variable in the future #}
-{% if handle.get_wasm_runtime_signature_for_return_type() == 'i' or handle.get_wasm_runtime_signature_for_return_type() == '$' %}
-if (!wasm_runtime_validate_app_addr(wasm_module_inst, results[0].of.i32, sizeof(results[0].of.i32))) {
+{% set struct = library.structs[handle.returned_struct] %}
+{# TODO 32bit memory model assumed, might become variable in the future #}
+if (!wasm_runtime_validate_app_addr(wasm_module_inst, results[0].of.i32, {{ struct.guest_size }})) {
     char msg[512] = {'\0'};
-    sprintf(msg, "wasm_libs: function handle '%s' returned pointer outside of WASM memory region", function_handle_next_function_name_{{ library.name }}_{{ handle.name }});
+    sprintf(msg, "wasm_libs: function handle '%s' returned a struct that does not lie in the WASM memory region", function_handle_next_function_name_{{ library.name }}_{{ handle.name }});
     core_panic(PANIC_GENERAL_ERROR, msg);
 }
-//TODO check if not only the beginning but the whole range is in the VM memory, and btw we do not care about the VM messing up type boundaries
-return ({{ type }}) *(({{ type }}*) wasm_runtime_addr_app_to_native(wasm_module_inst, results[0].of.i32));
-{% else %}
-if (!wasm_runtime_validate_app_addr(wasm_module_inst, results[0].of.i64, sizeof(results[0].of.i64))) {
-    char msg[512] = {'\0'};
-    sprintf(msg, "wasm_libs: function handle '%s' returned pointer outside of WASM memory region", function_handle_next_function_name_{{ library.name }}_{{ handle.name }});
-    core_panic(PANIC_GENERAL_ERROR, msg);
+{# fields that are not declared keep their zero values #}
+{{ struct.type }} libgen_handle_res = { 0 };
+{
+    const uint8_t* libgen_guest = (const uint8_t*) wasm_runtime_addr_app_to_native(wasm_module_inst, results[0].of.i32);
+    {{ conversion.struct_to_host(library, struct, 'libgen_guest', 'libgen_handle_res')|trim|indent(4) }}
 }
-//TODO check if not only the beginning but the whole range is in the VM memory, and btw we do not care about the VM messing up type boundaries
-return ({{ type }}) *(({{ type }}*) wasm_runtime_addr_app_to_native(wasm_module_inst, results[0].of.i64));
-{% endif %}
+return libgen_handle_res;
 {% endmacro %}
 
 {% macro string_byte_array(library, handle, param) %}

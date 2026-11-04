@@ -1,9 +1,18 @@
 {# shared macros for rendering C declarations; all macros render a single line without trailing newline #}
+{% macro element_type(library, element) %}
+{% if element.is_struct() %}
+{{ library.structs[element.struct].type }}
+{%- elif element.is_pointer_handle() %}
+{{ library.pointer_handles[element.pointer_handle].type }}
+{%- else %}
+{{ element.type }}
+{%- endif %}
+{% endmacro %}
 {% macro type_and_name(library, parameter) %}
 {# output parameters are pointers to their type, except for arrays and byte arrays (which are pointers already) #}
 {% set pointer = '*' if parameter.is_output() and not parameter.is_byte_array() else '' %}
 {% if parameter.is_array() %}
-{{ parameter._element_parameter.type }} {{ parameter.name }}[{{ parameter.array_size }}]
+{{ element_type(library, parameter._element_parameter) }} {{ parameter.name }}[{{ parameter.array_size }}]
 {%- elif parameter.is_struct() %}
 {{ library.structs[parameter.struct].type }}{{ pointer }} {{ parameter.name }}
 {%- elif parameter.is_pointer_handle() %}

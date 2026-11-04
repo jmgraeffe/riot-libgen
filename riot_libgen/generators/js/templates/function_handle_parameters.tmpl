@@ -1,3 +1,5 @@
+{% import 'generators/js/templates/function_parameters.tmpl' as tmpl_function_parameters %}
+
 {% macro struct(library, handle, param, dest) %}
 {{ dest }} = jerry_create_object();
 {% for field in library.structs[param.struct].fields.values() %}
@@ -6,8 +8,8 @@
         {% set manipulated_field = namespace(name=param.name ~ '_' ~ field.name, _element_parameter=field._element_parameter, array_size=field.array_size) %}
 jerry_value_t {{ array(library, function, manipulated_field, 'field_value_' ~ field.name)|trim }}
     {% elif field.is_pointer_handle() %}
-{{ field.type }} {{ param.name }}_{{ field.name }} = {{ param.name }}.{{ field.name }};
-        {% set manipulated_field = namespace(name=param.name ~ '_' ~ field.name) %}
+{{ library.pointer_handles[field.pointer_handle].type }} {{ param.name }}_{{ field.name }} = {{ param.name }}.{{ field.name }};
+        {% set manipulated_field = namespace(name=param.name ~ '_' ~ field.name, pointer_handle=field.pointer_handle) %}
 jerry_value_t {{ pointer_handle(library, function, manipulated_field, 'field_value_' ~ field.name)|trim }}
     {% elif field.is_number() %}
 {{ field.type }} {{ param.name }}_{{ field.name }} = {{ param.name }}.{{ field.name }};
@@ -25,6 +27,12 @@ jerry_value_t {{ string(library, function, manipulated_field, 'field_value_' ~ f
 {{ field.type }} {{ param.name }}_{{ field.name }} = {{ param.name }}.{{ field.name }};
         {% set manipulated_field = namespace(name=param.name ~ '_' ~ field.name) %}
 jerry_value_t {{ byte_array(library, function, manipulated_field, 'field_value_' ~ field.name)|trim }}
+    {% elif field.is_struct() %}
+jerry_value_t field_value_{{ field.name }};
+{
+    {{ library.structs[field.struct].type }} {{ param.name }}_{{ field.name }} = {{ param.name }}.{{ field.name }};
+    {{ struct(library, handle, namespace(name=param.name ~ '_' ~ field.name, struct=field.struct), 'field_value_' ~ field.name)|trim|indent(4) }}
+}
     {% else %}
         {% raise "library '" ~ library.name ~ "', function handle'" ~ handle.name ~ "', parameter '" ~ param.name ~ "': unsupported type '" ~ field.type ~ "' for struct field" %}
     {% endif %}
@@ -39,8 +47,13 @@ jerry_release_value(field_value_{{ field.name }});
 {{ dest }} = jerry_create_array({{ param.array_size }});
 for (uint32_t i = 0; i < (uint32_t) ({{ param.array_size }}); ++i) {
     {# TODO this might fail with pointer handles, doesn't it #}
-    {{ param._element_parameter.type }} {{ param.name }}_elem = {{ param.name }}[i];
+    {{ tmpl_function_parameters.host_type(library, param._element_parameter) }} {{ param.name }}_elem = {{ param.name }}[i];
     {% set elem_parameter = namespace(name=param.name ~ '_elem') %}
+    {% if param._element_parameter.is_struct() %}
+        {% set elem_parameter.struct = param._element_parameter.struct %}
+    {% elif param._element_parameter.is_pointer_handle() %}
+        {% set elem_parameter.pointer_handle = param._element_parameter.pointer_handle %}
+    {% endif %}
     {% if param._element_parameter.is_pointer_handle() %}
     {{ pointer_handle(library, handle, elem_parameter, 'jerry_value_t value_' ~ param.name)|trim|indent(4) }}
     {% elif param._element_parameter.is_number() %}
@@ -49,6 +62,9 @@ for (uint32_t i = 0; i < (uint32_t) ({{ param.array_size }}); ++i) {
     {{ boolean(library, handle, elem_parameter, 'jerry_value_t value_' ~ param.name)|trim|indent(4) }}
     {% elif param._element_parameter.is_string() %}
     {{ string_byte_array(library, handle, elem_parameter, 'jerry_value_t value_' ~ param.name)|trim|indent(4) }}
+    {% elif param._element_parameter.is_struct() %}
+    jerry_value_t value_{{ param.name }};
+    {{ struct(library, handle, elem_parameter, 'value_' ~ param.name)|trim|indent(4) }}
     {% else %}
         {% raise "library '" ~ library.name ~ "', function handle'" ~ handle.name ~ "', parameter '" ~ param.name ~ "': element type '" ~ param._element_parameter.type ~ "' of array not supported" %}
     {% endif %}

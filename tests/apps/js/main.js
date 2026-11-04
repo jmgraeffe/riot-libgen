@@ -341,3 +341,63 @@ check_all("saul.read", [
     [res.unit, saul.UNIT_TEMP_C],
     [res.scale, -2]
 ]);
+
+// struct conversion: partial structs, pointer handle fields, nested structs, arrays of structs
+
+var partial = tests.make_partial(5);
+check_all("struct_conversion.partial", [
+    [tests.partial_checksum({a: 1, b: 2}), 21],
+    [partial.a, 5],
+    [partial.b, 6],
+    [partial.hidden, undefined]
+]);
+
+var counter_ref = tests.make_counter_ref(5);
+var counter_before = tests.counter_ref_increment({c: tests.counter_get(5), increment: 0});
+check_all("struct_conversion.pointer_handle_field", [
+    [counter_ref.c, tests.counter_get(5)],
+    [counter_ref.increment, 2],
+    [tests.counter_ref_increment({c: tests.counter_get(5), increment: 10}), counter_before + 10]
+]);
+
+function check_envelope(name, e, tag) {
+    check_all(name, [
+        [e.tag, tag],
+        [e.m.val[0], 10],
+        [e.m.val[1], 11],
+        [e.m.val[2], 12],
+        [e.m.unit, 7],
+        [e.m.scale, -3],
+        [e.weight, 2.5],
+        [e.count, 7]
+    ]);
+}
+var envelope_input = {tag: 3, m: {val: [1, 2, 3], unit: 4, scale: 5}, weight: 2.5, count: 7};
+check("struct_conversion.nested_parameter", tests.envelope_checksum(envelope_input), 710354321);
+check_envelope("struct_conversion.nested_return", tests.make_envelope(4), 4);
+var envelope_output = {};
+tests.read_envelope(envelope_output);
+check_envelope("struct_conversion.nested_output", envelope_output, 4);
+
+var received_envelope = null;
+function js_envelope_receiver(e) {
+    received_envelope = e;
+}
+tests.call_with_envelope("js_envelope_receiver");
+check_envelope("struct_conversion.nested_function_handle_parameter", received_envelope, 5);
+function js_envelope_sender() {
+    return envelope_input;
+}
+check("struct_conversion.nested_function_handle_return",
+      tests.checksum_from_envelope_callback("js_envelope_sender"), 710354321);
+
+check("struct_conversion.array_of_structs", tests.sum_partials([{a: 1, b: 2}, {a: 3, b: 4}]), 64);
+check("struct_conversion.array_of_size_t", tests.sum_sizes([1, 2, 3]), 6);
+var partials = [];
+tests.get_partials(partials);
+check_all("struct_conversion.array_of_structs_output", [
+    [partials[0].a, 1],
+    [partials[0].b, 2],
+    [partials[1].a, 3],
+    [partials[1].b, 4]
+]);

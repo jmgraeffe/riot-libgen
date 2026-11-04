@@ -305,3 +305,58 @@ int get_name(const char** name) {
     *name = "riot";
     return 1;
 }
+
+/* struct conversion */
+
+int partial_checksum(partial_t p) {
+    return p.a + 10 * p.b + 100 * p.hidden;
+}
+
+partial_t make_partial(int a) {
+    partial_t p = { .a = a, .hidden = 99, .b = (int16_t) (a + 1) };
+    return p;
+}
+
+int counter_ref_increment(counter_ref_t r) {
+    r.c->value += r.increment;
+    return r.c->value;
+}
+
+counter_ref_t make_counter_ref(int index) {
+    counter_ref_t r = { .c = counter_get(index), .increment = 2 };
+    return r;
+}
+
+int32_t envelope_checksum(envelope_t e) {
+    return measurement_checksum(e.m) + 100000 * e.tag + 1000000 * (int32_t) (e.weight * 4) + 100000000 * (int32_t) e.count;
+}
+
+envelope_t make_envelope(uint8_t tag) {
+    envelope_t e = { .tag = tag, .m = make_measurement(10), .weight = 2.5, .count = 7 };
+    return e;
+}
+
+void read_envelope(envelope_t* e) {
+    *e = make_envelope(4);
+}
+
+void call_with_envelope(void (*cb)(envelope_t e)) {
+    cb(make_envelope(5));
+}
+
+int32_t checksum_from_envelope_callback(envelope_t (*cb)(void)) {
+    return envelope_checksum(cb());
+}
+
+int sum_partials(partial_t values[2]) {
+    return partial_checksum(values[0]) + partial_checksum(values[1]);
+}
+
+size_t sum_sizes(size_t values[3]) {
+    return values[0] + values[1] + values[2];
+}
+
+void get_partials(partial_t values[2]) {
+    values[0] = make_partial(1);
+    values[1] = make_partial(3);
+}

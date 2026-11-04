@@ -157,6 +157,23 @@ WASM_EXPORT int64_t guest_counter_sender(void) {
     return tests_counter_get(5);
 }
 
+static tests_envelope_t received_envelope;
+WASM_EXPORT void guest_envelope_receiver(tests_envelope_t e) {
+    received_envelope = e;
+}
+
+static tests_envelope_t envelope_input = {
+    .tag = 3, .m = { .val = { 1, 2, 3 }, .unit = 4, .scale = 5 }, .weight = 2.5, .count = 7
+};
+WASM_EXPORT tests_envelope_t* guest_envelope_sender(void) {
+    return &envelope_input;
+}
+
+static void check_envelope(const char* name, const tests_envelope_t* e, int tag) {
+    CHECK_ALL(name, { e->tag, tag }, { e->m.val[0], 10 }, { e->m.val[1], 11 }, { e->m.val[2], 12 }, { e->m.unit, 7 },
+              { e->m.scale, -3 }, { e->weight == 2.5, true }, { e->count, 7 });
+}
+
 WASM_EXPORT const char* guest_string_sender(void) {
     return "hello";
 }
@@ -396,6 +413,49 @@ WASM_EXPORT int main(void) {
     /* NULL is passed as NULL, for optional output parameters */
     check("outputs.null", tests_get_count(NULL), 1);
     /* outputs.string: JS only, output strings are not supported by the WASM generator (yet) */
+
+    /* struct conversion: partial structs, pointer handle fields, nested structs, arrays of structs */
+
+    {
+        tests_partial_t input = { .a = 1, .b = 2 };
+        int checksum = tests_partial_checksum(&input);
+        tests_partial_t p = *tests_make_partial(5);
+        CHECK_ALL("struct_conversion.partial", { checksum, 21 }, { p.a, 5 }, { p.b, 6 }, { sizeof(p), 8 });
+    }
+    {
+        tests_counter_ref_t r = *tests_make_counter_ref(5);
+        int64_t expected = tests_counter_get(5);
+        tests_counter_ref_t zero = { .c = expected, .increment = 0 };
+        int before = tests_counter_ref_increment(&zero);
+        tests_counter_ref_t ten = { .c = expected, .increment = 10 };
+        int after = tests_counter_ref_increment(&ten);
+        CHECK_ALL("struct_conversion.pointer_handle_field", { r.c, expected }, { r.increment, 2 }, { after, before + 10 });
+    }
+    check("struct_conversion.nested_parameter", tests_envelope_checksum(&envelope_input), 710354321);
+    check_envelope("struct_conversion.nested_return", tests_make_envelope(4), 4);
+    {
+        tests_envelope_t e = { 0 };
+        tests_read_envelope(&e);
+        check_envelope("struct_conversion.nested_output", &e, 4);
+    }
+    tests_call_with_envelope(WASM_LIBS_FUNCTION_HANDLE("guest_envelope_receiver"));
+    check_envelope("struct_conversion.nested_function_handle_parameter", &received_envelope, 5);
+    check("struct_conversion.nested_function_handle_return",
+          tests_checksum_from_envelope_callback(WASM_LIBS_FUNCTION_HANDLE("guest_envelope_sender")), 710354321);
+    {
+        tests_partial_t values[2] = { { .a = 1, .b = 2 }, { .a = 3, .b = 4 } };
+        check("struct_conversion.array_of_structs", tests_sum_partials(values), 64);
+    }
+    {
+        size_t values[3] = { 1, 2, 3 };
+        check("struct_conversion.array_of_size_t", tests_sum_sizes(values), 6);
+    }
+    {
+        tests_partial_t values[2] = { { 0 }, { 0 } };
+        tests_get_partials(values);
+        CHECK_ALL("struct_conversion.array_of_structs_output",
+                  { values[0].a, 1 }, { values[0].b, 2 }, { values[1].a, 3 }, { values[1].b, 4 });
+    }
 
     /* SAUL registry (configs/saul_reg.libgen-config.yml), with fake devices registered by the host
      * (libgen_tests_saul.c) */

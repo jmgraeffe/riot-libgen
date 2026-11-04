@@ -267,6 +267,57 @@ libraries:
           len: size_t
         return_type: size_t
 
+      # struct conversion
+      partial_checksum:
+        parameters:
+          p: partial
+        return_type: int
+      make_partial:
+        parameters:
+          a: int
+        return_type: partial
+      counter_ref_increment:
+        parameters:
+          r: counter_ref
+        return_type: int
+      make_counter_ref:
+        parameters:
+          index: int
+        return_type: counter_ref
+      envelope_checksum:
+        parameters:
+          e: envelope
+        return_type: int32_t
+      make_envelope:
+        parameters:
+          tag: uint8_t
+        return_type: envelope
+      read_envelope:
+        parameters:
+          e:
+            type: envelope
+            direction: out
+      call_with_envelope:
+        parameters:
+          cb: envelope_receiver
+      checksum_from_envelope_callback:
+        parameters:
+          cb: envelope_sender
+        return_type: int32_t
+      sum_partials:
+        parameters:
+          values: partial[2]
+        return_type: int
+      sum_sizes:
+        parameters:
+          values: size_t[3]
+        return_type: size_t
+      get_partials:
+        parameters:
+          values:
+            type: partial[2]
+            direction: out
+
     function_handles:
       int_op:
         parameters:
@@ -310,6 +361,11 @@ libraries:
         return_type: int
       counter_sender:
         return_type: counter
+      envelope_receiver:
+        parameters:
+          e: envelope
+      envelope_sender:
+        return_type: envelope
 
     pointer_handles:
       counter:
@@ -333,3 +389,21 @@ libraries:
         fields:
           ok: bool
           code: int16_t
+      # only some fields of the C struct are exposed
+      partial:
+        type: partial_t
+        fields:
+          a: int
+          b: int16_t
+      counter_ref:
+        type: counter_ref_t
+        fields:
+          c: counter
+          increment: int
+      envelope:
+        type: envelope_t
+        fields:
+          tag: uint8_t
+          m: measurement
+          weight: double
+          count: size_t

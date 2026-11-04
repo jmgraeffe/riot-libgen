@@ -7,6 +7,7 @@ from riot_libgen.library import Library
 from riot_libgen.function_handle import FunctionHandle
 from riot_libgen.libgen import LibGen
 from riot_libgen.parameter import Parameter
+from riot_libgen.struct import Struct
 from riot_libgen.helpers import FUNCTION_HANDLE_TYPE, POINTER_HANDLE_TYPE
 
 
@@ -110,6 +111,81 @@ NATIVE_TYPES_MAPPING = {
 POINTER_TYPE = 'i' #TODO this might become variable in the future
 STRING_TYPE = 'const char*'
 
+# Types as they are stored in the memory of the WASM application (wasm32): the C type that is used for copying a value
+# between the WASM memory and the host, and its size (which is also its alignment in wasm32). Sizes may differ from the
+# host (e.g. long and size_t on 64 bit hosts), which is why structs and arrays are converted field by field.
+GUEST_TYPES = {
+    'char': ('int8_t', 1),
+    'signed char': ('int8_t', 1),
+    'unsigned char': ('uint8_t', 1),
+
+    'short': ('int16_t', 2),
+    'short int': ('int16_t', 2),
+    'signed short': ('int16_t', 2),
+    'signed short int': ('int16_t', 2),
+    'unsigned short': ('uint16_t', 2),
+    'unsigned short int': ('uint16_t', 2),
+
+    'int': ('int32_t', 4),
+    'signed': ('int32_t', 4),
+    'signed int': ('int32_t', 4),
+    'unsigned': ('uint32_t', 4),
+    'unsigned int': ('uint32_t', 4),
+
+    'long': ('int32_t', 4),
+    'long int': ('int32_t', 4),
+    'signed long': ('int32_t', 4),
+    'signed long int': ('int32_t', 4),
+    'unsigned long': ('uint32_t', 4),
+    'unsigned long int': ('uint32_t', 4),
+
+    'long long': ('int64_t', 8),
+    'long long int': ('int64_t', 8),
+    'signed long long': ('int64_t', 8),
+    'signed long long int': ('int64_t', 8),
+    'unsigned long long': ('uint64_t', 8),
+    'unsigned long long int': ('uint64_t', 8),
+
+    'float': ('float', 4),
+    'double': ('double', 8),
+
+    'size_t': ('uint32_t', 4),
+    # see wasm_libs_runtime.h.tmpl
+    'ssize_t': ('int64_t', 8),
+
+    'int8_t': ('int8_t', 1),
+    'int16_t': ('int16_t', 2),
+    'int32_t': ('int32_t', 4),
+    'int64_t': ('int64_t', 8),
+    'uint8_t': ('uint8_t', 1),
+    'uint16_t': ('uint16_t', 2),
+    'uint32_t': ('uint32_t', 4),
+    'uint64_t': ('uint64_t', 8),
+
+    'int_least8_t': ('int8_t', 1),
+    'int_least16_t': ('int16_t', 2),
+    'int_least32_t': ('int32_t', 4),
+    'int_least64_t': ('int64_t', 8),
+    'uint_least8_t': ('uint8_t', 1),
+    'uint_least16_t': ('uint16_t', 2),
+    'uint_least32_t': ('uint32_t', 4),
+    'uint_least64_t': ('uint64_t', 8),
+
+    'int_fast8_t': ('int8_t', 1),
+    'int_fast16_t': ('int16_t', 2),
+    'int_fast32_t': ('int32_t', 4),
+    'int_fast64_t': ('int64_t', 8),
+    'uint_fast8_t': ('uint8_t', 1),
+    'uint_fast16_t': ('uint16_t', 2),
+    'uint_fast32_t': ('uint32_t', 4),
+    'uint_fast64_t': ('uint64_t', 8),
+
+    'intmax_t': ('int64_t', 8),
+    'uintmax_t': ('uint64_t', 8),
+
+    'bool': ('bool', 1),
+}
+
 
 class WasmLibrary(Library):
     def __init__(self, name, config: dict, factory):
@@ -174,6 +250,63 @@ class WasmParameter(Parameter):
             return True
         return False
 
+    def guest_size(self) -> int:
+        """size in the memory of the WASM application"""
+        if self.is_array():
+            return self._element_parameter.guest_size() * self.array_size
+        if self.is_struct():
+            return self._library.structs[self.struct].guest_size
+        return self._guest_type()[1]
+
+    def guest_align(self) -> int:
+        """alignment in the memory of the WASM application"""
+        if self.is_array():
+            return self._element_parameter.guest_align()
+        if self.is_struct():
+            return self._library.structs[self.struct].guest_align
+        return self._guest_type()[1]
+
+    def guest_transfer_type(self) -> str:
+        """C type that is used to copy the value between the WASM memory and the host"""
+        return self._guest_type()[0]
+
+    def _guest_type(self) -> tuple[str, int]:
+        if self.is_pointer_handle():
+            return POINTER_HANDLE_TYPE, 8
+        if self._type in GUEST_TYPES:
+            return GUEST_TYPES[self._type]
+        raise LibGenConfigException(
+            'WASM generator does not support \'{}\' (\'{}\') in structs and arrays yet'.format(self._type, self.name))
+
+
+class WasmStruct(Struct):
+    def guest_layout(self) -> tuple[dict[str, int], int, int]:
+        """offsets of the fields, size and alignment of the struct in the memory of the WASM application (natural
+        alignment as in wasm32)"""
+        offsets = {}
+        offset = 0
+        align = 1
+        for name, field in self.fields.items():
+            field_align = field.guest_align()
+            offset = (offset + field_align - 1) // field_align * field_align
+            offsets[name] = offset
+            offset += field.guest_size()
+            align = max(align, field_align)
+        size = (offset + align - 1) // align * align
+        return offsets, size, align
+
+    @property
+    def guest_offsets(self) -> dict[str, int]:
+        return self.guest_layout()[0]
+
+    @property
+    def guest_size(self) -> int:
+        return self.guest_layout()[1]
+
+    @property
+    def guest_align(self) -> int:
+        return self.guest_layout()[2]
+
 
 class WasmFunctionHandle(FunctionHandle):
     def get_wasm_runtime_signature_for_return_type(self) -> str | None:
@@ -196,6 +329,9 @@ class WasmFactory(Factory):
 
     def create_function_handle(self, name: str, config: dict, library: Library):
         return WasmFunctionHandle(name, config, self, library)
+
+    def create_struct(self, name: str, config: dict, library: Library):
+        return WasmStruct(name, config, self, library)
 
 
 class WasmLibGen(LibGen):

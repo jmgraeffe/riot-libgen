@@ -32,6 +32,26 @@ typedef struct {
     int16_t code;
 } status_t;
 
+/* only a and b are exposed, hidden is only known to the host */
+typedef struct {
+    int a;
+    int hidden;
+    int16_t b;
+} partial_t;
+
+typedef struct {
+    counter_t* c;
+    int increment;
+} counter_ref_t;
+
+/* nested struct, with fields that are aligned and sized differently in WASM and on 64 bit hosts */
+typedef struct {
+    uint8_t tag;
+    measurement_t m;
+    double weight;
+    size_t count;
+} envelope_t;
+
 /* primitives */
 int add_ints(int a, int b);
 double negate_double(double d);
@@ -107,5 +127,19 @@ int get_name(const char** name);
 
 /* SAUL: registers a fake temperature ("fake_temp") and humidity sensor ("fake_hum") */
 void libgen_tests_saul_init(void);
+
+/* struct conversion */
+int partial_checksum(partial_t p);
+partial_t make_partial(int a);
+int counter_ref_increment(counter_ref_t r);
+counter_ref_t make_counter_ref(int index);
+int32_t envelope_checksum(envelope_t e);
+envelope_t make_envelope(uint8_t tag);
+void read_envelope(envelope_t* e);
+void call_with_envelope(void (*cb)(envelope_t e));
+int32_t checksum_from_envelope_callback(envelope_t (*cb)(void));
+int sum_partials(partial_t values[2]);
+size_t sum_sizes(size_t values[3]);
+void get_partials(partial_t values[2]);
 
 #endif /* LIBGEN_TESTS_H */
