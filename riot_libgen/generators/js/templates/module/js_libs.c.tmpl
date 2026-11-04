@@ -12,6 +12,7 @@
 #include "js_libs.h"
 
 #define JS_LIBS_FUNCTION_HANDLE_MAX_LENGTH (255)
+{% set libs_prefix = 'js_libs' %}
 {% include 'templates/pointer_handles.tmpl' %}
 
 static jerry_value_t empty_constructor(const jerry_value_t func_val,

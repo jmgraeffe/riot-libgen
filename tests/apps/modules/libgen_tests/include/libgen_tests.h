@@ -58,6 +58,9 @@ size_t length_from_string_callback(const char* (*cb)(void));
 /* pointer handles */
 counter_t* counter_get(int index);
 int counter_increment(counter_t* c);
+counter_t* counter_null(void);
+int counter_is_null(counter_t* c);
+int counter_release(counter_t* c);
 
 /* arrays */
 int sum_int_array(int values[3]);

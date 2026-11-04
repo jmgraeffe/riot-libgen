@@ -139,10 +139,23 @@ check_all("pointer_handles.distinct", [
     [tests.counter_increment(c1), 2]
 ]);
 
-// BUG: a pointer that is already stored gets a 0-based index as handle instead of a 1-based one
+// all 4 slots (max_entries) are in use from here on
 check("pointer_handles.same_pointer_same_handle", tests.counter_get(3), tests.counter_get(3));
-// BUG: when all max_entries slots are in use, the next pointer is written to index -1
-// BUG: handle 0 passes the bounds check and is resolved to index -1
+
+// handle 0 represents NULL
+check("pointer_handles.null_to_runtime", tests.counter_null(), 0);
+check("pointer_handles.null_from_runtime", tests.counter_is_null(0), 1);
+
+// released pointers are resolved to NULL, and their slots are reused
+var c4 = null;
+check_all("pointer_handles.release_and_reuse", [
+    [tests.counter_release(c0), 1],
+    [tests.counter_release(c0), 0],
+    [tests.counter_is_null(c0), 1],
+    [(c4 = tests.counter_get(4)), c0],
+    [tests.counter_increment(c4), 1]
+]);
+// not tested, as panics end the test run: a full table, handles out of bounds
 
 // arrays
 

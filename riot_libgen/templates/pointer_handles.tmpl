@@ -1,27 +1,64 @@
+{#
+ # Pointer handles: pointers are stored in a table per handle type, and the runtime only gets the (1-based) index
+ # of a pointer in that table as handle. Handle 0 represents NULL in both directions, and empty slots (e.g.
+ # released pointers) are resolved to NULL as well.
+ #
+ # Needs libs_prefix to be set by the including template (e.g. "wasm_libs"), used for the release functions.
+ #}
 {% for library in libraries.values() %}
 {% for handle in library.pointer_handles.values() %}
 
 static void* pointer_handles_{{ library.name }}_{{ handle.name }}[{{ handle.max_entries }}] = { 0 };
 
 static int64_t pointer_handles_get_or_add_{{ library.name }}_{{ handle.name }}(void* pointer) {
-    int64_t free_slot = -1;
+    if (pointer == NULL) {
+        return 0;
+    }
 
+    int64_t free_slot = -1;
     for (int64_t i = 0; i < {{ handle.max_entries }}; ++i) {
         if (pointer_handles_{{ library.name }}_{{ handle.name }}[i] == pointer) {
-            return i;
+            return i + 1;
         } else if (free_slot < 0 && pointer_handles_{{ library.name }}_{{ handle.name }}[i] == NULL) {
             free_slot = i;
         }
     }
 
+    if (free_slot < 0) {
+        core_panic(PANIC_GENERAL_ERROR, "{{ libs_prefix }}: no free slot for pointer handle '{{ library.name }}.{{ handle.name }}' (max_entries: {{ handle.max_entries }})");
+    }
     pointer_handles_{{ library.name }}_{{ handle.name }}[free_slot] = pointer;
     return free_slot + 1;
 }
 
 static void pointer_handle_check_bounds_{{ library.name }}_{{ handle.name }}(int64_t handle) {
-    if (handle > {{ handle.max_entries }} || handle < 0) {
-        core_panic(PANIC_GENERAL_ERROR, "pointer handle '{{ handle.name }}' is out of bounds (needs to be 0 < handle < {{ handle.max_entries }})");
+    if (handle < 0 || handle > {{ handle.max_entries }}) {
+        core_panic(PANIC_GENERAL_ERROR, "{{ libs_prefix }}: pointer handle '{{ library.name }}.{{ handle.name }}' is out of bounds (needs to be 0 <= handle <= {{ handle.max_entries }})");
     }
+}
+
+static void* pointer_handles_get_{{ library.name }}_{{ handle.name }}(int64_t handle) {
+    //TODO maybe don't panic if it is out of bounds but let users decide what happens, because atm an application run by a runtime can "force" a panic which might not be desirable
+    pointer_handle_check_bounds_{{ library.name }}_{{ handle.name }}(handle);
+    if (handle == 0) {
+        return NULL;
+    }
+    return pointer_handles_{{ library.name }}_{{ handle.name }}[handle - 1];
+}
+
+int {{ libs_prefix }}_release_{{ library.name }}_{{ handle.name }}_pointer_handle(void* pointer) {
+    if (pointer == NULL) {
+        return 0;
+    }
+
+    for (int64_t i = 0; i < {{ handle.max_entries }}; ++i) {
+        if (pointer_handles_{{ library.name }}_{{ handle.name }}[i] == pointer) {
+            pointer_handles_{{ library.name }}_{{ handle.name }}[i] = NULL;
+            return 1;
+        }
+    }
+
+    return 0;
 }
 {% endfor %}
 {% endfor %}

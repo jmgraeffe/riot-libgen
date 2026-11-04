@@ -61,6 +61,9 @@ CASES = {
     'pointer_handles.roundtrip': BOTH,
     'pointer_handles.distinct': BOTH,
     'pointer_handles.same_pointer_same_handle': BOTH,
+    'pointer_handles.null_to_runtime': BOTH,
+    'pointer_handles.null_from_runtime': BOTH,
+    'pointer_handles.release_and_reuse': BOTH,
     'arrays.int': BOTH,
     'arrays.double': BOTH,
     'structs.parameter': BOTH,
@@ -71,10 +74,6 @@ CASES = {
 
 # Cases that fail because of known bugs, by case name and runtime.
 KNOWN_FAILURES = {
-    ('pointer_handles.same_pointer_same_handle', JS):
-        'BUG: an already stored pointer gets a 0-based index as handle instead of a 1-based one',
-    ('pointer_handles.same_pointer_same_handle', WASM):
-        'BUG: an already stored pointer gets a 0-based index as handle instead of a 1-based one',
 }
 
 RESULT_PATTERN = re.compile(r'\b(PASS|FAIL) ([\w.]+)(?::\s*(.*))?$')

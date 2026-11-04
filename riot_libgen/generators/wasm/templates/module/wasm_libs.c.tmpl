@@ -30,6 +30,7 @@ int64_t
 #define WASM_LIBS_FUNCTION_HANDLE_MAX_LENGTH (255)
 
 static wasm_module_inst_t wasm_module_inst = NULL;
+{% set libs_prefix = 'wasm_libs' %}
 {% include 'templates/pointer_handles.tmpl' %}
 {% for library in libraries.values() %}
 {% for handle in library.function_handles.values() %}
@@ -232,19 +233,6 @@ int wasm_libs_register_{{ library.name }}_natives(const char* env) {
 
     return num_native_symbols_{{ library.name }}_library;
 }
-    {% for handle in library.pointer_handles.values() %}
-
-int wasm_libs_release_{{ library.name }}_{{ handle.name }}_pointer_handle(void* pointer) {
-    for (int64_t i = 0; i < {{ handle.max_entries }}; ++i) {
-        if (pointer_handles_{{ library.name }}_{{ handle.name }}[i] == pointer) {
-            pointer_handles_{{ library.name }}_{{ handle.name }}[i] = NULL;
-            return 1;
-        }
-    }
-
-    return 0;
-}
-    {% endfor %}
 {% endfor %}
 
 void wasm_libs_set_wasm_module_inst(wasm_module_inst_t module_inst) {

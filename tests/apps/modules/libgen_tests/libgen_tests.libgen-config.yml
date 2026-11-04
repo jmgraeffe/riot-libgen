@@ -109,6 +109,15 @@ libraries:
         parameters:
           c: counter
         return_type: int
+      counter_null: counter
+      counter_is_null:
+        parameters:
+          c: counter
+        return_type: int
+      counter_release:
+        parameters:
+          c: counter
+        return_type: int
 
       # arrays
       sum_int_array:

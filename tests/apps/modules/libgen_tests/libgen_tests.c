@@ -2,6 +2,15 @@
 
 #include "libgen_tests.h"
 
+/* for the release functions of pointer handles */
+#if defined(MODULE_JS_LIBS)
+#include "js_libs.h"
+#define RELEASE_COUNTER(c) js_libs_release_tests_counter_pointer_handle(c)
+#elif defined(MODULE_WASM_LIBS)
+#include "wasm_libs.h"
+#define RELEASE_COUNTER(c) wasm_libs_release_tests_counter_pointer_handle(c)
+#endif
+
 /* primitives */
 
 int add_ints(int a, int b) {
@@ -118,6 +127,18 @@ counter_t* counter_get(int index) {
 
 int counter_increment(counter_t* c) {
     return ++c->value;
+}
+
+counter_t* counter_null(void) {
+    return NULL;
+}
+
+int counter_is_null(counter_t* c) {
+    return c == NULL;
+}
+
+int counter_release(counter_t* c) {
+    return RELEASE_COUNTER(c);
 }
 
 /* arrays */

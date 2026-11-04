@@ -192,23 +192,46 @@ WASM_EXPORT int main(void) {
 
     /* pointer handles */
 
+    /* note: calls are made before CHECK_ALL, as the evaluation order of initializers is unspecified in C */
     int64_t c0 = tests_counter_get(0);
-    CHECK_ALL("pointer_handles.roundtrip", { tests_counter_increment(c0), 1 }, { tests_counter_increment(c0), 2 });
+    {
+        int first = tests_counter_increment(c0);
+        int second = tests_counter_increment(c0);
+        CHECK_ALL("pointer_handles.roundtrip", { first, 1 }, { second, 2 });
+    }
 
     int64_t c1 = tests_counter_get(1);
     int64_t c2 = tests_counter_get(2);
-    CHECK_ALL("pointer_handles.distinct",
-              { c1 != c2, true }, { tests_counter_increment(c1), 1 }, { tests_counter_increment(c2), 1 },
-              { tests_counter_increment(c1), 2 });
+    {
+        int c1_first = tests_counter_increment(c1);
+        int c2_first = tests_counter_increment(c2);
+        int c1_second = tests_counter_increment(c1);
+        CHECK_ALL("pointer_handles.distinct",
+                  { c1 != c2, true }, { c1_first, 1 }, { c2_first, 1 }, { c1_second, 2 });
+    }
 
-    /* BUG: a pointer that is already stored gets a 0-based index as handle instead of a 1-based one */
+    /* all 4 slots (max_entries) are in use from here on */
     {
         int64_t first = tests_counter_get(3);
         int64_t second = tests_counter_get(3);
         check("pointer_handles.same_pointer_same_handle", first, second);
     }
-    /* BUG: when all max_entries slots are in use, the next pointer is written to index -1 */
-    /* BUG: handle 0 passes the bounds check and is resolved to index -1 */
+
+    /* handle 0 represents NULL */
+    check("pointer_handles.null_to_runtime", tests_counter_null(), 0);
+    check("pointer_handles.null_from_runtime", tests_counter_is_null(0), 1);
+
+    /* released pointers are resolved to NULL, and their slots are reused */
+    {
+        int released_first = tests_counter_release(c0);
+        int released_second = tests_counter_release(c0);
+        int is_null = tests_counter_is_null(c0);
+        int64_t c4 = tests_counter_get(4);
+        int incremented = tests_counter_increment(c4);
+        CHECK_ALL("pointer_handles.release_and_reuse",
+                  { released_first, 1 }, { released_second, 0 }, { is_null, 1 }, { c4, c0 }, { incremented, 1 });
+    }
+    /* not tested, as panics end the test run: a full table, handles out of bounds */
 
     /* arrays */
 

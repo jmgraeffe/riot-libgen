@@ -80,8 +80,7 @@ if (!jerry_value_is_number({{ container }})) {
     core_panic(PANIC_GENERAL_ERROR, "js_libs: library '{{ library.name }}', function '{{ function.name }}', parameter '{{ parameter.name }}': invalid value for pointer handle (not a number?)");
 }
 ssize_t value_{{ parameter.name }} = ({{ parameter.type }}) jerry_get_number_value({{ container }});
-pointer_handle_check_bounds_{{ library.name }}_{{ parameter.pointer_handle }}(value_{{ parameter.name }});
-{{ library.pointer_handles[parameter.pointer_handle].type }} {{ parameter.name }} = ({{ library.pointer_handles[parameter.pointer_handle].type }}) pointer_handles_{{ library.name }}_{{ parameter.pointer_handle }}[value_{{ parameter.name }} - 1];
+{{ library.pointer_handles[parameter.pointer_handle].type }} {{ parameter.name }} = ({{ library.pointer_handles[parameter.pointer_handle].type }}) pointer_handles_get_{{ library.name }}_{{ parameter.pointer_handle }}(value_{{ parameter.name }});
 {% endmacro %}
 
 {% macro number(library, function, parameter, container) %}

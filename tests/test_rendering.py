@@ -221,7 +221,6 @@ def test_wasm_function_handle_with_string_parameter(tmp_path):
     assert 'strlen((const char*) s)' in source
 
 
-@pytest.mark.xfail(reason='BUG: js_libs_release_<library>_<handle>_pointer_handle() is declared but not defined')
 def test_js_pointer_handle_release_function(tmp_path):
     render('js', {'lib': {'pointer_handles': {'ptr': 'thing_t*'}}}, tmp_path)
     source = (tmp_path / 'js_libs.c').read_text()
