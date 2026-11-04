@@ -13,7 +13,7 @@ with open(REPO_DIR / 'riot-libgen.schema.json') as file:
 
 CONFIG_FILES = sorted(
     path.relative_to(REPO_DIR)
-    for directory in ['examples', 'external', 'tests']
+    for directory in ['configs', 'examples', 'external', 'tests']
     for path in (REPO_DIR / directory).rglob('*.libgen-config.yml')
     if 'RIOT' not in path.parts
 )

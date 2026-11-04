@@ -8,28 +8,28 @@ return jerry_create_undefined();
 jerry_value_t ret = jerry_create_object();
 {% for field in library.structs[function.returned_struct].fields.values() %}
     {% if field.is_array() %}
-{{ field._element_parameter.type }}* res_{{ field.name }} = res.{{ field.name }};
-        {% set manipulated_field = namespace(name='res_' ~ field.name, _element_parameter=field._element_parameter, array_size=field.array_size) %}
+{{ field._element_parameter.type }}* libgen_res_{{ field.name }} = libgen_res.{{ field.name }};
+        {% set manipulated_field = namespace(name='libgen_res_' ~ field.name, _element_parameter=field._element_parameter, array_size=field.array_size) %}
 jerry_value_t {{ tmpl_function_handle_parameters.array(library, function, manipulated_field, 'field_value_' ~ field.name)|trim }}
     {% elif field.is_pointer_handle() %}
-{{ field.type }} res_{{ field.name }} = res.{{ field.name }};
-        {% set manipulated_field = namespace(name='res_' ~ field.name) %}
+{{ field.type }} libgen_res_{{ field.name }} = libgen_res.{{ field.name }};
+        {% set manipulated_field = namespace(name='libgen_res_' ~ field.name) %}
 jerry_value_t {{ tmpl_function_handle_parameters.pointer_handle(library, function, manipulated_field, 'field_value_' ~ field.name)|trim }}
     {% elif field.is_number() %}
-{{ field.type }} res_{{ field.name }} = res.{{ field.name }};
-        {% set manipulated_field = namespace(name='res_' ~ field.name) %}
+{{ field.type }} libgen_res_{{ field.name }} = libgen_res.{{ field.name }};
+        {% set manipulated_field = namespace(name='libgen_res_' ~ field.name) %}
 jerry_value_t {{ tmpl_function_handle_parameters.number(library, function, manipulated_field, 'field_value_' ~ field.name)|trim }}
     {% elif field.is_boolean() %}
-{{ field.type }} res_{{ field.name }} = res.{{ field.name }};
-        {% set manipulated_field = namespace(name='res_' ~ field.name) %}
+{{ field.type }} libgen_res_{{ field.name }} = libgen_res.{{ field.name }};
+        {% set manipulated_field = namespace(name='libgen_res_' ~ field.name) %}
 jerry_value_t {{ tmpl_function_handle_parameters.boolean(library, function, manipulated_field, 'field_value_' ~ field.name)|trim }}
     {% elif field.is_string() %}
-{{ field.type }} res_{{ field.name }} = res.{{ field.name }};
-        {% set manipulated_field = namespace(name='res_' ~ field.name) %}
+{{ field.type }} libgen_res_{{ field.name }} = libgen_res.{{ field.name }};
+        {% set manipulated_field = namespace(name='libgen_res_' ~ field.name) %}
 jerry_value_t {{ tmpl_function_handle_parameters.string(library, function, manipulated_field, 'field_value_' ~ field.name)|trim }}
     {% elif field.is_byte_array() %}
-{{ field.type }} res_{{ field.name }} = res.{{ field.name }};
-        {% set manipulated_field = namespace(name='res_' ~ field.name) %}
+{{ field.type }} libgen_res_{{ field.name }} = libgen_res.{{ field.name }};
+        {% set manipulated_field = namespace(name='libgen_res_' ~ field.name) %}
 jerry_value_t {{ tmpl_function_handle_parameters.byte_array(library, function, manipulated_field, 'field_value_' ~ field.name)|trim }}
     {% else %}
         {% raise "library '" ~ library.name ~ "', function '" ~ function.name ~ "', return type: unsupported type '" ~ field.type ~ "' for struct field" %}
@@ -43,13 +43,13 @@ return ret;
 {% endmacro %}
 
 {% macro pointer_handle(library, function) %}
-return jerry_create_number(pointer_handles_get_or_add_{{ library.name }}_{{ function.returned_pointer_handle }}((void*) res));
+return jerry_create_number(pointer_handles_get_or_add_{{ library.name }}_{{ function.returned_pointer_handle }}((void*) libgen_res));
 {% endmacro %}
 
 {% macro number(library, function) %}
-return jerry_create_number(res);
+return jerry_create_number(libgen_res);
 {% endmacro %}
 
 {% macro boolean(library, function) %}
-return jerry_create_boolean(res);
+return jerry_create_boolean(libgen_res);
 {% endmacro %}

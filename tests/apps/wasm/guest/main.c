@@ -397,5 +397,27 @@ WASM_EXPORT int main(void) {
     check("outputs.null", tests_get_count(NULL), 1);
     /* outputs.string: JS only, output strings are not supported by the WASM generator (yet) */
 
+    /* SAUL registry (configs/saul_reg.libgen-config.yml), with fake devices registered by the host
+     * (libgen_tests_saul.c) */
+
+    {
+        int64_t temp = saul_reg_find_type_and_name(SAUL_SENSE_TEMP, "fake_temp");
+        int64_t hum = saul_reg_find_name("fake_hum");
+        int64_t first = saul_reg_find_nth(0);
+        int64_t second = saul_reg_find_nth(1);
+        int64_t third = saul_reg_find_nth(2);
+        int64_t by_type = saul_reg_find_type(SAUL_SENSE_HUM);
+        int64_t mismatch = saul_reg_find_type_and_name(SAUL_SENSE_HUM, "fake_temp");
+        CHECK_ALL("saul.find",
+                  { temp != 0, true }, { hum != 0, true }, { temp != hum, true }, { first, temp }, { second, hum },
+                  { third, 0 }, { by_type, hum }, { mismatch, 0 });
+
+        saul_phydat_t res = { 0 };
+        int dim = saul_reg_read(temp, &res);
+        CHECK_ALL("saul.read",
+                  { dim, 1 }, { res.val[0], 2150 }, { res.val[1], 0 }, { res.val[2], 0 },
+                  { res.unit, SAUL_UNIT_TEMP_C }, { res.scale, -2 });
+    }
+
     return 0;
 }

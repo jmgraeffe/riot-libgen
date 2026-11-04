@@ -93,6 +93,8 @@ CASES = {
     'outputs.byte_array': BOTH,
     'outputs.null': BOTH,
     'outputs.string': (JS,),  # not supported by the WASM generator (yet)
+    'saul.find': BOTH,
+    'saul.read': BOTH,
 }
 
 # Cases that fail because of known bugs, by case name and runtime.

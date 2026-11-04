@@ -39,14 +39,16 @@ EXAMPLE_CONFIGS = {
         'wasm/coap_libgen': ['examples/wasm/coap_libgen/coap_libgen.libgen-config.yml',
                              'external/easycoap/easycoap.libgen-config.yml'],
         'tests/apps/wasm': ['tests/apps/modules/libgen_tests/libgen_tests.libgen-config.yml',
-                            'tests/apps/modules/libgen_tests/libgen_tests_wasm.libgen-config.yml'],
+                            'tests/apps/modules/libgen_tests/libgen_tests_wasm.libgen-config.yml',
+                            'configs/saul_reg.libgen-config.yml'],
     },
     'js': {
         'js/playground': ['examples/js/playground/js_playground.libgen-config.yml'],
         'js/saul_libgen': ['external/math.libgen-config.yml', 'external/easysaul/easysaul.libgen-config.yml'],
         'js/coap_libgen': ['external/easycoap/easycoap.libgen-config.yml'],
         'tests/apps/js': ['tests/apps/modules/libgen_tests/libgen_tests.libgen-config.yml',
-                          'tests/apps/modules/libgen_tests/libgen_tests_js.libgen-config.yml'],
+                          'tests/apps/modules/libgen_tests/libgen_tests_js.libgen-config.yml',
+                          'configs/saul_reg.libgen-config.yml'],
     },
 }
 
@@ -189,7 +191,7 @@ def test_bool(tmp_path, generator):
     else:
         # bool is a JS boolean
         assert 'bool b = jerry_value_to_boolean(argv[0]);' in source
-        assert 'return jerry_create_boolean(res);' in source
+        assert 'return jerry_create_boolean(libgen_res);' in source
 
 
 def test_js_string_return_not_supported(tmp_path):

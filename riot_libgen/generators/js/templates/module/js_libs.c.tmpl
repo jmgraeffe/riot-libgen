@@ -162,7 +162,7 @@ if ((size_t) {{ parameter.length_parameter }} > length_{{ parameter.name }}) {
     {% endif %}
 
     // call native function
-    {% set result %}{% if function.return_type != 'void' %}{{ c.function_return_type(library, function) }} res = {% endif %}{% endset %}
+    {% set result %}{% if function.return_type != 'void' %}{{ c.function_return_type(library, function) }} libgen_res = {% endif %}{% endset %}
     {% if function.parameters %}
     {{ result }}{{ function.original_name }}(
         {% for parameter in function.parameters.values() %}

@@ -1,7 +1,7 @@
 {% macro struct(library, function) %}
-return wasm_runtime_module_dup_data(wasm_module_inst, (const char*) &res, sizeof(res));
+return wasm_runtime_module_dup_data(wasm_module_inst, (const char*) &libgen_res, sizeof(libgen_res));
 {% endmacro %}
 
 {% macro pointer_handle(library, function) %}
-return pointer_handles_get_or_add_{{ library.name }}_{{ function.returned_pointer_handle }}((void*) res);
+return pointer_handles_get_or_add_{{ library.name }}_{{ function.returned_pointer_handle }}((void*) libgen_res);
 {% endmacro %}

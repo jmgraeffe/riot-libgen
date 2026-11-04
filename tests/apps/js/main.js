@@ -316,3 +316,28 @@ check_all("outputs.string", [
     [tests_js.get_name(name), 1],
     [name.value, "riot"]
 ]);
+
+// SAUL registry (configs/saul_reg.libgen-config.yml), with fake devices registered by the host (libgen_tests_saul.c)
+
+var temp = saul.reg_find_type_and_name(saul.SENSE_TEMP, "fake_temp");
+var hum = saul.reg_find_name("fake_hum");
+check_all("saul.find", [
+    [temp !== 0, true],
+    [hum !== 0, true],
+    [temp !== hum, true],
+    [saul.reg_find_nth(0), temp],
+    [saul.reg_find_nth(1), hum],
+    [saul.reg_find_nth(2), 0],
+    [saul.reg_find_type(saul.SENSE_HUM), hum],
+    [saul.reg_find_type_and_name(saul.SENSE_HUM, "fake_temp"), 0]
+]);
+
+var res = {};
+check_all("saul.read", [
+    [saul.reg_read(temp, res), 1],
+    [res.val[0], 2150],
+    [res.val[1], 0],
+    [res.val[2], 0],
+    [res.unit, saul.UNIT_TEMP_C],
+    [res.scale, -2]
+]);

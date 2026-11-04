@@ -1,0 +1,54 @@
+# RIOT's SAUL registry (sys/include/saul_reg.h), exposed without any wrapper library.
+libraries:
+  saul:
+    modules:
+      - saul_reg
+    includes:
+      - "saul_reg.h"
+      - "phydat.h"
+    constants:
+      # device classes (enum saul_class_t in saul.h), e.g. SAUL_SENSE_TEMP = SAUL_CAT_SENSE | SAUL_SENSE_ID_TEMP
+      sense_temp: 130
+      sense_hum: 131
+      # units (enum in phydat.h)
+      unit_temp_c: 2
+      unit_percent: 27
+    functions:
+      reg_find_nth:
+        original_name: saul_reg_find_nth
+        parameters:
+          pos: int
+        return_type: reg
+      reg_find_type:
+        original_name: saul_reg_find_type
+        parameters:
+          type: uint8_t
+        return_type: reg
+      reg_find_name:
+        original_name: saul_reg_find_name
+        parameters:
+          name: const char*
+        return_type: reg
+      reg_find_type_and_name:
+        original_name: saul_reg_find_type_and_name
+        parameters:
+          type: uint8_t
+          name: const char*
+        return_type: reg
+      reg_read:
+        original_name: saul_reg_read
+        parameters:
+          dev: reg
+          res:
+            type: phydat
+            direction: out
+        return_type: int
+    pointer_handles:
+      reg: saul_reg_t*
+    structs:
+      phydat:
+        type: phydat_t
+        fields:
+          val: int16_t[3]
+          unit: uint8_t
+          scale: int8_t

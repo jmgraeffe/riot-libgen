@@ -9,6 +9,7 @@
 
 #include "wasm_export.h"
 #include "wasm_libs.h"
+#include "libgen_tests.h"
 
 #include "blob/guest.wasm.h"
 
@@ -79,6 +80,11 @@ static int run(void) {
     }
     if (!wasm_libs_register_tests_wasm_natives("env")) {
         puts("FAIL registration: could not register natives of library 'tests_wasm'");
+        return 1;
+    }
+    libgen_tests_saul_init();
+    if (!wasm_libs_register_saul_natives("env")) {
+        puts("FAIL registration: could not register natives of library 'saul'");
         return 1;
     }
 

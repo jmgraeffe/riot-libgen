@@ -180,7 +180,7 @@ static {{ c.function_handle_return_type(library, handle) }} function_handle_inte
     {% endif %}
 
     // call function
-    {% set result %}{% if function.return_type != 'void' %}{{ c.function_return_type(library, function) }} res = {% endif %}{% endset %}
+    {% set result %}{% if function.return_type != 'void' %}{{ c.function_return_type(library, function) }} libgen_res = {% endif %}{% endset %}
     {% if function.parameters %}
     {{ result }}{{ function.original_name }}(
         {% for parameter in function.parameters.values() %}
@@ -217,7 +217,7 @@ static {{ c.function_handle_return_type(library, handle) }} function_handle_inte
         {% elif function.returns_pointer_handle() %}
     {{ tmpl_function_returns.pointer_handle(library, function)|trim|indent(4) }}
         {% else %}
-    return res;
+    return libgen_res;
         {% endif %}
     {% endif %}
 }

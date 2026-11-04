@@ -105,4 +105,7 @@ void get_values(int values[3]);
 size_t read_bytes(uint8_t* buf, size_t len);
 int get_name(const char** name);
 
+/* SAUL: registers a fake temperature ("fake_temp") and humidity sensor ("fake_hum") */
+void libgen_tests_saul_init(void);
+
 #endif /* LIBGEN_TESTS_H */
