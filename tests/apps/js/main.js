@@ -38,6 +38,17 @@ check_all("primitives.void", [
     [tests.get_call_count(), 2]
 ]);
 check("primitives.original_name", tests.renamed_function(5), 15);
+check_all("primitives.bool_return", [
+    [tests.is_even(4), true],
+    [tests.is_even(3), false]
+]);
+check_all("primitives.bool_parameter", [
+    [tests.bool_to_int(true), 1],
+    [tests.bool_to_int(false), 0],
+    // other values are converted by their truthiness
+    [tests.bool_to_int(1), 1],
+    [tests.bool_to_int(0), 0]
+]);
 
 // constants
 
@@ -71,6 +82,19 @@ function js_mul(f, d) {
     return f * d;
 }
 check("function_handles.float", tests.apply_float_op(1.5, 4, "js_mul"), 6);
+
+function js_bool_receiver(b) {
+    return b === true ? 10 : (b === false ? 20 : 30);
+}
+function js_bool_sender(x) {
+    return x > 5;
+}
+check_all("function_handles.bool", [
+    [tests.call_with_bool(true, "js_bool_receiver"), 10],
+    [tests.call_with_bool(false, "js_bool_receiver"), 20],
+    [tests.bool_from_callback(7, "js_bool_sender"), true],
+    [tests.bool_from_callback(3, "js_bool_sender"), false]
+]);
 
 var received_string = null;
 function js_string_receiver(s) {
@@ -214,6 +238,7 @@ check_all("pointer_handles.release_and_reuse", [
 
 check("arrays.int", tests.sum_int_array([1, 2, 3]), 6);
 check("arrays.double", tests.sum_double_array([0.5, 0.25]), 0.75);
+check("arrays.bool", tests.count_true([true, false, true]), 2);
 
 // structs
 
@@ -228,3 +253,10 @@ check_all("structs.return", [
     [m.scale, -3]
 ]);
 check("structs.double_fields", tests.point_dot({x: 1.5, y: 4}), 6);
+var status = tests.make_status(true);
+check_all("structs.bool_field", [
+    [tests.status_checksum({ok: true, code: 5}), 105],
+    [tests.status_checksum({ok: false, code: 5}), 5],
+    [status.ok, true],
+    [status.code, 7]
+]);

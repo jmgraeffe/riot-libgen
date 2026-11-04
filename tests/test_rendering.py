@@ -168,14 +168,16 @@ def test_wasm_native_symbols(tmp_path):
     assert signatures == {'f': '(iIfFi$Iii)F', 'g': '()I', 'h': '()i'}
 
 
-@pytest.mark.parametrize('generator,type_', [
-    pytest.param('wasm', 'bool', marks=pytest.mark.xfail(
-        raises=LibGenConfigException, reason='bool is listed as supported, but not mapped by the WASM generator')),
-    pytest.param('js', 'bool', marks=pytest.mark.xfail(
-        raises=LibGenConfigException, reason='bool is listed as supported, but not mapped by the JS generator')),
-])
-def test_bool(tmp_path, generator, type_):
-    render(generator, {'lib': {'functions': {'f': {'parameters': {'b': type_}, 'return_type': type_}}}}, tmp_path)
+def test_bool(tmp_path, generator):
+    render(generator, {'lib': {'functions': {'f': {'parameters': {'b': 'bool'}, 'return_type': 'bool'}}}}, tmp_path)
+    source = read(tmp_path, generator, '{g}_libs.c')
+    if generator == 'wasm':
+        # bool is passed as i32
+        assert re.search(r'"lib_f",\s*NULL,[^\n]*\n\s*"\(i\)i"', source)
+    else:
+        # bool is a JS boolean
+        assert 'bool b = jerry_value_to_boolean(argv[0]);' in source
+        assert 'return jerry_create_boolean(res);' in source
 
 
 def test_js_string_return_not_supported(tmp_path):

@@ -22,6 +22,9 @@ res.{{ field.name }} = {{ field.name }};
     {% elif field.is_number() %}
 {{ tmpl_function_parameters.number(library, handle, field, 'field_value_' ~ field.name)|trim }}
 res.{{ field.name }} = {{ field.name }};
+    {% elif field.is_boolean() %}
+{{ tmpl_function_parameters.boolean(library, handle, field, 'field_value_' ~ field.name)|trim }}
+res.{{ field.name }} = {{ field.name }};
     {% elif field.is_string() %}
 {{ tmpl_function_parameters.string(library, handle, field, 'field_value_' ~ field.name)|trim }}
 res.{{ field.name }} = {{ field.name }};
@@ -52,4 +55,9 @@ if (!jerry_value_is_number(res_value)) {
     core_panic(PANIC_GENERAL_ERROR, msg);
 }
 {{ handle.return_type }} res = ({{ handle.return_type }}) jerry_get_number_value(res_value);
+{% endmacro %}
+
+{% macro boolean(library, handle, param) %}
+{# other values than booleans are converted by their truthiness #}
+{{ handle.return_type }} res = jerry_value_to_boolean(res_value);
 {% endmacro %}

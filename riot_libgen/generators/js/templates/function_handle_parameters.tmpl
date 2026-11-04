@@ -13,6 +13,10 @@ jerry_value_t {{ pointer_handle(library, function, manipulated_field, 'field_val
 {{ field.type }} {{ param.name }}_{{ field.name }} = {{ param.name }}.{{ field.name }};
         {% set manipulated_field = namespace(name=param.name ~ '_' ~ field.name) %}
 jerry_value_t {{ number(library, function, manipulated_field, 'field_value_' ~ field.name)|trim }}
+    {% elif field.is_boolean() %}
+{{ field.type }} {{ param.name }}_{{ field.name }} = {{ param.name }}.{{ field.name }};
+        {% set manipulated_field = namespace(name=param.name ~ '_' ~ field.name) %}
+jerry_value_t {{ boolean(library, function, manipulated_field, 'field_value_' ~ field.name)|trim }}
     {% elif field.is_string() %}
 {{ field.type }} {{ param.name }}_{{ field.name }} = {{ param.name }}.{{ field.name }};
         {% set manipulated_field = namespace(name=param.name ~ '_' ~ field.name) %}
@@ -41,6 +45,8 @@ for (uint32_t i = 0; i < (uint32_t) ({{ param.array_size }}); ++i) {
     {{ pointer_handle(library, handle, elem_parameter, 'jerry_value_t value_' ~ param.name)|trim|indent(4) }}
     {% elif param._element_parameter.is_number() %}
     {{ number(library, handle, elem_parameter, 'jerry_value_t value_' ~ param.name)|trim|indent(4) }}
+    {% elif param._element_parameter.is_boolean() %}
+    {{ boolean(library, handle, elem_parameter, 'jerry_value_t value_' ~ param.name)|trim|indent(4) }}
     {% elif param._element_parameter.is_string() %}
     {{ string_byte_array(library, handle, elem_parameter, 'jerry_value_t value_' ~ param.name)|trim|indent(4) }}
     {% else %}
@@ -57,6 +63,10 @@ for (uint32_t i = 0; i < (uint32_t) ({{ param.array_size }}); ++i) {
 
 {% macro number(library, handle, param, dest) %}
 {{ dest }} = jerry_create_number({{ param.name }});
+{% endmacro %}
+
+{% macro boolean(library, handle, param, dest) %}
+{{ dest }} = jerry_create_boolean({{ param.name }});
 {% endmacro %}
 
 {% macro string(library, handle, param, dest) %}

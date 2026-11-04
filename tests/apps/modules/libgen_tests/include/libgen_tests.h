@@ -7,6 +7,7 @@
 #ifndef LIBGEN_TESTS_H
 #define LIBGEN_TESTS_H
 
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 
@@ -26,6 +27,11 @@ typedef struct {
     int value;
 } counter_t;
 
+typedef struct {
+    bool ok;
+    int16_t code;
+} status_t;
+
 /* primitives */
 int add_ints(int a, int b);
 double negate_double(double d);
@@ -38,6 +44,8 @@ int get_answer(void);
 void count_call(void);
 int get_call_count(void);
 int original_function_name(int x);
+bool is_even(int x);
+int bool_to_int(bool b);
 
 /* strings */
 size_t string_length(const char* s);
@@ -59,6 +67,8 @@ void call_with_bytes(void (*cb)(const uint8_t* data, size_t len));
 void call_with_null_bytes(void (*cb)(const uint8_t* data, size_t len));
 void call_void_twice(void (*cb)(void));
 size_t length_from_string_callback(const char* (*cb)(void));
+int call_with_bool(bool b, int (*cb)(bool b));
+bool bool_from_callback(int x, bool (*cb)(int x));
 
 /* pointer handles */
 counter_t* counter_get(int index);
@@ -73,6 +83,7 @@ int increment_from_callback(counter_t* (*cb)(void));
 int sum_int_array(int values[3]);
 double sum_double_array(double values[2]);
 void call_with_array(void (*cb)(int values[3]));
+int count_true(bool values[3]);
 void call_with_array_repeatedly(int times, void (*cb)(int values[3]));
 
 /* structs */
@@ -82,5 +93,7 @@ void call_with_measurement(void (*cb)(measurement_t m));
 void call_with_measurement_repeatedly(int times, void (*cb)(measurement_t m));
 int32_t checksum_from_measurement_callback(measurement_t (*cb)(void));
 double point_dot(point_t p);
+int status_checksum(status_t s);
+status_t make_status(bool ok);
 
 #endif /* LIBGEN_TESTS_H */

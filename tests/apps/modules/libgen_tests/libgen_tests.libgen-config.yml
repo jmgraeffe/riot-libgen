@@ -53,6 +53,14 @@ libraries:
         parameters:
           x: int
         return_type: int
+      is_even:
+        parameters:
+          x: int
+        return_type: bool
+      bool_to_int:
+        parameters:
+          b: bool
+        return_type: int
 
       # strings
       string_length:
@@ -103,6 +111,16 @@ libraries:
           d: double
           op: float_op
         return_type: double
+      call_with_bool:
+        parameters:
+          b: bool
+          cb: bool_receiver
+        return_type: int
+      bool_from_callback:
+        parameters:
+          x: int
+          cb: bool_sender
+        return_type: bool
       call_with_string:
         parameters:
           cb: string_receiver
@@ -163,6 +181,10 @@ libraries:
       call_with_array:
         parameters:
           cb: array_receiver
+      count_true:
+        parameters:
+          values: bool[3]
+        return_type: int
       call_with_array_repeatedly:
         parameters:
           times: int
@@ -192,6 +214,14 @@ libraries:
         parameters:
           p: point
         return_type: double
+      status_checksum:
+        parameters:
+          s: status
+        return_type: int
+      make_status:
+        parameters:
+          ok: bool
+        return_type: status
 
     function_handles:
       int_op:
@@ -204,6 +234,14 @@ libraries:
           f: float
           d: double
         return_type: double
+      bool_receiver:
+        parameters:
+          b: bool
+        return_type: int
+      bool_sender:
+        parameters:
+          x: int
+        return_type: bool
       string_receiver:
         parameters:
           s: const char*
@@ -246,3 +284,8 @@ libraries:
         fields:
           x: double
           y: double
+      status:
+        type: status_t
+        fields:
+          ok: bool
+          code: int16_t

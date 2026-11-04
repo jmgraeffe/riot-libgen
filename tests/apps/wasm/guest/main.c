@@ -64,6 +64,14 @@ static bool streq(const char* a, const char* b) {
 
 /* function handles: called by the host */
 
+WASM_EXPORT int guest_bool_receiver(bool b) {
+    return b ? 10 : 20;
+}
+
+WASM_EXPORT bool guest_bool_sender(int x) {
+    return x > 5;
+}
+
 WASM_EXPORT int guest_sub(int a, int b) {
     return a - b;
 }
@@ -169,6 +177,8 @@ WASM_EXPORT int main(void) {
     tests_count_call();
     check("primitives.void", tests_get_call_count(), 2);
     check("primitives.original_name", tests_renamed_function(5), 15);
+    CHECK_ALL("primitives.bool_return", { tests_is_even(4), true }, { tests_is_even(3), false });
+    CHECK_ALL("primitives.bool_parameter", { tests_bool_to_int(true), 1 }, { tests_bool_to_int(false), 0 });
 
     /* constants */
 
@@ -200,6 +210,15 @@ WASM_EXPORT int main(void) {
     check("function_handles.int", tests_apply_int_op(10, 4, WASM_LIBS_FUNCTION_HANDLE("guest_sub")), 6);
 
     check_double("function_handles.float", tests_apply_float_op(1.5, 4, WASM_LIBS_FUNCTION_HANDLE("guest_mul")), 6);
+
+    {
+        int received_true = tests_call_with_bool(true, WASM_LIBS_FUNCTION_HANDLE("guest_bool_receiver"));
+        int received_false = tests_call_with_bool(false, WASM_LIBS_FUNCTION_HANDLE("guest_bool_receiver"));
+        bool sent_true = tests_bool_from_callback(7, WASM_LIBS_FUNCTION_HANDLE("guest_bool_sender"));
+        bool sent_false = tests_bool_from_callback(3, WASM_LIBS_FUNCTION_HANDLE("guest_bool_sender"));
+        CHECK_ALL("function_handles.bool",
+                  { received_true, 10 }, { received_false, 20 }, { sent_true, true }, { sent_false, false });
+    }
 
     tests_call_with_string(WASM_LIBS_FUNCTION_HANDLE("guest_string_receiver"));
     check("function_handles.string_parameter", streq(received_string, "hello from host"), true);
@@ -304,6 +323,10 @@ WASM_EXPORT int main(void) {
         double values[2] = { 0.5, 0.25 };
         check_double("arrays.double", tests_sum_double_array(values), 0.75);
     }
+    {
+        bool values[3] = { true, false, true };
+        check("arrays.bool", tests_count_true(values), 2);
+    }
 
     /* structs */
 
@@ -323,6 +346,15 @@ WASM_EXPORT int main(void) {
     {
         tests_point_t p = { .x = 1.5, .y = 4 };
         check_double("structs.double_fields", tests_point_dot(&p), 6);
+    }
+    {
+        tests_status_t ok = { .ok = true, .code = 5 };
+        tests_status_t not_ok = { .ok = false, .code = 5 };
+        int ok_checksum = tests_status_checksum(&ok);
+        int not_ok_checksum = tests_status_checksum(&not_ok);
+        tests_status_t s = *tests_make_status(true);
+        CHECK_ALL("structs.bool_field",
+                  { ok_checksum, 105 }, { not_ok_checksum, 5 }, { s.ok, true }, { s.code, 7 });
     }
 
     return 0;

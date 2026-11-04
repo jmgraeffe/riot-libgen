@@ -17,6 +17,9 @@ for (uint32_t i = 0; i < (uint32_t) ({{ field.array_size }}); ++i) {
     {% elif field.is_number() %}
 {{ number(library, function, field, 'field_value_' ~ field.name)|trim }}
 {{ parameter.name }}.{{ field.name }} = {{ field.name }};
+    {% elif field.is_boolean() %}
+{{ boolean(library, function, field, 'field_value_' ~ field.name)|trim }}
+{{ parameter.name }}.{{ field.name }} = {{ field.name }};
     {% elif field.is_string() %}
 {{ string(library, function, field, 'field_value_' ~ field.name)|trim }}
 {{ parameter.name }}.{{ field.name }} = {{ field.name }};
@@ -47,6 +50,8 @@ for (uint32_t i = 0; i < (uint32_t) ({{ parameter.array_size }}); ++i) {
     {{ pointer_handle(library, function, parameter._element_parameter, 'value_' ~ parameter.name)|trim|indent(4) }}
     {% elif parameter._element_parameter.is_number() %}
     {{ number(library, function, parameter._element_parameter, 'value_' ~ parameter.name)|trim|indent(4) }}
+    {% elif parameter._element_parameter.is_boolean() %}
+    {{ boolean(library, function, parameter._element_parameter, 'value_' ~ parameter.name)|trim|indent(4) }}
     {% elif parameter._element_parameter.is_string() %}
     {{ string_byte_array(library, function, parameter._element_parameter, 'value_' ~ parameter.name)|trim|indent(4) }}
     {% else %}
@@ -85,6 +90,11 @@ ssize_t value_{{ parameter.name }} = ({{ parameter.type }}) jerry_get_number_val
 
 {% macro number(library, function, parameter, container) %}
 {{ parameter.type }} {{ parameter.name }} = ({{ parameter.type }}) jerry_get_number_value({{ container }});
+{% endmacro %}
+
+{% macro boolean(library, function, parameter, container) %}
+{# other values than booleans are converted by their truthiness #}
+{{ parameter.type }} {{ parameter.name }} = jerry_value_to_boolean({{ container }});
 {% endmacro %}
 
 {% macro string_byte_array(library, function, parameter, container) %}

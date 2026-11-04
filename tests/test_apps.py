@@ -40,6 +40,8 @@ CASES = {
     'primitives.no_parameters': BOTH,
     'primitives.void': BOTH,
     'primitives.original_name': BOTH,
+    'primitives.bool_return': BOTH,
+    'primitives.bool_parameter': BOTH,
     'constants.number': BOTH,
     'constants.string': BOTH,
     'strings.length': BOTH,
@@ -53,6 +55,7 @@ CASES = {
     'byte_arrays.null': BOTH,
     'function_handles.int': BOTH,
     'function_handles.float': BOTH,
+    'function_handles.bool': BOTH,
     'function_handles.string_parameter': BOTH,
     'function_handles.string_parameter_terminated': BOTH,
     'function_handles.string_parameter_null': BOTH,
@@ -75,10 +78,12 @@ CASES = {
     'pointer_handles.release_and_reuse': BOTH,
     'arrays.int': BOTH,
     'arrays.double': BOTH,
+    'arrays.bool': BOTH,
     'structs.parameter': BOTH,
     'structs.parameter_negative': BOTH,
     'structs.return': BOTH,
     'structs.double_fields': BOTH,
+    'structs.bool_field': BOTH,
 }
 
 # Cases that fail because of known bugs, by case name and runtime.

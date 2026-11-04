@@ -14,6 +14,7 @@ class JsType(Enum):
     NUMBER = 1
     STRING = 2
     BYTE_ARRAY = 3
+    BOOLEAN = 4
     UNKNOWN = 100
 
 
@@ -99,7 +100,7 @@ NATIVE_TYPES_MAPPING = {
 
     # special types
 
-    # 'bool',
+    'bool': JsType.BOOLEAN,
     'void': JsType.UNDEFINED,
     'const char*': JsType.STRING,
     'const uint8_t*': JsType.BYTE_ARRAY,
@@ -110,6 +111,11 @@ NATIVE_TYPES_MAPPING = {
 class JsFunction(Function):
     def returns_number(self) -> bool:
         if self.return_type in NATIVE_TYPES_MAPPING and NATIVE_TYPES_MAPPING[self.return_type] == JsType.NUMBER:
+            return True
+        return False
+
+    def returns_boolean(self) -> bool:
+        if self.return_type in NATIVE_TYPES_MAPPING and NATIVE_TYPES_MAPPING[self.return_type] == JsType.BOOLEAN:
             return True
         return False
 
@@ -125,10 +131,20 @@ class JsParameter(Parameter):
             return True
         return False
 
+    def is_boolean(self) -> bool:
+        if self.type in NATIVE_TYPES_MAPPING and NATIVE_TYPES_MAPPING[self.type] == JsType.BOOLEAN:
+            return True
+        return False
+
 
 class JsFunctionHandle(FunctionHandle):
     def returns_number(self) -> bool:
         if self.return_type in NATIVE_TYPES_MAPPING and NATIVE_TYPES_MAPPING[self.return_type] == JsType.NUMBER:
+            return True
+        return False
+
+    def returns_boolean(self) -> bool:
+        if self.return_type in NATIVE_TYPES_MAPPING and NATIVE_TYPES_MAPPING[self.return_type] == JsType.BOOLEAN:
             return True
         return False
 

@@ -53,6 +53,8 @@ static {{ c.function_handle_return_type(library, handle) }} function_handle_inte
     {{ tmpl_function_handle_parameters.pointer_handle(library, handle, param, dest)|trim|indent(4) }}
         {% elif param.is_number() %}
     {{ tmpl_function_handle_parameters.number(library, handle, param, dest)|trim|indent(4) }}
+        {% elif param.is_boolean() %}
+    {{ tmpl_function_handle_parameters.boolean(library, handle, param, dest)|trim|indent(4) }}
         {% elif param.is_string() %}
     {{ tmpl_function_handle_parameters.string(library, handle, param, dest)|trim|indent(4) }}
         {% elif param.is_byte_array() %}
@@ -72,6 +74,8 @@ static {{ c.function_handle_return_type(library, handle) }} function_handle_inte
     {{ tmpl_function_handle_returns.pointer_handle(library, handle, param)|trim|indent(4) }}
         {% elif handle.returns_number() %}
     {{ tmpl_function_handle_returns.number(library, handle, param)|trim|indent(4) }}
+        {% elif handle.returns_boolean() %}
+    {{ tmpl_function_handle_returns.boolean(library, handle, param)|trim|indent(4) }}
         {% else %}
             {% raise "library '" ~ library.name ~ "', function handle '" ~ handle.name ~ "', return type: unsupported type '" ~ handle.return_type ~ "' (Maybe it is a function handle? Function handles as parameters of function handles not supported yet.)" %}
         {% endif %}
@@ -122,6 +126,9 @@ static jerry_value_t {{ library.name }}_{{ function.name }}_native(
 
             {% elif parameter.is_number() %}
 {{ tmpl_function_parameters.number(library, function, parameter, container)|trim }}
+
+            {% elif parameter.is_boolean() %}
+{{ tmpl_function_parameters.boolean(library, function, parameter, container)|trim }}
 
             {% elif parameter.is_string() or parameter.is_byte_array() %}
 {{ tmpl_function_parameters.string_byte_array(library, function, parameter, container)|trim }}
@@ -183,6 +190,8 @@ if ((size_t) {{ parameter.length_parameter }} > length_{{ parameter.name }}) {
     {{ tmpl_function_returns.pointer_handle(library, function)|trim|indent(4) }}
     {% elif function.returns_number() %}
     {{ tmpl_function_returns.number(library, function)|trim|indent(4) }}
+    {% elif function.returns_boolean() %}
+    {{ tmpl_function_returns.boolean(library, function)|trim|indent(4) }}
     {% else %}
         {% raise "library '" ~ library.name ~ "', function '" ~ function.name ~ "', return type: unsupported type '" ~ function.return_type ~ "' (Maybe it is a function handle? Function handles as return types are not supported yet.)" %}
     {% endif %}

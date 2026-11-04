@@ -19,6 +19,10 @@ jerry_value_t {{ tmpl_function_handle_parameters.pointer_handle(library, functio
 {{ field.type }} res_{{ field.name }} = res.{{ field.name }};
         {% set manipulated_field = namespace(name='res_' ~ field.name) %}
 jerry_value_t {{ tmpl_function_handle_parameters.number(library, function, manipulated_field, 'field_value_' ~ field.name)|trim }}
+    {% elif field.is_boolean() %}
+{{ field.type }} res_{{ field.name }} = res.{{ field.name }};
+        {% set manipulated_field = namespace(name='res_' ~ field.name) %}
+jerry_value_t {{ tmpl_function_handle_parameters.boolean(library, function, manipulated_field, 'field_value_' ~ field.name)|trim }}
     {% elif field.is_string() %}
 {{ field.type }} res_{{ field.name }} = res.{{ field.name }};
         {% set manipulated_field = namespace(name='res_' ~ field.name) %}
@@ -44,4 +48,8 @@ return jerry_create_number(pointer_handles_get_or_add_{{ library.name }}_{{ func
 
 {% macro number(library, function) %}
 return jerry_create_number(res);
+{% endmacro %}
+
+{% macro boolean(library, function) %}
+return jerry_create_boolean(res);
 {% endmacro %}

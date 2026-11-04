@@ -59,6 +59,14 @@ int original_function_name(int x) {
     return x * 3;
 }
 
+bool is_even(int x) {
+    return x % 2 == 0;
+}
+
+int bool_to_int(bool b) {
+    return b ? 1 : 0;
+}
+
 /* strings */
 
 size_t string_length(const char* s) {
@@ -146,6 +154,14 @@ void call_void_twice(void (*cb)(void)) {
     cb();
 }
 
+int call_with_bool(bool b, int (*cb)(bool b)) {
+    return cb(b);
+}
+
+bool bool_from_callback(int x, bool (*cb)(int x)) {
+    return cb(x);
+}
+
 size_t length_from_string_callback(const char* (*cb)(void)) {
     return strlen(cb());
 }
@@ -203,6 +219,10 @@ void call_with_array_repeatedly(int times, void (*cb)(int values[3])) {
     }
 }
 
+int count_true(bool values[3]) {
+    return values[0] + values[1] + values[2];
+}
+
 /* structs */
 
 int32_t measurement_checksum(measurement_t m) {
@@ -234,4 +254,13 @@ int32_t checksum_from_measurement_callback(measurement_t (*cb)(void)) {
 
 double point_dot(point_t p) {
     return p.x * p.y;
+}
+
+int status_checksum(status_t s) {
+    return (s.ok ? 100 : 0) + s.code;
+}
+
+status_t make_status(bool ok) {
+    status_t s = { .ok = ok, .code = 7 };
+    return s;
 }

@@ -100,7 +100,7 @@ NATIVE_TYPES_MAPPING = {
 
     # special types
 
-    # 'bool',
+    'bool': 'i',
     'void': '',
     'const char*': '$',
     'const uint8_t*': 'i', #TODO this might become variable in the future
