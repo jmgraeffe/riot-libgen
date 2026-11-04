@@ -103,6 +103,21 @@ void call_with_string(void (*cb)(const char* s)) {
     cb("hello from host");
 }
 
+size_t call_with_strings(void (*cb)(const char* s)) {
+    /* strings of decreasing length, so that leftovers of a previous string would become visible if the
+     * terminating '\0' was missing (e.g. when memory is reused, and allocations happen to have no padding) */
+    static const char text[] = "abcdefghijklmnopqrstuvwxyz0123456789";
+    char buffer[sizeof(text)];
+    size_t total = 0;
+    for (size_t len = sizeof(text) - 1; len > 0; --len) {
+        memcpy(buffer, text, len);
+        buffer[len] = '\0';
+        cb(buffer);
+        total += len;
+    }
+    return total;
+}
+
 void call_with_bytes(void (*cb)(const uint8_t* data, size_t len)) {
     static const uint8_t data[] = { 1, 2, 3, 0, 127 };
     cb(data, sizeof(data));

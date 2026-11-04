@@ -93,6 +93,10 @@ libraries:
       call_with_string:
         parameters:
           cb: string_receiver
+      call_with_strings:
+        parameters:
+          cb: string_receiver
+        return_type: size_t
       call_with_bytes:
         parameters:
           cb: bytes_receiver
@@ -161,8 +165,7 @@ libraries:
         return_type: int
       string_receiver:
         parameters:
-          # BUG: has to be named "str", the WASM generator uses a hardcoded "str" for strings passed to function handles
-          str: const char*
+          s: const char*
       bytes_receiver:
         parameters:
           data:

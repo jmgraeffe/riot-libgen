@@ -87,6 +87,13 @@ WASM_EXPORT void guest_bytes_receiver(const uint8_t* data, size_t len) {
     }
 }
 
+static size_t received_length = 0;
+WASM_EXPORT void guest_string_length_receiver(const char* s) {
+    while (*s++ != '\0') {
+        ++received_length;
+    }
+}
+
 static int void_calls = 0;
 WASM_EXPORT void guest_count(void) {
     ++void_calls;
@@ -161,6 +168,10 @@ WASM_EXPORT int main(void) {
 
     tests_call_with_string(WASM_LIBS_FUNCTION_HANDLE("guest_string_receiver"));
     check("function_handles.string_parameter", streq(received_string, "hello from host"), true);
+    {
+        size_t sent_length = tests_call_with_strings(WASM_LIBS_FUNCTION_HANDLE("guest_string_length_receiver"));
+        check("function_handles.string_parameter_terminated", received_length, sent_length);
+    }
 
     tests_call_with_bytes(WASM_LIBS_FUNCTION_HANDLE("guest_bytes_receiver"));
     CHECK_ALL("function_handles.byte_array_parameter",

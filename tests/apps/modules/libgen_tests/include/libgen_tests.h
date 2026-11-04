@@ -51,6 +51,7 @@ void fill_bytes(uint8_t* buf, size_t len);
 /* function handles */
 int apply_int_op(int a, int b, int (*op)(int a, int b));
 void call_with_string(void (*cb)(const char* s));
+size_t call_with_strings(void (*cb)(const char* s));
 void call_with_bytes(void (*cb)(const uint8_t* data, size_t len));
 void call_void_twice(void (*cb)(void));
 size_t length_from_string_callback(const char* (*cb)(void));

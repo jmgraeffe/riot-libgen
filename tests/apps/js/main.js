@@ -73,6 +73,12 @@ function js_string_receiver(s) {
 }
 tests.call_with_string("js_string_receiver");
 check("function_handles.string_parameter", received_string, "hello from host");
+var received_length = 0;
+function js_string_length_receiver(s) {
+    received_length += s.length;
+}
+check("function_handles.string_parameter_terminated",
+      tests.call_with_strings("js_string_length_receiver"), received_length);
 
 var received_data = null;
 var received_len = null;

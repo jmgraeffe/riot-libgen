@@ -211,14 +211,14 @@ def test_wasm_function_handle_with_float_parameters(tmp_path):
     assert set(re.findall(r'\.kind = (\w+);', source)) == {'WASM_F32', 'WASM_F64'}
 
 
-@pytest.mark.xfail(reason='BUG: the WASM generator uses a hardcoded "str" for strings passed to function handles')
 def test_wasm_function_handle_with_string_parameter(tmp_path):
     render('wasm', {'lib': {
         'functions': {'f': {'parameters': {'cb': 'handler'}}},
         'function_handles': {'handler': {'parameters': {'s': 'const char*'}}},
     }}, tmp_path)
     source = (tmp_path / 'wasm_libs.c').read_text()
-    assert 'strlen((const char*) s)' in source
+    # the name of the parameter is used, and the terminating '\0' is copied as well
+    assert 'wasm_runtime_module_dup_data(wasm_module_inst, (const char*) s, strlen((const char*) s) + 1)' in source
 
 
 def test_js_pointer_handle_release_function(tmp_path):
