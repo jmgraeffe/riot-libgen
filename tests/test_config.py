@@ -224,3 +224,58 @@ class TestLibraries:
         assert context.includes == ['x.h', 'y.h', 'z.h']
         assert context.modules == ['m', 'n']
         assert context.packages == ['p']
+
+
+class TestOutputParameters:
+    def test_default_is_input(self, libgen):
+        parameter = load_library(libgen, {'functions': {'f': {'parameters': {'a': 'int'}}}}) \
+            .functions['f'].parameters['a']
+        assert parameter.direction == 'in'
+        assert not parameter.is_output()
+
+    @pytest.mark.parametrize('type_', ['int', 'bool', 'ptr', 'data', 'int[3]', 'const char*'])
+    def test_output(self, libgen, type_):
+        parameter = load_library(libgen, {
+            'functions': {'f': {'parameters': {'a': {'type': type_, 'direction': 'out'}}}},
+            'pointer_handles': {'ptr': 'thing_t*'},
+            'structs': {'data': {'type': 'data_t'}},
+        }).functions['f'].parameters['a']
+        assert parameter.direction == 'out'
+        assert parameter.is_output()
+
+    def test_output_byte_array(self, libgen):
+        parameter = load_library(libgen, {'functions': {'f': {'parameters': {
+            'buf': {'type': 'uint8_t*', 'length_parameter': 'len', 'direction': 'out'},
+            'len': 'size_t',
+        }}}}).functions['f'].parameters['buf']
+        assert parameter.is_output()
+
+    def test_invalid_direction(self, libgen):
+        with pytest.raises(LibGenConfigException):
+            load_library(libgen, {'functions': {'f': {'parameters': {'a': {'type': 'int', 'direction': 'up'}}}}})
+
+    def test_const_byte_array_cannot_be_output(self, libgen):
+        with pytest.raises(LibGenConfigException):
+            load_library(libgen, {'functions': {'f': {'parameters': {
+                'buf': {'type': 'const uint8_t*', 'length_parameter': 'len', 'direction': 'out'},
+                'len': 'size_t',
+            }}}})
+
+    def test_function_handle_cannot_be_output(self, libgen):
+        with pytest.raises(LibGenConfigException):
+            load_library(libgen, {
+                'functions': {'f': {'parameters': {'cb': {'type': 'handler', 'direction': 'out'}}}},
+                'function_handles': {'handler': None},
+            })
+
+    def test_not_supported_for_function_handle_parameters(self, libgen):
+        with pytest.raises(LibGenConfigException):
+            load_library(libgen, {'function_handles': {'handler': {'parameters': {
+                'a': {'type': 'int', 'direction': 'out'},
+            }}}})
+
+    def test_not_supported_for_struct_fields(self, libgen):
+        with pytest.raises(LibGenConfigException):
+            load_library(libgen, {'structs': {'data': {'type': 'data_t', 'fields': {
+                'a': {'type': 'int', 'direction': 'out'},
+            }}}})

@@ -63,3 +63,29 @@ if ({{ parameter.name }} != NULL) {
     {{ parameter.name }} = ({{ parameter.type }}) wasm_runtime_addr_app_to_native(wasm_module_inst, (uintptr_t) {{ parameter.name }});
 }
 {% endmacro %}
+
+{% macro output(library, function, parameter) %}
+{% set type = library.structs[parameter.struct].type ~ '*' if parameter.is_struct() else parameter.type ~ '*' %}
+if (wasm_module_inst == NULL) {
+    core_panic(PANIC_GENERAL_ERROR, "wasm_libs: WASM module instance is not set (use wasm_libs_set_wasm_module_inst)");
+}
+{# NULL (0) is passed as is, otherwise the output parameter needs to be in the WASM memory #}
+if ({{ parameter.name }} != NULL) {
+    if (!wasm_runtime_validate_app_addr(wasm_module_inst, (uintptr_t) {{ parameter.name }}, sizeof(*{{ parameter.name }}))) {
+        core_panic(PANIC_GENERAL_ERROR, "wasm_libs: function '{{ library.prefix }}{{ function.name }}' was called with an output parameter '{{ parameter.name }}' that does not lie in the WASM memory region");
+    }
+    {{ parameter.name }} = ({{ type }}) wasm_runtime_addr_app_to_native(wasm_module_inst, (uintptr_t) {{ parameter.name }});
+}
+{% if parameter.is_pointer_handle() %}
+{# the host function sets a native pointer, which is stored as pointer handle afterwards #}
+{{ library.pointer_handles[parameter.pointer_handle].type }} {{ parameter.name }}_ptr = NULL;
+{% endif %}
+{% endmacro %}
+
+{% macro store_output(library, function, parameter) %}
+{% if parameter.is_pointer_handle() %}
+if ({{ parameter.name }} != NULL) {
+    *{{ parameter.name }} = pointer_handles_get_or_add_{{ library.name }}_{{ parameter.pointer_handle }}((void*) {{ parameter.name }}_ptr);
+}
+{% endif %}
+{% endmacro %}

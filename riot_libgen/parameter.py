@@ -3,9 +3,14 @@ from riot_libgen.exceptions import LibGenConfigException, LibGenRuntimeException
 from riot_libgen.helpers import NATIVE_TYPES, BYTE_ARRAY_TYPES, FUNCTION_HANDLE_TYPE, POINTER_HANDLE_TYPE, ARRAY_PATTERN
 from riot_libgen.library import Library
 
+# input parameters are passed from the runtime to the host, output parameters are filled by the host
+DIRECTIONS = ['in', 'out']
+
+
 class Parameter:
     def __init__(self, name, config: dict, factory, library: Library):
         self.length_parameter : str | None = None
+        self.direction = 'in'
         self.name = name
 
         self._factory = factory
@@ -75,6 +80,18 @@ class Parameter:
                 raise LibGenConfigException('parameter length of \'{}\' is not a string, so it cannot be a parameter name'.format(self.name))
             #TODO it would be best to also do a check if the specified length parameter actually exists, but that requires doing that after adding all parameters...
             self.length_parameter = dict_['length_parameter']
+
+        if 'direction' in dict_:
+            if dict_['direction'] not in DIRECTIONS:
+                raise LibGenConfigException('invalid direction \'{}\' for parameter \'{}\' (possible: {})'.format(dict_['direction'], self.name, ', '.join(DIRECTIONS)))
+            self.direction = dict_['direction']
+            if self.is_output() and self.is_function_handle():
+                raise LibGenConfigException('function handle \'{}\' cannot be an output parameter'.format(self.name))
+            if self.is_output() and self.is_byte_array() and self.is_const():
+                raise LibGenConfigException('byte array \'{}\' cannot be an output parameter, as it is const'.format(self.name))
+
+    def is_output(self) -> bool:
+        return self.direction == 'out'
 
     def is_struct(self) -> bool:
         if self._type in self._library.structs:

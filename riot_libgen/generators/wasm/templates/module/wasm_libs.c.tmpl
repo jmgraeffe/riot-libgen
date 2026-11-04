@@ -5,13 +5,20 @@
 {% import 'generators/wasm/templates/function_handle_parameters.tmpl' as tmpl_function_handle_parameters %}
 {% import 'generators/wasm/templates/function_handle_cleanup.tmpl' as tmpl_function_handle_cleanup %}
 {% import 'generators/wasm/templates/function_handle_returns.tmpl' as tmpl_function_handle_returns %}
-{% macro native_parameter(library, parameter) %}
+{% macro native_parameter_type(library, parameter) %}
 {% if parameter.is_struct() %}
-{{ library.structs[parameter.struct].type }}* {{ parameter.name }}
-{%- elif parameter.is_array() %}
+{{ library.structs[parameter.struct].type }}*
+{%- elif parameter.is_output() and not parameter.is_array() and not parameter.is_byte_array() %}
+{{ parameter.type }}*
+{%- else %}
+{{ parameter.type }}
+{%- endif %}
+{% endmacro %}
+{% macro native_parameter(library, parameter) %}
+{% if parameter.is_array() %}
 {{ parameter._element_parameter.type }} {{ parameter.name }}[{{ parameter.array_size }}]
 {%- else %}
-{{ parameter.type }} {{ parameter.name }}
+{{ native_parameter_type(library, parameter) }} {{ parameter.name }}
 {%- endif %}
 {% endmacro %}
 {% macro native_return_type(library, function) %}
@@ -142,7 +149,10 @@ static {{ c.function_handle_return_type(library, handle) }} function_handle_inte
     (void) exec_env;
     {% set prepare %}
         {% for parameter in function.parameters.values() %}
-            {% if parameter.is_struct() %}
+            {% if parameter.is_output() and not parameter.is_array() and not parameter.is_byte_array() %}
+{{ tmpl_function_parameters.output(library, function, parameter)|trim }}
+
+            {% elif parameter.is_struct() %}
 {{ tmpl_function_parameters.struct(library, function, parameter)|trim }}
 
             {% elif parameter.is_array() %}
@@ -174,7 +184,9 @@ static {{ c.function_handle_return_type(library, handle) }} function_handle_inte
     {% if function.parameters %}
     {{ result }}{{ function.original_name }}(
         {% for parameter in function.parameters.values() %}
-            {% if parameter.is_struct() %}
+            {% if parameter.is_output() %}
+        {{ tmpl_function_call.output(library, function, parameter)|trim }}{{ "," if not loop.last }}
+            {% elif parameter.is_struct() %}
         {{ tmpl_function_call.struct(library, function, parameter)|trim }}{{ "," if not loop.last }}
             {% elif parameter.is_function_handle() %}
         {{ tmpl_function_call.function_handle(library, function, parameter)|trim }}{{ "," if not loop.last }}
@@ -187,6 +199,16 @@ static {{ c.function_handle_return_type(library, handle) }} function_handle_inte
     );
     {% else %}
     {{ result }}{{ function.original_name }}();
+    {% endif %}
+    {% set outputs %}
+        {% for parameter in function.parameters.values() if parameter.is_output() %}
+{{ tmpl_function_parameters.store_output(library, function, parameter)|trim }}
+        {% endfor %}
+    {% endset %}
+    {% if outputs|trim %}
+
+    // store output parameters
+    {{ outputs|trim|indent(4) }}
     {% endif %}
     {% if function.return_type != 'void' %}
 
@@ -204,7 +226,7 @@ static {{ c.function_handle_return_type(library, handle) }} function_handle_inte
 // (on some systems, function pointers may be different from data pointers so this might not be universal)
 static union {
     void* void_ptr;
-    {{ native_return_type(library, function) }} (*func_ptr)(wasm_exec_env_t{% for parameter in function.parameters.values() %}, {% if parameter.is_struct() %}{{ library.structs[parameter.struct].type }}*{% else %}{{ parameter.type }}{% endif %}{% endfor %});
+    {{ native_return_type(library, function) }} (*func_ptr)(wasm_exec_env_t{% for parameter in function.parameters.values() %}, {{ native_parameter_type(library, parameter) }}{% endfor %});
 } {{ library.name }}_{{ function.name }}_ptr = {
     .func_ptr = {{ library.name }}_{{ function.name }}_native
 };

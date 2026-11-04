@@ -100,3 +100,16 @@ def test_constants():
         'pi_ish': 3.14,
         'greeting': 'hello',
     }}}}) == []
+
+
+def test_parameter_direction():
+    assert errors({'libraries': {'mylib': {'functions': {'my_func': {'parameters': {
+        'aaa': {'type': 'int', 'direction': 'in'},
+        'bbb': {'type': 'int', 'direction': 'out'},
+    }}}}}}) == []
+
+
+def test_parameter_direction_invalid():
+    assert errors({'libraries': {'mylib': {'functions': {'my_func': {'parameters': {
+        'aaa': {'type': 'int', 'direction': 'up'},
+    }}}}}}) != []

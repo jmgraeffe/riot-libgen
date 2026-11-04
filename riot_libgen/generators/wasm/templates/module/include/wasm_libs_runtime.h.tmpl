@@ -5,6 +5,8 @@
 wasm_libs_function_handle_t {{ parameter.name }}
 {%- elif parameter.is_array() %}
 {{ parameter._element_parameter.type }} {{ parameter.name }}[{{ parameter.array_size }}]
+{%- elif parameter.is_output() and not parameter.is_byte_array() %}
+{{ parameter.type }}* {{ parameter.name }}
 {%- else %}
 {{ parameter.type }} {{ parameter.name }}
 {%- endif %}

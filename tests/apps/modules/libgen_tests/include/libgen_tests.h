@@ -96,4 +96,13 @@ double point_dot(point_t p);
 int status_checksum(status_t s);
 status_t make_status(bool ok);
 
+/* output parameters */
+int get_count(int* count);
+void get_flags(bool* flag, double* d);
+int find_counter(int index, counter_t** c);
+int read_measurement(int16_t base, measurement_t* m);
+void get_values(int values[3]);
+size_t read_bytes(uint8_t* buf, size_t len);
+int get_name(const char** name);
+
 #endif /* LIBGEN_TESTS_H */

@@ -45,7 +45,8 @@ EXAMPLE_CONFIGS = {
         'js/playground': ['examples/js/playground/js_playground.libgen-config.yml'],
         'js/saul_libgen': ['external/math.libgen-config.yml', 'external/easysaul/easysaul.libgen-config.yml'],
         'js/coap_libgen': ['external/easycoap/easycoap.libgen-config.yml'],
-        'tests/apps/js': ['tests/apps/modules/libgen_tests/libgen_tests.libgen-config.yml'],
+        'tests/apps/js': ['tests/apps/modules/libgen_tests/libgen_tests.libgen-config.yml',
+                          'tests/apps/modules/libgen_tests/libgen_tests_js.libgen-config.yml'],
     },
 }
 
@@ -305,3 +306,48 @@ def test_config_files_are_valid_yaml():
             for config in configs:
                 with open(REPO_DIR / config) as file:
                     assert 'libraries' in yaml.safe_load(file), config
+
+
+OUTPUT_LIBRARY = {'lib': {
+    'functions': {'f': {'parameters': {
+        'count': {'type': 'int', 'direction': 'out'},
+        'p': {'type': 'ptr', 'direction': 'out'},
+        'm': {'type': 'data', 'direction': 'out'},
+        'arr': {'type': 'int[3]', 'direction': 'out'},
+        'buf': {'type': 'uint8_t*', 'length_parameter': 'len', 'direction': 'out'},
+        'len': 'size_t',
+    }, 'return_type': 'int'}},
+    'pointer_handles': {'ptr': 'thing_t*'},
+    'structs': {'data': {'type': 'data_t', 'fields': {'x': 'int'}}},
+}}
+
+
+def test_output_forward_declarations(tmp_path, generator):
+    render(generator, OUTPUT_LIBRARY, tmp_path)
+    header = read(tmp_path, generator, 'include/{g}_libs.h')
+    assert 'int f(int* count, thing_t** p, data_t* m, int arr[3], uint8_t* buf, size_t len);' in header
+
+
+def test_wasm_output_parameters(tmp_path):
+    render('wasm', OUTPUT_LIBRARY, tmp_path)
+    source = (tmp_path / 'wasm_libs.c').read_text()
+    # output parameters are pointers into the WASM memory
+    signatures = dict(re.findall(r'"lib_(\w+)",\s*NULL,[^\n]*\n\s*"([^"]*)"', source))
+    assert signatures == {'f': '(iiiiii)i'}
+    runtime_header = (tmp_path / 'include' / 'wasm_libs_runtime.h').read_text()
+    assert 'int lib_f(int* count, int64_t* p, lib_data_t* m, int arr[3], uint8_t* buf, size_t len);' in runtime_header
+
+
+def test_wasm_output_strings_not_supported(tmp_path):
+    with pytest.raises(LibGenConfigException):
+        render('wasm', {'lib': {'functions': {'f': {'parameters': {
+            's': {'type': 'const char*', 'direction': 'out'},
+        }}}}}, tmp_path)
+
+
+def test_js_output_strings(tmp_path):
+    render('js', {'lib': {'functions': {'f': {'parameters': {
+        's': {'type': 'const char*', 'direction': 'out'},
+    }}}}}, tmp_path)
+    header = (tmp_path / 'include' / 'js_libs.h').read_text()
+    assert 'void f(const char** s);' in header

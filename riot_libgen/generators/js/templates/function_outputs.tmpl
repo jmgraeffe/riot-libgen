@@ -1,0 +1,94 @@
+{#
+ # Output parameters: the runtime passes an object, which is filled after the call. Structs set its fields, arrays
+ # (which need to be passed as JS array) its elements. Values of primitives, pointer handles, strings and byte arrays
+ # are put into its property "value" (so the object is a box). null can be passed instead, then NULL is passed to the
+ # host function.
+ #}
+{% import 'generators/js/templates/function_handle_parameters.tmpl' as tmpl_function_handle_parameters %}
+
+{% macro prepare(library, function, parameter, container) %}
+bool {{ parameter.name }}_is_null = jerry_value_is_null({{ container }});
+{% if parameter.is_array() %}
+if (!{{ parameter.name }}_is_null && !jerry_value_is_array({{ container }})) {
+    core_panic(PANIC_GENERAL_ERROR, "js_libs: library '{{ library.name }}', function '{{ function.name }}', parameter '{{ parameter.name }}': output parameter needs to be an array (or null)");
+}
+{{ parameter._element_parameter.type }} {{ parameter.name }}[{{ parameter.array_size }}] = {0};
+{% else %}
+if (!{{ parameter.name }}_is_null && !jerry_value_is_object({{ container }})) {
+    core_panic(PANIC_GENERAL_ERROR, "js_libs: library '{{ library.name }}', function '{{ function.name }}', parameter '{{ parameter.name }}': output parameter needs to be an object (or null)");
+}
+    {% if parameter.is_struct() %}
+{{ library.structs[parameter.struct].type }} {{ parameter.name }} = {0};
+    {% elif parameter.is_pointer_handle() %}
+{{ library.pointer_handles[parameter.pointer_handle].type }} {{ parameter.name }} = NULL;
+    {% elif parameter.is_string() %}
+const char* {{ parameter.name }} = NULL;
+    {% elif parameter.is_byte_array() %}
+{# allocated as soon as the length parameter is known, see allocate() #}
+uint8_t* {{ parameter.name }} = NULL;
+    {% elif parameter.is_number() or parameter.is_boolean() %}
+{{ parameter.type }} {{ parameter.name }} = 0;
+    {% else %}
+        {% raise "library '" ~ library.name ~ "', function '" ~ function.name ~ "', parameter '" ~ parameter.name ~ "': unsupported type '" ~ parameter.type ~ "' for output parameter" %}
+    {% endif %}
+{% endif %}
+{% endmacro %}
+
+{% macro allocate(library, function, parameter) %}
+if (!{{ parameter.name }}_is_null) {
+    {{ parameter.name }} = (uint8_t*) calloc((size_t) {{ parameter.length_parameter }} > 0 ? (size_t) {{ parameter.length_parameter }} : 1, sizeof(uint8_t));
+    if ({{ parameter.name }} == NULL) {
+        core_panic(PANIC_GENERAL_ERROR, "js_libs: could not allocate memory");
+    }
+}
+{% endmacro %}
+
+{% macro argument(library, function, parameter) %}
+{% if parameter.is_array() or parameter.is_byte_array() %}
+{{ parameter.name }}_is_null ? NULL : {{ parameter.name }}
+{% else %}
+{{ parameter.name }}_is_null ? NULL : &{{ parameter.name }}
+{% endif %}
+{% endmacro %}
+
+{% macro store(library, function, parameter, container) %}
+if (!{{ parameter.name }}_is_null) {
+{% if parameter.is_array() %}
+    jerry_value_t {{ tmpl_function_handle_parameters.array(library, function, parameter, 'array_' ~ parameter.name)|trim|indent(4) }}
+    for (uint32_t i = 0; i < (uint32_t) ({{ parameter.array_size }}); ++i) {
+        jerry_value_t element = jerry_get_property_by_index(array_{{ parameter.name }}, i);
+        jerry_release_value(jerry_set_property_by_index({{ container }}, i, element));
+        jerry_release_value(element);
+    }
+    jerry_release_value(array_{{ parameter.name }});
+{% elif parameter.is_struct() %}
+    jerry_value_t {{ tmpl_function_handle_parameters.struct(library, function, parameter, 'object_' ~ parameter.name)|trim|indent(4) }}
+    {% for field in library.structs[parameter.struct].fields.values() %}
+    {
+        jerry_value_t name = jerry_create_string((const jerry_char_t*) ("{{ field.name }}"));
+        jerry_value_t value = jerry_get_property(object_{{ parameter.name }}, name);
+        jerry_release_value(jerry_set_property({{ container }}, name, value));
+        jerry_release_value(value);
+        jerry_release_value(name);
+    }
+    {% endfor %}
+    jerry_release_value(object_{{ parameter.name }});
+{% else %}
+    {% if parameter.is_pointer_handle() %}
+    jerry_value_t value = jerry_create_number(pointer_handles_get_or_add_{{ library.name }}_{{ parameter.pointer_handle }}((void*) {{ parameter.name }}));
+    {% elif parameter.is_string() %}
+    jerry_value_t value = {{ parameter.name }} != NULL ? jerry_create_string((const jerry_char_t*) {{ parameter.name }}) : jerry_create_null();
+    {% elif parameter.is_byte_array() %}
+    jerry_value_t value = jerry_create_string_sz((const jerry_char_t*) {{ parameter.name }}, {{ parameter.length_parameter }});
+    {% elif parameter.is_boolean() %}
+    jerry_value_t value = jerry_create_boolean({{ parameter.name }});
+    {% else %}
+    jerry_value_t value = jerry_create_number({{ parameter.name }});
+    {% endif %}
+    jerry_value_t name = jerry_create_string((const jerry_char_t*) ("value"));
+    jerry_release_value(jerry_set_property({{ container }}, name, value));
+    jerry_release_value(name);
+    jerry_release_value(value);
+{% endif %}
+}
+{% endmacro %}

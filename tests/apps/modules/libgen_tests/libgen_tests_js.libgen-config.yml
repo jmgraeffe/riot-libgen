@@ -1,0 +1,11 @@
+# Additions to libgen_tests.libgen-config.yml that are only exposed in the JS test application, because the WASM
+# generator does not support output strings (yet).
+libraries:
+  tests_js:
+    functions:
+      get_name:
+        parameters:
+          name:
+            type: const char*
+            direction: out
+        return_type: int

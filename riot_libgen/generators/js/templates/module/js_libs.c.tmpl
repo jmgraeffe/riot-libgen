@@ -5,6 +5,7 @@
 {% import 'generators/js/templates/function_returns.tmpl' as tmpl_function_returns %}
 {% import 'generators/js/templates/function_handle_parameters.tmpl' as tmpl_function_handle_parameters %}
 {% import 'generators/js/templates/function_handle_returns.tmpl' as tmpl_function_handle_returns %}
+{% import 'generators/js/templates/function_outputs.tmpl' as tmpl_function_outputs %}
 #include <stdlib.h>
 #include <string.h>
 #include <panic.h>
@@ -112,7 +113,10 @@ static jerry_value_t {{ library.name }}_{{ function.name }}_native(
     {% set prepare %}
         {% for parameter in function.parameters.values() %}
             {% set container = 'argv[' ~ loop.index0 ~ ']' %}
-            {% if parameter.is_struct() %}
+            {% if parameter.is_output() %}
+{{ tmpl_function_outputs.prepare(library, function, parameter, container)|trim }}
+
+            {% elif parameter.is_struct() %}
 {{ tmpl_function_parameters.struct(library, function, parameter, container)|trim }}
 
             {% elif parameter.is_array() %}
@@ -138,10 +142,15 @@ static jerry_value_t {{ library.name }}_{{ function.name }}_native(
             {% endif %}
         {% endfor %}
         {# byte arrays are copied from strings, the length parameter must not exceed what was copied #}
-        {% for parameter in function.parameters.values() if parameter.is_byte_array() %}
+        {% for parameter in function.parameters.values() if parameter.is_byte_array() and not parameter.is_output() %}
 if ((size_t) {{ parameter.length_parameter }} > length_{{ parameter.name }}) {
     core_panic(PANIC_GENERAL_ERROR, "js_libs: library '{{ library.name }}', function '{{ function.name }}', parameter '{{ parameter.name }}': length parameter '{{ parameter.length_parameter }}' is larger than the byte array");
 }
+
+        {% endfor %}
+        {# byte arrays as output parameters need a buffer with the size given by the length parameter #}
+        {% for parameter in function.parameters.values() if parameter.is_byte_array() and parameter.is_output() %}
+{{ tmpl_function_outputs.allocate(library, function, parameter)|trim }}
 
         {% endfor %}
     {% endset %}
@@ -157,7 +166,9 @@ if ((size_t) {{ parameter.length_parameter }} > length_{{ parameter.name }}) {
     {% if function.parameters %}
     {{ result }}{{ function.original_name }}(
         {% for parameter in function.parameters.values() %}
-            {% if parameter.is_function_handle() %}
+            {% if parameter.is_output() %}
+        {{ tmpl_function_outputs.argument(library, function, parameter)|trim }}{{ "," if not loop.last }}
+            {% elif parameter.is_function_handle() %}
         {{ tmpl_function_call.function_handle(library, function, parameter)|trim }}{{ "," if not loop.last }}
             {% elif parameter.is_string() or parameter.is_byte_array() %}
         {{ tmpl_function_call.string_byte_array(library, function, parameter)|trim }}{{ "," if not loop.last }}
@@ -169,9 +180,24 @@ if ((size_t) {{ parameter.length_parameter }} > length_{{ parameter.name }}) {
     {% else %}
     {{ result }}{{ function.original_name }}();
     {% endif %}
+    {% set outputs %}
+        {% for parameter in function.parameters.values() %}
+            {# loop.index0 is the index of the parameter in argv, so the loop must not be filtered #}
+            {% if parameter.is_output() %}
+{{ tmpl_function_outputs.store(library, function, parameter, 'argv[' ~ loop.index0 ~ ']')|trim }}
+
+            {% endif %}
+        {% endfor %}
+    {% endset %}
+    {% if outputs|trim %}
+
+    // store output parameters
+    {{ outputs|trim|indent(4) }}
+    {% endif %}
     {% set cleanup %}
         {% for parameter in function.parameters.values() %}
-            {% if parameter.is_string() or parameter.is_byte_array() %}
+            {# output strings point to host memory, output byte arrays were allocated in any case #}
+            {% if (parameter.is_string() and not parameter.is_output()) or parameter.is_byte_array() %}
 {{ tmpl_function_cleanup.string_byte_array(library, function, parameter)|trim }}
             {% endif %}
         {% endfor %}

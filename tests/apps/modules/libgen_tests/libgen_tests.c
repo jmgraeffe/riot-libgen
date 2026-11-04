@@ -264,3 +264,44 @@ status_t make_status(bool ok) {
     status_t s = { .ok = ok, .code = 7 };
     return s;
 }
+
+/* output parameters */
+
+int get_count(int* count) {
+    /* output parameters are optional, the runtime can pass NULL */
+    if (count != NULL) {
+        *count = 42;
+    }
+    return 1;
+}
+
+void get_flags(bool* flag, double* d) {
+    *flag = true;
+    *d = 2.5;
+}
+
+int find_counter(int index, counter_t** c) {
+    *c = counter_get(index);
+    return 1;
+}
+
+int read_measurement(int16_t base, measurement_t* m) {
+    *m = make_measurement(base);
+    return 3;
+}
+
+void get_values(int values[3]) {
+    values[0] = 7;
+    values[1] = 8;
+    values[2] = 9;
+}
+
+size_t read_bytes(uint8_t* buf, size_t len) {
+    fill_bytes(buf, len);
+    return len;
+}
+
+int get_name(const char** name) {
+    *name = "riot";
+    return 1;
+}

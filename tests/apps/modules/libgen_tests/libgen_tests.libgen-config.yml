@@ -224,6 +224,49 @@ libraries:
           ok: bool
         return_type: status
 
+      # output parameters
+      get_count:
+        parameters:
+          count:
+            type: int
+            direction: out
+        return_type: int
+      get_flags:
+        parameters:
+          flag:
+            type: bool
+            direction: out
+          d:
+            type: double
+            direction: out
+      find_counter:
+        parameters:
+          index: int
+          c:
+            type: counter
+            direction: out
+        return_type: int
+      read_measurement:
+        parameters:
+          base: int16_t
+          m:
+            type: measurement
+            direction: out
+        return_type: int
+      get_values:
+        parameters:
+          values:
+            type: int[3]
+            direction: out
+      read_bytes:
+        parameters:
+          buf:
+            type: uint8_t*
+            length_parameter: len
+            direction: out
+          len: size_t
+        return_type: size_t
+
     function_handles:
       int_op:
         parameters:

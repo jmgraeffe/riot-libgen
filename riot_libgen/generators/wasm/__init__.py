@@ -128,6 +128,12 @@ class WasmFunction(Function):
         for parameter in self.parameters.values():
             if parameter.is_array() or parameter.is_struct():
                 signature += POINTER_TYPE
+            elif parameter.is_output():
+                if parameter.type == STRING_TYPE:
+                    raise LibGenConfigException(
+                        'WASM generator does not support output strings yet (parameter \'{}\')'.format(parameter.name))
+                # pointer into the WASM memory
+                signature += POINTER_TYPE
             elif parameter.is_function_handle():
                 signature += NATIVE_TYPES_MAPPING[FUNCTION_HANDLE_TYPE]
             elif parameter.is_pointer_handle():

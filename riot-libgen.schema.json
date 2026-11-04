@@ -243,6 +243,10 @@
 							"description": "String that contains the name of another parameter that is used to pass the length of the byte array that is passed as another parameter. Only needed for parameters of type byte array.",
 							"type": "string",
 							"examples": ["another_param"]
+						},
+						"direction": {
+							"description": "Whether the parameter is passed to the host function (in, the default), or filled by the host function (out). For output parameters, the C type is a pointer to the given type, except for arrays and byte arrays. In JS, an object (or an array for arrays) needs to be passed that is filled after the call; values of primitives, pointer handles, strings and byte arrays are put into its property value.",
+							"enum": ["in", "out"]
 						}
 					},
 					"required": ["type"],

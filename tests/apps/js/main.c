@@ -62,6 +62,9 @@ int main(void) {
     if (!js_libs_register_tests_natives()) {
         puts("FAIL registration: could not register natives of library 'tests'");
     }
+    if (!js_libs_register_tests_js_natives()) {
+        puts("FAIL registration: could not register natives of library 'tests_js'");
+    }
 
     jerry_value_t parsed = jerry_parse(NULL, 0, main_js, main_js_len, JERRY_PARSE_NO_OPTS);
     if (jerry_value_is_error(parsed)) {

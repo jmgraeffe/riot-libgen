@@ -261,3 +261,58 @@ check_all("structs.bool_field", [
     [status.ok, true],
     [status.code, 7]
 ]);
+
+// output parameters (primitives, pointer handles, strings and byte arrays need a box, results are in .value)
+
+var count = {};
+check_all("outputs.primitive", [
+    [tests.get_count(count), 1],
+    [count.value, 42]
+]);
+
+var flag = {};
+var d = {};
+tests.get_flags(flag, d);
+check_all("outputs.bool_and_double", [
+    [flag.value, true],
+    [d.value, 2.5]
+]);
+
+var found = {};
+check_all("outputs.pointer_handle", [
+    [tests.find_counter(5, found), 1],
+    [found.value, tests.counter_get(5)]
+]);
+
+var measurement = {};
+check_all("outputs.struct", [
+    [tests.read_measurement(10, measurement), 3],
+    [measurement.val[0], 10],
+    [measurement.val[1], 11],
+    [measurement.val[2], 12],
+    [measurement.unit, 7],
+    [measurement.scale, -3]
+]);
+
+var values = [];
+tests.get_values(values);
+check_all("outputs.array", [
+    [values[0], 7],
+    [values[1], 8],
+    [values[2], 9]
+]);
+
+var bytes = {};
+check_all("outputs.byte_array", [
+    [tests.read_bytes(bytes, 4), 4],
+    [bytes.value, "abcd"]
+]);
+
+// null is passed as NULL, for optional output parameters
+check("outputs.null", tests.get_count(null), 1);
+
+var name = {};
+check_all("outputs.string", [
+    [tests_js.get_name(name), 1],
+    [name.value, "riot"]
+]);

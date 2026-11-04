@@ -25,4 +25,6 @@ class Struct:
                 if isinstance(config, str):
                     config = {'type': config}
                 self.fields[name] = self._factory.create_parameter(name, config, self._library)
+                if self.fields[name].is_output():
+                    raise LibGenConfigException('struct fields cannot be output parameters (\'{}\' of \'{}\')'.format(name, self.name))
         self.type = dict_['type']

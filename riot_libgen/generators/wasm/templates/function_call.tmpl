@@ -9,3 +9,11 @@ function_handle_internal_function_{{ library.name }}_{{ parameter.function_handl
 {% macro pointer_handle(library, function, parameter) %}
 {{ parameter.name }}_ptr
 {% endmacro %}
+
+{% macro output(library, function, parameter) %}
+{% if parameter.is_pointer_handle() %}
+{{ parameter.name }} != NULL ? &{{ parameter.name }}_ptr : NULL
+{% else %}
+{{ parameter.name }}
+{% endif %}
+{% endmacro %}

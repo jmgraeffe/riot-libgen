@@ -358,5 +358,44 @@ WASM_EXPORT int main(void) {
                   { ok_checksum, 105 }, { not_ok_checksum, 5 }, { s.ok, true }, { s.code, 7 });
     }
 
+    /* output parameters */
+
+    {
+        int count = 0;
+        int ret = tests_get_count(&count);
+        CHECK_ALL("outputs.primitive", { ret, 1 }, { count, 42 });
+    }
+    {
+        bool flag = false;
+        double d = 0;
+        tests_get_flags(&flag, &d);
+        CHECK_ALL("outputs.bool_and_double", { flag, true }, { d == 2.5, true });
+    }
+    {
+        int64_t found = 0;
+        int ret = tests_find_counter(5, &found);
+        int64_t expected = tests_counter_get(5);
+        CHECK_ALL("outputs.pointer_handle", { ret, 1 }, { found, expected });
+    }
+    {
+        tests_measurement_t m = { 0 };
+        int ret = tests_read_measurement(10, &m);
+        CHECK_ALL("outputs.struct", { ret, 3 }, { m.val[0], 10 }, { m.val[1], 11 }, { m.val[2], 12 },
+                  { m.unit, 7 }, { m.scale, -3 });
+    }
+    {
+        int values[3] = { 0 };
+        tests_get_values(values);
+        CHECK_ALL("outputs.array", { values[0], 7 }, { values[1], 8 }, { values[2], 9 });
+    }
+    {
+        uint8_t buf[4] = { 0 };
+        size_t ret = tests_read_bytes(buf, 4);
+        CHECK_ALL("outputs.byte_array", { ret, 4 }, { buf[0], 'a' }, { buf[1], 'b' }, { buf[2], 'c' }, { buf[3], 'd' });
+    }
+    /* NULL is passed as NULL, for optional output parameters */
+    check("outputs.null", tests_get_count(NULL), 1);
+    /* outputs.string: JS only, output strings are not supported by the WASM generator (yet) */
+
     return 0;
 }

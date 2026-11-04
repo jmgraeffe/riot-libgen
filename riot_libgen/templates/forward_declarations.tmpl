@@ -3,8 +3,6 @@
 {% if parameter.is_function_handle() %}
 {% set handle = library.function_handles[parameter.function_handle] %}
 {{ c.function_handle_return_type(library, handle) }} (*{{ parameter.name }})({{ c.parameter_list(library, handle) }})
-{%- elif parameter.is_pointer_handle() %}
-{{ library.pointer_handles[parameter.pointer_handle].type }}
 {%- else %}
 {{ c.type_and_name(library, parameter) }}
 {%- endif %}

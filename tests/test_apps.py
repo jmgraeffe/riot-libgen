@@ -85,6 +85,14 @@ CASES = {
     'structs.return': BOTH,
     'structs.double_fields': BOTH,
     'structs.bool_field': BOTH,
+    'outputs.primitive': BOTH,
+    'outputs.bool_and_double': BOTH,
+    'outputs.pointer_handle': BOTH,
+    'outputs.struct': BOTH,
+    'outputs.array': BOTH,
+    'outputs.byte_array': BOTH,
+    'outputs.null': BOTH,
+    'outputs.string': (JS,),  # not supported by the WASM generator (yet)
 }
 
 # Cases that fail because of known bugs, by case name and runtime.
