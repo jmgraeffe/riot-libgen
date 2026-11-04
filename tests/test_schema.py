@@ -19,8 +19,6 @@ CONFIG_FILES = sorted(
 )
 
 KNOWN_INVALID = {
-    'tests/apps/modules/libgen_tests/libgen_tests.libgen-config.yml':
-        'BUG: the schema does not allow the object form of pointer handles (with max_entries)',
 }
 
 
@@ -55,15 +53,34 @@ def test_function_shortcut_needs_to_be_a_return_type():
     assert errors({'libraries': {'mylib': {'functions': {'my_func': 42}}}}) != []
 
 
-@pytest.mark.xfail(reason='BUG: the schema does not allow the object form of pointer handles (with max_entries)')
 def test_pointer_handle_object():
     assert errors({'libraries': {'mylib': {'pointer_handles': {
         'my_ptr': {'type': 'thing_t*', 'max_entries': 3},
     }}}}) == []
 
 
-@pytest.mark.xfail(reason='the schema does not describe structs yet (they are accepted without being checked)')
-def test_struct_needs_type():
+@pytest.mark.parametrize('pointer_handle', [
+    {'max_entries': 3},                                  # missing type
+    {'type': 'thing_t*', 'max_entries': 0},              # at least one entry
+    {'type': 'thing_t*', 'max_entries': '3'},            # not an integer
+    {'type': 'thing_t*', 'unknown': 1},                  # unknown property
+])
+def test_pointer_handle_object_invalid(pointer_handle):
+    assert errors({'libraries': {'mylib': {'pointer_handles': {'my_ptr': pointer_handle}}}}) != []
+
+
+def test_struct():
     assert errors({'libraries': {'mylib': {'structs': {
-        'my_struct': {'fields': {'xyz': 'int'}},
-    }}}}) != []
+        'my_struct': {'type': 'my_struct_t', 'fields': {'val': 'int16_t[3]', 'unit': 'uint8_t', 'x': 'double'}},
+        'empty_struct': {'type': 'empty_t'},
+    }}}}) == []
+
+
+@pytest.mark.parametrize('struct', [
+    {'fields': {'xyz': 'int'}},                          # missing type
+    {'type': 'my_struct_t', 'fields': {'xyz': 42}},      # field type is not a string
+    {'type': 'my_struct_t', 'fields': {'Xyz': 'int'}},   # invalid field name
+    {'type': 'my_struct_t', 'unknown': 1},               # unknown property
+])
+def test_struct_invalid(struct):
+    assert errors({'libraries': {'mylib': {'structs': {'my_struct': struct}}}}) != []

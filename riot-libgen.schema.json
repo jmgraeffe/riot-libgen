@@ -119,9 +119,32 @@
 							"type": "object",
 							"patternProperties": {
 								"^[a-z][a-z0-9\\_]+[a-z0-9]$": {
-									"description": "String with the full C type of the underlying pointer. This is not limited to LibGen primitives and must not be a function or pointer handle name, and the type is only used for casting internally.",
-									"type": "string",
-									"examples": ["const sock_udp_ep_t*", "int**"]
+									"anyOf": [
+										{
+											"description": "Object whose properties define the pointer handle.",
+											"type": "object",
+											"properties": {
+												"type": {
+													"description": "String with the full C type of the underlying pointer. This is not limited to LibGen primitives and must not be a function or pointer handle name, and the type is only used for casting internally.",
+													"type": "string",
+													"examples": ["const sock_udp_ep_t*", "int**"]
+												},
+												"max_entries": {
+													"description": "Number of pointers of this type that can be handed out to the runtime environment at the same time (default: 10).",
+													"type": "integer",
+													"minimum": 1,
+													"examples": [4, 16]
+												}
+											},
+											"required": ["type"],
+											"additionalProperties": false
+										},
+										{
+											"description": "Shortcut for a pointer handle with default options. String with the full C type of the underlying pointer.",
+											"type": "string",
+											"examples": ["const sock_udp_ep_t*", "int**"]
+										}
+									]
 								}
 							}
 						},
@@ -133,6 +156,35 @@
 									"description": "String or integer with the constant value. This cannot be a macro or an expression or anything other than a string or an integer.",
 									"type": ["string", "integer"],
 									"examples": [42, "Hello World!"]
+								}
+							}
+						},
+						"structs": {
+							"description": "Object whose properties represent structs that can be passed between the host and the runtime environment by value. The property name is the name of the struct, which can be used as a type.",
+							"type": "object",
+							"patternProperties": {
+								"^[a-z][a-z0-9\\_]+[a-z0-9]$": {
+									"description": "Object whose properties define the struct.",
+									"type": "object",
+									"properties": {
+										"type": {
+											"description": "String with the C type of the struct.",
+											"type": "string",
+											"examples": ["phydat_t", "struct my_struct"]
+										},
+										"fields": {
+											"description": "Object whose properties represent the fields of the struct that are exposed. The property name is the name of the field.",
+											"type": "object",
+											"patternProperties": {
+												"^[a-z][a-z0-9\\_]*$": {
+													"$ref": "#/$defs/parameter_type"
+												}
+											},
+											"additionalProperties": false
+										}
+									},
+									"required": ["type"],
+									"additionalProperties": false
 								}
 							}
 						}
