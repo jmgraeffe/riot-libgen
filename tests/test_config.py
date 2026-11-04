@@ -129,7 +129,6 @@ class TestParameters:
         with pytest.raises(LibGenConfigException):
             load_library(libgen, {'functions': {'f': {'parameters': {'a': 'unknown_t[4]'}}}})
 
-    @pytest.mark.xfail(raises=NameError, reason='BUG: LibGenRuntimeException is not imported in parameter.py')
     def test_array_size_of_non_array(self, libgen):
         parameter = load_library(libgen, {'functions': {'f': {'parameters': {'a': 'int'}}}}) \
             .functions['f'].parameters['a']
@@ -163,8 +162,7 @@ class TestFunctionHandles:
         }).function_handles['handler']
         assert handle.returns_struct()
 
-    @pytest.mark.xfail(reason='BUG: pointer handles are rejected as return type of function handles '
-                              '(and POINTER_HANDLE_TYPE is not imported in function_handle.py)')
+    @pytest.mark.xfail(reason='BUG: pointer handles are rejected as return type of function handles')
     def test_returns_pointer_handle(self, libgen):
         handle = load_library(libgen, {
             'function_handles': {'handler': {'return_type': 'ptr'}},
@@ -213,7 +211,6 @@ class TestStructs:
         assert library.functions['f'].parameters['s'].is_struct()
         assert library.functions['f'].returns_struct()
 
-    @pytest.mark.xfail(raises=NameError, reason='BUG: LibGenConfigException is not imported in struct.py')
     def test_missing_type(self, libgen):
         with pytest.raises(LibGenConfigException):
             load_library(libgen, {'structs': {'data': {'fields': {'x': 'int'}}}})

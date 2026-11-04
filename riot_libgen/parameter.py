@@ -1,5 +1,5 @@
 import re
-from riot_libgen.exceptions import LibGenConfigException
+from riot_libgen.exceptions import LibGenConfigException, LibGenRuntimeException
 from riot_libgen.helpers import NATIVE_TYPES, BYTE_ARRAY_TYPES, FUNCTION_HANDLE_TYPE, POINTER_HANDLE_TYPE, ARRAY_PATTERN
 from riot_libgen.library import Library
 

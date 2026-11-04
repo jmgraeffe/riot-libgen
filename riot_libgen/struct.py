@@ -1,3 +1,4 @@
+from riot_libgen.exceptions import LibGenConfigException
 from riot_libgen.library import Library
 
 
@@ -17,7 +18,7 @@ class Struct:
            return
 
         if 'type' not in dict_:
-            raise LibGenConfigException('missing parameter type for \'{}\''.format(self.name))
+            raise LibGenConfigException('missing type for struct \'{}\''.format(self.name))
         if 'fields' in dict_:
             for name, config in dict_['fields'].items():
                 # shortcut for parameter type

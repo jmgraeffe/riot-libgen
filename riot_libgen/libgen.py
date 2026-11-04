@@ -6,11 +6,6 @@ from riot_libgen.context import Context
 from riot_libgen.exceptions import LibGenConfigException, RaiseExtension
 from riot_libgen.factory import Factory
 
-try:
-    from yaml import CLoader as YamlLoader, CDumper as YamlDumper
-except ImportError:
-    from yaml import YamlLoader, YamlDumper
-
 
 class LibGen:
     def __init__(self, config: dict = None):
@@ -25,7 +20,7 @@ class LibGen:
     def load_config_from_file(self, file_path: str):
         config = None
         with open(file_path, 'r') as stream:
-            config = yaml.load(stream, Loader=YamlLoader)
+            config = yaml.safe_load(stream)
         if config is None:
             raise LibGenConfigException('could not read config file')
 

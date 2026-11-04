@@ -18,10 +18,6 @@ if __name__ == '__main__':
 		import json
 		import jsonschema
 		import yaml
-		try:
-		    from yaml import CLoader as YamlLoader, CDumper as YamlDumper
-		except ImportError:
-		    from yaml import YamlLoader, YamlDumper
 
 		with open('riot-libgen.schema.json') as file:
 			schema = json.load(file)
@@ -48,7 +44,7 @@ if __name__ == '__main__':
 		if args.validate is True:
 			instance = None
 			with open(config, 'r') as file:
-				instance = yaml.load(file, Loader=YamlLoader)
+				instance = yaml.safe_load(file)
 			jsonschema.validate(instance=instance, schema=schema)
 			print('validation successful')
 
