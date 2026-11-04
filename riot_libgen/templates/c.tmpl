@@ -4,6 +4,8 @@
 {{ parameter._element_parameter.type }} {{ parameter.name }}[{{ parameter.array_size }}]
 {%- elif parameter.is_struct() %}
 {{ library.structs[parameter.struct].type }} {{ parameter.name }}
+{%- elif parameter.is_pointer_handle() %}
+{{ library.pointer_handles[parameter.pointer_handle].type }} {{ parameter.name }}
 {%- else %}
 {{ parameter.type }} {{ parameter.name }}
 {%- endif %}
@@ -18,6 +20,8 @@ void
 {% macro function_handle_return_type(library, handle) %}
 {% if handle.returns_struct() %}
 {{ library.structs[handle.returned_struct].type }}
+{%- elif handle.returns_pointer_handle() %}
+{{ library.pointer_handles[handle.returned_pointer_handle].type }}
 {%- else %}
 {{ handle.return_type }}
 {%- endif %}

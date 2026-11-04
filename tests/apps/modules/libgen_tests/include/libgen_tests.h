@@ -65,6 +65,8 @@ int counter_increment(counter_t* c);
 counter_t* counter_null(void);
 int counter_is_null(counter_t* c);
 int counter_release(counter_t* c);
+int call_with_counter(int index, int (*cb)(counter_t* c));
+int increment_from_callback(counter_t* (*cb)(void));
 
 /* arrays */
 int sum_int_array(int values[3]);

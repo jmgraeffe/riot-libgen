@@ -68,6 +68,8 @@ CASES = {
     'pointer_handles.distinct': BOTH,
     'pointer_handles.same_pointer_same_handle': BOTH,
     'pointer_handles.null_to_runtime': BOTH,
+    'pointer_handles.function_handle_parameter': BOTH,
+    'pointer_handles.function_handle_return': BOTH,
     'pointer_handles.null_from_runtime': BOTH,
     'pointer_handles.release_and_reuse': BOTH,
     'arrays.int': BOTH,

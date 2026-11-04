@@ -141,6 +141,14 @@ WASM_EXPORT tests_measurement_t* guest_measurement_sender(void) {
     return &m;
 }
 
+WASM_EXPORT int guest_counter_receiver(int64_t c) {
+    return tests_counter_increment(c);
+}
+
+WASM_EXPORT int64_t guest_counter_sender(void) {
+    return tests_counter_get(5);
+}
+
 WASM_EXPORT const char* guest_string_sender(void) {
     return "hello";
 }
@@ -257,7 +265,13 @@ WASM_EXPORT int main(void) {
                   { c1 != c2, true }, { c1_first, 1 }, { c2_first, 1 }, { c1_second, 2 });
     }
 
-    /* all 4 slots (max_entries) are in use from here on */
+    /* pointer handles passed to and returned from function handles */
+    check("pointer_handles.function_handle_parameter",
+          tests_call_with_counter(5, WASM_LIBS_FUNCTION_HANDLE("guest_counter_receiver")), 1);
+    check("pointer_handles.function_handle_return",
+          tests_increment_from_callback(WASM_LIBS_FUNCTION_HANDLE("guest_counter_sender")), 2);
+
+    /* all 5 slots (max_entries) are in use from here on */
     {
         int64_t first = tests_counter_get(3);
         int64_t second = tests_counter_get(3);

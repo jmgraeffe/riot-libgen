@@ -158,7 +158,6 @@ class TestFunctionHandles:
         }).function_handles['handler']
         assert handle.returns_struct()
 
-    @pytest.mark.xfail(reason='BUG: pointer handles are rejected as return type of function handles')
     def test_returns_pointer_handle(self, libgen):
         handle = load_library(libgen, {
             'function_handles': {'handler': {'return_type': 'ptr'}},

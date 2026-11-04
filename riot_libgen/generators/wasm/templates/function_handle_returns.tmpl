@@ -44,7 +44,5 @@ return ({{ handle.return_type }}) wasm_runtime_addr_app_to_native(wasm_module_in
 {% endmacro %}
 
 {% macro pointer_handle(library, handle, param) %}
-//TODO maybe don't panic if it is out of bounds but let users decide what happens, because atm an application run by a runtime can "force" a panic which might not be desirable
-pointer_handle_check_bounds_{{ library.name }}_{{ handle.returned_pointer_handle }}({{ param.name }});
-return ({{ library.pointer_handles[handle.returned_pointer_handle].type }}) pointer_handles_{{ library.name }}_{{ handle.returned_pointer_handle }}[{{ param.name }} - 1];
+return ({{ library.pointer_handles[handle.returned_pointer_handle].type }}) pointer_handles_get_{{ library.name }}_{{ handle.returned_pointer_handle }}(results[0].of.i64);
 {% endmacro %}

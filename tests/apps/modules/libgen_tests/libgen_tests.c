@@ -169,6 +169,14 @@ int counter_release(counter_t* c) {
     return RELEASE_COUNTER(c);
 }
 
+int call_with_counter(int index, int (*cb)(counter_t* c)) {
+    return cb(counter_get(index));
+}
+
+int increment_from_callback(counter_t* (*cb)(void)) {
+    return counter_increment(cb());
+}
+
 /* arrays */
 
 int sum_int_array(int values[3]) {

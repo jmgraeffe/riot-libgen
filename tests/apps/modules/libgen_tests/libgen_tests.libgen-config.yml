@@ -134,6 +134,15 @@ libraries:
         parameters:
           c: counter
         return_type: int
+      call_with_counter:
+        parameters:
+          index: int
+          cb: counter_receiver
+        return_type: int
+      increment_from_callback:
+        parameters:
+          cb: counter_sender
+        return_type: int
 
       # arrays
       sum_int_array:
@@ -206,11 +215,17 @@ libraries:
           m: measurement
       measurement_sender:
         return_type: measurement
+      counter_receiver:
+        parameters:
+          c: counter
+        return_type: int
+      counter_sender:
+        return_type: counter
 
     pointer_handles:
       counter:
         type: counter_t*
-        max_entries: 4
+        max_entries: 5
 
     structs:
       measurement:

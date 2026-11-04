@@ -34,8 +34,8 @@ class FunctionHandle:
            return
 
         if 'return_type' in dict_:
-            if dict_['return_type'] not in NATIVE_TYPES and dict_['return_type'] not in self._library.structs:
-                raise LibGenConfigException('unknown parameter type \'{}\' for \'{}\''.format(dict_['return_type'], self.name))
+            if dict_['return_type'] not in NATIVE_TYPES and dict_['return_type'] not in self._library.pointer_handles and dict_['return_type'] not in self._library.structs:
+                raise LibGenConfigException('unknown return type \'{}\' for \'{}\''.format(dict_['return_type'], self.name))
             self._return_type = dict_['return_type']
 
         if 'parameters' in dict_:

@@ -190,7 +190,6 @@ def _called_but_undefined(source: str, prefix: str) -> set[str]:
     return called - defined
 
 
-@pytest.mark.xfail(reason='BUG: missing underscore in pointer_handles_get_or_add for function handle parameters')
 def test_function_handle_with_pointer_handle_parameter(tmp_path, generator):
     render(generator, {'lib': {
         'functions': {'f': {'parameters': {'cb': 'handler'}}},

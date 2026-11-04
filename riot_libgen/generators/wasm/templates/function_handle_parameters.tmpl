@@ -15,10 +15,10 @@
 {% macro pointer_handle(library, handle, param, dest) %}
 {% if param.get_wasm_runtime_signature() == 'i' %}
 {{ dest }}.kind = WASM_I32;
-{{ dest }}.of.i32 = {{ param.name }} != NULL ? pointer_handles_get_or_add{{ library.name }}_{{ param.pointer_handle }}((void*) {{ param.name }}) : 0;
+{{ dest }}.of.i32 = pointer_handles_get_or_add_{{ library.name }}_{{ param.pointer_handle }}((void*) {{ param.name }});
 {% else %}
 {{ dest }}.kind = WASM_I64;
-{{ dest }}.of.i64 = {{ param.name }} != NULL ? pointer_handles_get_or_add{{ library.name }}_{{ param.pointer_handle }}((void*) {{ param.name }}) : 0;
+{{ dest }}.of.i64 = pointer_handles_get_or_add_{{ library.name }}_{{ param.pointer_handle }}((void*) {{ param.name }});
 {% endif %}
 {% endmacro %}
 

@@ -182,7 +182,17 @@ check_all("pointer_handles.distinct", [
     [tests.counter_increment(c1), 2]
 ]);
 
-// all 4 slots (max_entries) are in use from here on
+// pointer handles passed to and returned from function handles
+function js_counter_receiver(c) {
+    return tests.counter_increment(c);
+}
+function js_counter_sender() {
+    return tests.counter_get(5);
+}
+check("pointer_handles.function_handle_parameter", tests.call_with_counter(5, "js_counter_receiver"), 1);
+check("pointer_handles.function_handle_return", tests.increment_from_callback("js_counter_sender"), 2);
+
+// all 5 slots (max_entries) are in use from here on
 check("pointer_handles.same_pointer_same_handle", tests.counter_get(3), tests.counter_get(3));
 
 // handle 0 represents NULL

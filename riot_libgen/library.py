@@ -23,6 +23,14 @@ class Library:
         if 'prefix' in dict_:
             self.prefix = dict_['prefix']
 
+        # pointer handles first, as structs, function handles and functions can refer to them
+        if 'pointer_handles' in dict_:
+            for name, config in dict_['pointer_handles'].items():
+                # shortcut for type
+                if isinstance(config, str):
+                    config = {'type': config}
+                self.pointer_handles[name] = self._factory.create_pointer_handle(name, config, self)
+
         if 'structs' in dict_:
             for name, config in dict_['structs'].items():
                 self.structs[name] = self._factory.create_struct(name, config, self)
@@ -30,13 +38,6 @@ class Library:
         if 'function_handles' in dict_:
             for name, config in dict_['function_handles'].items():
                 self.function_handles[name] = self._factory.create_function_handle(name, config, self)
-
-        if 'pointer_handles' in dict_:
-            for name, config in dict_['pointer_handles'].items():
-                # shortcut for type
-                if isinstance(config, str):
-                    config = {'type': config}
-                self.pointer_handles[name] = self._factory.create_pointer_handle(name, config, self)
 
         if 'functions' in dict_:
             for name, config in dict_['functions'].items():

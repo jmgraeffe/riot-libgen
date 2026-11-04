@@ -52,7 +52,7 @@ for (uint32_t i = 0; i < (uint32_t) ({{ param.array_size }}); ++i) {
 {% endmacro %}
 
 {% macro pointer_handle(library, handle, param, dest) %}
-{{ dest }} = {{ param.name }} != NULL ? jerry_create_number(pointer_handles_get_or_add{{ library.name }}_{{ param.pointer_handle }}((void*) {{ param.name }})) : jerry_create_null();
+{{ dest }} = jerry_create_number(pointer_handles_get_or_add_{{ library.name }}_{{ param.pointer_handle }}((void*) {{ param.name }}));
 {% endmacro %}
 
 {% macro number(library, handle, param, dest) %}
