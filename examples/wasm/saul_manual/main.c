@@ -4,10 +4,12 @@
 #include <stdbool.h>
 #include <string.h>
 #include <math.h>
+#include <errno.h>
 
 #include "wasm_export.h"
 #include "blob/hello.wasm.h"
-#include "easysaul.h"
+#include "saul_reg.h"
+#include "phydat.h"
 
 #if (defined(MEASURE_CPU_CYCLES) && MEASURE_CPU_CYCLES > 0) || (defined(MEASURE_HEAP) && MEASURE_HEAP > 0)
 #include "../../../external/measurements.h"
@@ -59,18 +61,47 @@ static union {
     .func_ptr = math_log_native
 };
     
-int32_t easysaul_reg_find_and_read_native(wasm_exec_env_t exec_env, uint8_t type, const char* name, int8_t power) {
+// devices are passed to WASM as their position in the SAUL registry + 1, so that 0 means "not found"
+int64_t saul_reg_find_type_and_name_native(wasm_exec_env_t exec_env, uint8_t type, const char* name) {
     (void) exec_env;
     saul_reg_t* dev = saul_reg_find_type_and_name(type, name);
-    return easysaul_reg_read(dev, power);
+
+    // find position of device in registry
+    int64_t pos = 0;
+    if (dev != NULL) {
+        for (pos = 1; saul_reg_find_nth(pos - 1) != dev; ++pos) {}
+    }
+    return pos;
 }
 // union just to avoid ISO C warning when initializing void* with function pointer
 // (on some systems, function pointers may be different from data pointers so this might not be universal)
 static union {
     void* void_ptr;
-    int32_t (*func_ptr)(wasm_exec_env_t, uint8_t, const char*, int8_t);
-} easysaul_reg_find_and_read_ptr = {
-    .func_ptr = easysaul_reg_find_and_read_native
+    int64_t (*func_ptr)(wasm_exec_env_t, uint8_t, const char*);
+} saul_reg_find_type_and_name_ptr = {
+    .func_ptr = saul_reg_find_type_and_name_native
+};
+
+// fills the phydat_t of the WASM application (which has the same layout as on the host)
+int32_t saul_reg_read_native(wasm_exec_env_t exec_env, int64_t pos, phydat_t* res) {
+    // WAMR only checks the first byte of the pointer, so the whole struct is checked here
+    if (!wasm_runtime_validate_native_addr(wasm_runtime_get_module_inst(exec_env), res, sizeof(phydat_t))) {
+        return -EFAULT;
+    }
+
+    saul_reg_t* dev = pos > 0 ? saul_reg_find_nth(pos - 1) : NULL;
+    if (dev == NULL) {
+        return -ENODEV;
+    }
+    return saul_reg_read(dev, res);
+}
+// union just to avoid ISO C warning when initializing void* with function pointer
+// (on some systems, function pointers may be different from data pointers so this might not be universal)
+static union {
+    void* void_ptr;
+    int32_t (*func_ptr)(wasm_exec_env_t, int64_t, phydat_t*);
+} saul_reg_read_ptr = {
+    .func_ptr = saul_reg_read_native
 };
 
 int main(void) {
@@ -98,9 +129,15 @@ int main(void) {
             NULL
         },
         {
-            "easysaul_reg_find_and_read",
-            easysaul_reg_find_and_read_ptr.void_ptr,
-            "(i$i)i", // int32_t easysaul_reg_find_and_read(type, name, power)
+            "saul_reg_find_type_and_name",
+            saul_reg_find_type_and_name_ptr.void_ptr,
+            "(i$)I", // int64_t saul_reg_find_type_and_name(type, name)
+            NULL
+        },
+        {
+            "saul_reg_read",
+            saul_reg_read_ptr.void_ptr,
+            "(I*)i", // int32_t saul_reg_read(dev, res)
             NULL
         }
     };
@@ -115,7 +152,7 @@ int main(void) {
     }
 
     // register natives
-    if (!wasm_runtime_register_natives("env", native_symbols, 4)) {
+    if (!wasm_runtime_register_natives("env", native_symbols, sizeof(native_symbols) / sizeof(NativeSymbol))) {
         printf("Could not register natives!\n");
         return 0;
     }

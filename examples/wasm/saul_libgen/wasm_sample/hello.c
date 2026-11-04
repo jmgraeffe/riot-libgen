@@ -18,13 +18,41 @@ double alpha(double temp, double hum) {
     return (a * temp) / (b + temp) + math_log(hum / 100);
 }
 
+// reads a SAUL device and returns its value (sum of all dimensions) in units of 10^power
+// return value INT32_MIN means error while reading value
+// return value INT32_MAX means value out of int32_t bounds
+static int32_t reg_read(saul_reg_t dev, int8_t power) {
+    saul_phydat_t phydat = { 0 };
+
+    int dim = saul_reg_read(dev, &phydat);
+    if (dim < 0) {
+        return INT32_MIN;
+    }
+
+    int64_t res = 0;
+    for (int i = 0; i < dim; ++i) {
+        res += phydat.val[i];
+    }
+
+    power += phydat.scale;
+    for (int i = 0; i < power; ++i) {
+        res *= 10;
+    }
+    for (int i = power; i < 0; ++i) {
+        res /= 10;
+    }
+
+    if (res > INT32_MAX || res < INT32_MIN) return INT32_MAX;
+    return (int32_t) res;
+}
+
 WASM_EXPORT int main(int argc, char **argv) {
-    easysaul_reg_t temp_dev = easysaul_reg_find_type_and_name(EASYSAUL_SENSE_TEMP, "bme680");
-    easysaul_reg_t hum_dev = easysaul_reg_find_type_and_name(EASYSAUL_SENSE_HUM, "bme680");
+    saul_reg_t temp_dev = saul_reg_find_type_and_name(SAUL_SENSE_TEMP, "bme680");
+    saul_reg_t hum_dev = saul_reg_find_type_and_name(SAUL_SENSE_HUM, "bme680");
     if (!temp_dev || !hum_dev) return 1;
 
-    int32_t temp = easysaul_reg_read(temp_dev, 0);
-    int32_t hum = easysaul_reg_read(hum_dev, 0);
+    int32_t temp = reg_read(temp_dev, 0);
+    int32_t hum = reg_read(hum_dev, 0);
     double dew_point = (b * alpha(temp, hum)) / (a - alpha(temp, hum));
 
     printf("Temperature: ");

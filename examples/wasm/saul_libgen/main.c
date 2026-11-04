@@ -52,7 +52,7 @@ int main(void) {
         iwasm_runtime_destroy();
         return 1;
     }
-    if (!wasm_libs_register_easysaul_natives("env")) {
+    if (!wasm_libs_register_saul_natives("env")) {
         printf("Could not register natives!\n");
         iwasm_runtime_destroy();
         return 1;

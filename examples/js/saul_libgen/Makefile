@@ -14,6 +14,8 @@ USEPKG += jerryscript
 
 USEMODULE += js_libs
 USEMODULE += bme680_i2c
+# registers sensors like the BME680 in the SAUL registry
+USEMODULE += saul_default
 
 # Comment this out to disable code in RIOT that does safety checking
 # which is not needed in a production environment but helps in the

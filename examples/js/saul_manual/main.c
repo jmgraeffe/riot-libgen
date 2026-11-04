@@ -2,10 +2,13 @@
 #include <string.h>
 #include <math.h>
 #include <stdlib.h>
+#include <errno.h>
+#include <stdint.h>
 
 #include "jerryscript.h"
 #include "jerryscript-ext/handler.h"
-#include "easysaul.h"
+#include "saul_reg.h"
+#include "phydat.h"
 #include "blob/main.js.h"
 #include "panic.h"
 
@@ -16,6 +19,7 @@
 #include "periph/pm.h"
 #endif
 
+
 static jerry_value_t math_log_native(const jerry_value_t func_val, const jerry_value_t this_val, const jerry_value_t argv[], const jerry_length_t argc) {
     (void) func_val;
     (void) this_val;
@@ -24,7 +28,8 @@ static jerry_value_t math_log_native(const jerry_value_t func_val, const jerry_v
     return jerry_create_number(log((double) jerry_get_number_value(argv[0])));
 }
 
-static jerry_value_t easysaul_reg_find_and_read_native(const jerry_value_t func_val, const jerry_value_t this_val, const jerry_value_t argv[], const jerry_length_t argc) {
+// devices are passed to JS as their position in the SAUL registry + 1, so that 0 means "not found"
+static jerry_value_t saul_reg_find_type_and_name_native(const jerry_value_t func_val, const jerry_value_t this_val, const jerry_value_t argv[], const jerry_length_t argc) {
     (void) func_val;
     (void) this_val;
     (void) argc;
@@ -39,14 +44,65 @@ static jerry_value_t easysaul_reg_find_and_read_native(const jerry_value_t func_
     }
     jerry_string_to_char_buffer(value_name, (jerry_char_t*) name, length_name);
     jerry_release_value(value_name);
-    int8_t power = (int8_t) jerry_get_number_value(argv[2]);
 
     // call native function
     saul_reg_t* dev = saul_reg_find_type_and_name(type, name);
 
     // cleanup
     free(name);
-    return jerry_create_number(easysaul_reg_read(dev, power));
+
+    // find position of device in registry
+    int pos = 0;
+    if (dev != NULL) {
+        for (pos = 1; saul_reg_find_nth(pos - 1) != dev; ++pos) {}
+    }
+    return jerry_create_number(pos);
+}
+
+// fills the given object with the fields of phydat_t (val, unit, scale)
+static jerry_value_t saul_reg_read_native(const jerry_value_t func_val, const jerry_value_t this_val, const jerry_value_t argv[], const jerry_length_t argc) {
+    (void) func_val;
+    (void) this_val;
+    (void) argc;
+
+    // prepare function parameters
+    int pos = (int) jerry_get_number_value(argv[0]);
+    saul_reg_t* dev = pos > 0 ? saul_reg_find_nth(pos - 1) : NULL;
+    if (dev == NULL) {
+        return jerry_create_number(-ENODEV);
+    }
+
+    // call native function
+    phydat_t phydat = { 0 };
+    int dim = saul_reg_read(dev, &phydat);
+
+    // fill output object
+    if (dim >= 0) {
+        jerry_value_t val = jerry_create_array(PHYDAT_DIM);
+        for (uint32_t i = 0; i < PHYDAT_DIM; ++i) {
+            jerry_value_t value = jerry_create_number(phydat.val[i]);
+            jerry_release_value(jerry_set_property_by_index(val, i, value));
+            jerry_release_value(value);
+        }
+        jerry_value_t name_val = jerry_create_string((const jerry_char_t*) "val");
+        jerry_release_value(jerry_set_property(argv[1], name_val, val));
+        jerry_release_value(name_val);
+        jerry_release_value(val);
+
+        jerry_value_t unit = jerry_create_number(phydat.unit);
+        jerry_value_t name_unit = jerry_create_string((const jerry_char_t*) "unit");
+        jerry_release_value(jerry_set_property(argv[1], name_unit, unit));
+        jerry_release_value(name_unit);
+        jerry_release_value(unit);
+
+        jerry_value_t scale = jerry_create_number(phydat.scale);
+        jerry_value_t name_scale = jerry_create_string((const jerry_char_t*) "scale");
+        jerry_release_value(jerry_set_property(argv[1], name_scale, scale));
+        jerry_release_value(name_scale);
+        jerry_release_value(scale);
+    }
+
+    return jerry_create_number(dim);
 }
 
 static jerry_value_t empty_constructor(const jerry_value_t func_val, const jerry_value_t this_val, const jerry_value_t argv[], const jerry_length_t argc) {
@@ -102,14 +158,29 @@ int register_math_natives(void) {
     return 1;
 }
 
-static int register_easysaul_natives(void) {
+static int register_saul_natives(void) {
     jerry_value_t constructor = jerry_create_external_function(empty_constructor);
     jerry_value_t library_object = jerry_construct_object(constructor, NULL, 0);
-    
+
     // export natives and add them to library object
     {
-        jerry_value_t property_name_function = jerry_create_string((const jerry_char_t*) ("reg_find_and_read"));
-        jerry_value_t property_value_function = jerry_create_external_function(easysaul_reg_find_and_read_native);
+        jerry_value_t property_name_function = jerry_create_string((const jerry_char_t*) ("reg_find_type_and_name"));
+        jerry_value_t property_value_function = jerry_create_external_function(saul_reg_find_type_and_name_native);
+        jerry_value_t res = jerry_set_property(library_object, property_name_function, property_value_function);
+        if (jerry_value_is_error(res)) {
+            jerry_release_value(property_name_function);
+            jerry_release_value(property_value_function);
+            jerry_release_value(res);
+            return 0;
+        }
+
+        jerry_release_value(property_name_function);
+        jerry_release_value(property_value_function);
+        jerry_release_value(res);
+    }
+    {
+        jerry_value_t property_name_function = jerry_create_string((const jerry_char_t*) ("reg_read"));
+        jerry_value_t property_value_function = jerry_create_external_function(saul_reg_read_native);
         jerry_value_t res = jerry_set_property(library_object, property_name_function, property_value_function);
         if (jerry_value_is_error(res)) {
             jerry_release_value(property_name_function);
@@ -125,7 +196,7 @@ static int register_easysaul_natives(void) {
 
     // put library as property into global object
     jerry_value_t global_object = jerry_get_global_object();
-    jerry_value_t property_name_library = jerry_create_string((const jerry_char_t*) ("easysaul"));
+    jerry_value_t property_name_library = jerry_create_string((const jerry_char_t*) ("saul"));
     jerry_value_t res = jerry_set_property(global_object, property_name_library, library_object);
     if (jerry_value_is_error(res)) {
         jerry_release_value(constructor);
@@ -166,7 +237,7 @@ int main(void) {
         printf("Could not register natives!\n");
         res = 1;
     }
-    if (!register_easysaul_natives()) {
+    if (!register_saul_natives()) {
         printf("Could not register natives!\n");
         res = 1;
     }

@@ -11,6 +11,8 @@ USEPKG += wamr
 
 USEMODULE += wasm_libs
 USEMODULE += bme680_i2c
+# registers sensors like the BME680 in the SAUL registry
+USEMODULE += saul_default
 USEMODULE += printf_float
 
 # increase stack size, VM & printf are pretty big
