@@ -146,6 +146,17 @@ def test_wasm_runtime_header(tmp_path):
     assert 'void pfx_h();' in header
 
 
+def test_js_constants(tmp_path):
+    """Constants are properties of the library object, so they do not use the prefix of the library."""
+    render('js', {
+        'lib': {'constants': {'answer': 42}},
+        'other': {'prefix': 'pfx', 'constants': {'value': 7}},
+    }, tmp_path)
+    source = (tmp_path / 'js_libs.c').read_text()
+    names = re.findall(r'property_name_constant = jerry_create_string\(\(const jerry_char_t\*\) \("(\w+)"\)\)', source)
+    assert names == ['ANSWER', 'VALUE']
+
+
 def test_wasm_native_symbols(tmp_path):
     render('wasm', {
         'lib': {

@@ -14,7 +14,7 @@
 					"type": "object",
 					"properties": {
 						"prefix": {
-							"description": "String that is used instead of the library name as prefix for the names of exported functions and constants, e.g. in the WASM runtime environment.",
+							"description": "String that is used instead of the library name as prefix for the names of exported functions and constants in the WASM runtime environment. In JS, functions and constants are properties of the library object instead.",
 							"type": "string",
 							"pattern": "^[a-z][a-z0-9\\_]*$",
 							"examples": ["my_lib"]

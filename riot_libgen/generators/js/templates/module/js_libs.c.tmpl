@@ -227,7 +227,8 @@ int js_libs_register_{{ library.name }}_natives(void) {
     // define constants and add them to library object
     {% for name, value in library.constants.items() %}
     {
-        jerry_value_t property_name_constant = jerry_create_string((const jerry_char_t*) ("{{ library.get_constant_identifier(name) }}"));
+        {# constants are properties of the library object, so the prefix of the library is not needed #}
+        jerry_value_t property_name_constant = jerry_create_string((const jerry_char_t*) ("{{ name|upper }}"));
         {% if value is string %}
         jerry_value_t property_value_constant = jerry_create_string((const jerry_char_t*) ("{{ value }}"));
         {% elif value is number %}
