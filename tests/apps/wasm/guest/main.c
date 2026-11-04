@@ -192,8 +192,7 @@ WASM_EXPORT int main(void) {
         tests_fill_bytes(buf, 4);
         CHECK_ALL("byte_arrays.writable", { buf[0], 'a' }, { buf[1], 'b' }, { buf[2], 'c' }, { buf[3], 'd' });
     }
-    /* BUG: the length parameter is only checked for the start address, not the whole range
-     * check("byte_arrays.length_too_large", ...); */
+    /* not tested, as panics end the test run: a length parameter that exceeds the WASM memory */
 
     /* function handles */
 

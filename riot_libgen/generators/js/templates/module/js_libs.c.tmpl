@@ -130,6 +130,13 @@ static jerry_value_t {{ library.name }}_{{ function.name }}_native(
                 {% raise "library '" ~ library.name ~ "', function '" ~ function.name ~ "', parameter '" ~ parameter.name ~ "': unsupported type '" ~ parameter.type ~ "'" %}
             {% endif %}
         {% endfor %}
+        {# byte arrays are copied from strings, the length parameter must not exceed what was copied #}
+        {% for parameter in function.parameters.values() if parameter.is_byte_array() %}
+if ((size_t) {{ parameter.length_parameter }} > length_{{ parameter.name }}) {
+    core_panic(PANIC_GENERAL_ERROR, "js_libs: library '{{ library.name }}', function '{{ function.name }}', parameter '{{ parameter.name }}': length parameter '{{ parameter.length_parameter }}' is larger than the byte array");
+}
+
+        {% endfor %}
     {% endset %}
     {% if prepare|trim %}
 

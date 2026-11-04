@@ -98,12 +98,13 @@ ssize_t value_{{ parameter.name }} = ({{ parameter.type }}) jerry_get_number_val
     {% endif %}
 {% endif %}
 char* {{ parameter.name}} = NULL;
+size_t length_{{ parameter.name }} = 0;
 if (!jerry_value_is_null({{ container }})) {
     jerry_value_t value_{{ parameter.name }} = jerry_value_to_string({{ container }});
     if (jerry_value_is_error(value_{{ parameter.name }})) {
         core_panic(PANIC_GENERAL_ERROR, "js_libs: library '{{ library.name }}', function '{{ function.name }}', parameter '{{ parameter.name }}': invalid value for string/byte array");
     }
-    size_t length_{{ parameter.name }} = jerry_get_string_size(value_{{ parameter.name }});
+    length_{{ parameter.name }} = jerry_get_string_size(value_{{ parameter.name }});
     {{ parameter.name }} = (char*) calloc(length_{{ parameter.name }} + 1, sizeof(char));
     if ({{ parameter.name }} == NULL) {
         core_panic(PANIC_GENERAL_ERROR, "js_libs: could not allocate memory");

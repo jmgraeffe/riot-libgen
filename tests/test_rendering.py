@@ -244,6 +244,26 @@ def test_wasm_struct_size(tmp_path):
     assert 'wasm_runtime_validate_app_addr(wasm_module_inst, (uintptr_t) m, sizeof(measurement_t))' in source
 
 
+def _byte_array_function(generator: str, tmp_path: Path) -> str:
+    render(generator, {'lib': {'functions': {'f': {'parameters': {
+        'data': {'type': 'const uint8_t*', 'length_parameter': 'len'},
+        'len': 'size_t',
+    }}}}}, tmp_path)
+    return read(tmp_path, generator, '{g}_libs.c')
+
+
+def test_wasm_byte_array_range(tmp_path):
+    """The whole range of a byte array (as given by the length parameter) is checked to be in the WASM memory."""
+    source = _byte_array_function('wasm', tmp_path)
+    assert 'wasm_runtime_validate_app_addr(wasm_module_inst, (uintptr_t) data, len)' in source
+
+
+def test_js_byte_array_length(tmp_path):
+    """The length parameter must not be larger than the byte array (which is copied from a JS string)."""
+    source = _byte_array_function('js', tmp_path)
+    assert re.search(r'if \(\(size_t\) len > length_data\) \{\s+core_panic\(', source)
+
+
 def test_js_pointer_handle_release_function(tmp_path):
     render('js', {'lib': {'pointer_handles': {'ptr': 'thing_t*'}}}, tmp_path)
     source = (tmp_path / 'js_libs.c').read_text()
