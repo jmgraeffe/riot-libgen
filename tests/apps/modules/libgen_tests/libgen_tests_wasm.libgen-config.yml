@@ -1,0 +1,12 @@
+# Additions to libgen_tests.libgen-config.yml that are only exposed in the WASM test application,
+# because the JS generator does not support strings returned from function handles (yet).
+libraries:
+  tests_wasm:
+    functions:
+      length_from_string_callback:
+        parameters:
+          cb: string_sender
+        return_type: size_t
+    function_handles:
+      string_sender:
+        return_type: const char*

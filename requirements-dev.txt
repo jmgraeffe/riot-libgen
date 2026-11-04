@@ -1,0 +1,4 @@
+-r requirements.txt
+pytest>=7.0
+# used by RIOT's testrunner (make test) for the test applications in tests/apps
+pexpect>=4.0

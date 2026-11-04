@@ -1,0 +1,188 @@
+# Library exposed by both test applications (tests/apps/js and tests/apps/wasm).
+libraries:
+  tests:
+    modules:
+      - libgen_tests
+    includes:
+      - "libgen_tests.h"
+    constants:
+      answer: 42
+      greeting: "hello"
+    functions:
+      # primitives
+      add_ints:
+        parameters:
+          a: int
+          b: int
+        return_type: int
+      negate_double:
+        parameters:
+          d: double
+        return_type: double
+      halve_float:
+        parameters:
+          f: float
+        return_type: float
+      add_int64:
+        parameters:
+          a: int64_t
+          b: int64_t
+        return_type: int64_t
+      next_char:
+        parameters:
+          c: char
+        return_type: char
+      sum_unsigned:
+        parameters:
+          a: uint8_t
+          b: uint16_t
+          c: uint32_t
+        return_type: uint32_t
+      double_size:
+        parameters:
+          n: size_t
+        return_type: size_t
+      get_answer:
+        return_type: int
+      count_call: {}
+      get_call_count:
+        return_type: int
+      renamed_function:
+        original_name: original_function_name
+        parameters:
+          x: int
+        return_type: int
+
+      # strings
+      string_length:
+        parameters:
+          s: const char*
+        return_type: size_t
+      string_checksum:
+        parameters:
+          s: const char*
+        return_type: uint32_t
+      string_is_null:
+        parameters:
+          s: const char*
+        return_type: int
+
+      # byte arrays
+      bytes_checksum:
+        parameters:
+          data:
+            type: const uint8_t*
+            length_parameter: len
+          len: size_t
+        return_type: uint32_t
+      fill_bytes:
+        parameters:
+          buf:
+            type: uint8_t*
+            length_parameter: len
+          len: size_t
+
+      # function handles
+      apply_int_op:
+        parameters:
+          a: int
+          b: int
+          op: int_op
+        return_type: int
+      call_with_string:
+        parameters:
+          cb: string_receiver
+      call_with_bytes:
+        parameters:
+          cb: bytes_receiver
+      call_void_twice:
+        parameters:
+          cb: void_callback
+
+      # pointer handles
+      counter_get:
+        parameters:
+          index: int
+        return_type: counter
+      counter_increment:
+        parameters:
+          c: counter
+        return_type: int
+
+      # arrays
+      sum_int_array:
+        parameters:
+          values: int[3]
+        return_type: int
+      sum_double_array:
+        parameters:
+          values: double[2]
+        return_type: double
+      call_with_array:
+        parameters:
+          cb: array_receiver
+
+      # structs
+      measurement_checksum:
+        parameters:
+          m: measurement
+        return_type: int32_t
+      make_measurement:
+        parameters:
+          base: int16_t
+        return_type: measurement
+      call_with_measurement:
+        parameters:
+          cb: measurement_receiver
+      checksum_from_measurement_callback:
+        parameters:
+          cb: measurement_sender
+        return_type: int32_t
+      point_dot:
+        parameters:
+          p: point
+        return_type: double
+
+    function_handles:
+      int_op:
+        parameters:
+          a: int
+          b: int
+        return_type: int
+      string_receiver:
+        parameters:
+          # BUG: has to be named "str", the WASM generator uses a hardcoded "str" for strings passed to function handles
+          str: const char*
+      bytes_receiver:
+        parameters:
+          data:
+            type: const uint8_t*
+            length_parameter: len
+          len: size_t
+      void_callback: {}
+      array_receiver:
+        parameters:
+          values: int[3]
+      measurement_receiver:
+        parameters:
+          m: measurement
+      measurement_sender:
+        return_type: measurement
+
+    pointer_handles:
+      counter:
+        type: counter_t*
+        max_entries: 4
+
+    structs:
+      measurement:
+        type: measurement_t
+        fields:
+          val: int16_t[3]
+          unit: uint8_t
+          scale: int8_t
+      point:
+        type: point_t
+        fields:
+          x: double
+          y: double
