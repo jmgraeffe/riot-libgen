@@ -127,6 +127,11 @@ void call_with_bytes(void (*cb)(const uint8_t* data, size_t len)) {
     cb(data, sizeof(data));
 }
 
+void call_with_null_bytes(void (*cb)(const uint8_t* data, size_t len)) {
+    /* e.g. like gcoap does for responses without payload */
+    cb(NULL, 0);
+}
+
 void call_void_twice(void (*cb)(void)) {
     cb();
     cb();

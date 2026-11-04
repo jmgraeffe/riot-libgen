@@ -54,6 +54,7 @@ void call_with_string(void (*cb)(const char* s));
 size_t call_with_strings(void (*cb)(const char* s));
 void call_with_null_string(void (*cb)(const char* s));
 void call_with_bytes(void (*cb)(const uint8_t* data, size_t len));
+void call_with_null_bytes(void (*cb)(const uint8_t* data, size_t len));
 void call_void_twice(void (*cb)(void));
 size_t length_from_string_callback(const char* (*cb)(void));
 

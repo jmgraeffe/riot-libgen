@@ -55,6 +55,7 @@ CASES = {
     'function_handles.string_parameter_terminated': BOTH,
     'function_handles.string_parameter_null': BOTH,
     'function_handles.byte_array_parameter': BOTH,
+    'function_handles.byte_array_parameter_null': BOTH,
     'function_handles.void': BOTH,
     'function_handles.array_parameter': (JS,),  # WASM: disabled, see BUG in apps/wasm/guest/main.c
     'function_handles.struct_parameter': BOTH,

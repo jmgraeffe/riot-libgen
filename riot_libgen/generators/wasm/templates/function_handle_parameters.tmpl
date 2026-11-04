@@ -31,13 +31,13 @@
 {% raise "library '" ~ library.name ~ "', function handle '" ~ handle.name ~ "', parameter '" ~ param.name ~ "': length parameter '" ~ param.length_parameter ~ "' is not an integer" %}
 {% endif %}
 {# considering pointer length already even though WAMR is 32bit memory model atm #}
-{# TODO consider NULL!? #}
+{# NULL is passed as 0 #}
 {% if param.get_wasm_runtime_signature() == 'i' %}
 {{ dest }}.kind = WASM_I32;
-{{ dest }}.of.i32 = (int32_t) wasm_runtime_module_dup_data(wasm_module_inst, (const char*) {{ param.name }}, {{ param.length_parameter }});
+{{ dest }}.of.i32 = {{ param.name }} != NULL ? (int32_t) wasm_runtime_module_dup_data(wasm_module_inst, (const char*) {{ param.name }}, {{ param.length_parameter }}) : 0;
 {% else %}
 {{ dest }}.kind = WASM_I64;
-{{ dest }}.of.i64 = (int64_t) wasm_runtime_module_dup_data(wasm_module_inst, (const char*) {{ param.name }}, {{ param.length_parameter }});
+{{ dest }}.of.i64 = {{ param.name }} != NULL ? (int64_t) wasm_runtime_module_dup_data(wasm_module_inst, (const char*) {{ param.name }}, {{ param.length_parameter }}) : 0;
 {% endif %}
 {% endmacro %}
 

@@ -99,6 +99,12 @@ check_all("function_handles.byte_array_parameter", [
     [received_data, "\x01\x02\x03\x00\x7f"]
 ]);
 
+tests.call_with_null_bytes("js_bytes_receiver");
+check_all("function_handles.byte_array_parameter_null", [
+    [received_len, 0],
+    [received_data, null]
+]);
+
 var void_calls = 0;
 function js_count() {
     ++void_calls;

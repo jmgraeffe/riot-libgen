@@ -80,7 +80,9 @@ WASM_EXPORT void guest_string_receiver(const char* s) {
 
 static uint8_t received_data[8];
 static size_t received_len = 0;
+static bool received_null_data = false;
 WASM_EXPORT void guest_bytes_receiver(const uint8_t* data, size_t len) {
+    received_null_data = (data == NULL);
     received_len = len;
     for (size_t i = 0; i < len && i < sizeof(received_data); ++i) {
         received_data[i] = data[i];
@@ -184,6 +186,9 @@ WASM_EXPORT int main(void) {
     CHECK_ALL("function_handles.byte_array_parameter",
               { received_len, 5 }, { received_data[0], 1 }, { received_data[1], 2 }, { received_data[2], 3 },
               { received_data[3], 0 }, { received_data[4], 127 });
+
+    tests_call_with_null_bytes(WASM_LIBS_FUNCTION_HANDLE("guest_bytes_receiver"));
+    CHECK_ALL("function_handles.byte_array_parameter_null", { received_null_data, true }, { received_len, 0 });
 
     tests_call_void_twice(WASM_LIBS_FUNCTION_HANDLE("guest_count"));
     check("function_handles.void", void_calls, 2);

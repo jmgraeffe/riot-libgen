@@ -103,6 +103,9 @@ libraries:
       call_with_bytes:
         parameters:
           cb: bytes_receiver
+      call_with_null_bytes:
+        parameters:
+          cb: bytes_receiver
       call_void_twice:
         parameters:
           cb: void_callback
