@@ -102,7 +102,9 @@ static {{ c.function_handle_return_type(library, handle) }} function_handle_inte
     }
     {% set cleanup %}
         {% for param in handle.parameters.values() %}
-            {% if param.get_wasm_runtime_signature() == '$' or param.is_byte_array() %}
+            {% if param.is_struct() or param.is_array() %}
+{{ tmpl_function_handle_cleanup.struct_array(library, handle, param, loop.index0)|trim }}
+            {% elif param.get_wasm_runtime_signature() == '$' or param.is_byte_array() %}
 {{ tmpl_function_handle_cleanup.string_byte_array(library, handle, param, loop.index0)|trim }}
             {% endif %}
         {% endfor %}

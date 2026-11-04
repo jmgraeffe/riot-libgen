@@ -128,6 +128,16 @@ check_all("function_handles.array_parameter", [
     [received_array[2], 33]
 ]);
 
+// copies passed to function handles must not use up memory
+var correct_arrays = 0;
+function js_array_counter(values) {
+    if (values[0] === 11 && values[1] === 22 && values[2] === 33) {
+        ++correct_arrays;
+    }
+}
+tests.call_with_array_repeatedly(1000, "js_array_counter");
+check("function_handles.array_parameter_repeatedly", correct_arrays, 1000);
+
 var received_measurement = null;
 function js_measurement_receiver(m) {
     received_measurement = m;
@@ -140,6 +150,15 @@ check_all("function_handles.struct_parameter", [
     [received_measurement.unit, 7],
     [received_measurement.scale, -3]
 ]);
+
+var correct_measurements = 0;
+function js_measurement_counter(m) {
+    if (m.val[0] === 100 && m.val[1] === 101 && m.val[2] === 102 && m.unit === 7 && m.scale === -3) {
+        ++correct_measurements;
+    }
+}
+tests.call_with_measurement_repeatedly(1000, "js_measurement_counter");
+check("function_handles.struct_parameter_repeatedly", correct_measurements, 1000);
 
 function js_measurement_sender() {
     return {val: [1, 2, 3], unit: 4, scale: 5};

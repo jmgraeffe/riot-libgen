@@ -6,3 +6,8 @@ wasm_runtime_module_free(wasm_module_inst, (uint64_t) args[{{ index }}].of.i32);
 wasm_runtime_module_free(wasm_module_inst, (uint64_t) args[{{ index }}].of.i64);
 {% endif %}
 {% endmacro %}
+
+{% macro struct_array(library, handle, param, index) %}
+{# copies of structs and arrays are always passed as i32, see function_handle_parameters.tmpl #}
+wasm_runtime_module_free(wasm_module_inst, (uint64_t) args[{{ index }}].of.i32);
+{% endmacro %}

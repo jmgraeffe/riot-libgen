@@ -70,11 +70,13 @@ int counter_release(counter_t* c);
 int sum_int_array(int values[3]);
 double sum_double_array(double values[2]);
 void call_with_array(void (*cb)(int values[3]));
+void call_with_array_repeatedly(int times, void (*cb)(int values[3]));
 
 /* structs */
 int32_t measurement_checksum(measurement_t m);
 measurement_t make_measurement(int16_t base);
 void call_with_measurement(void (*cb)(measurement_t m));
+void call_with_measurement_repeatedly(int times, void (*cb)(measurement_t m));
 int32_t checksum_from_measurement_callback(measurement_t (*cb)(void));
 double point_dot(point_t p);
 

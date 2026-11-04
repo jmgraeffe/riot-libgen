@@ -59,7 +59,9 @@ CASES = {
     'function_handles.byte_array_parameter_null': BOTH,
     'function_handles.void': BOTH,
     'function_handles.array_parameter': BOTH,
+    'function_handles.array_parameter_repeatedly': BOTH,
     'function_handles.struct_parameter': BOTH,
+    'function_handles.struct_parameter_repeatedly': BOTH,
     'function_handles.struct_return': BOTH,
     'function_handles.string_return': (WASM,),  # not supported by the JS generator
     'pointer_handles.roundtrip': BOTH,

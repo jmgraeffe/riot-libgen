@@ -184,6 +184,12 @@ void call_with_array(void (*cb)(int values[3])) {
     cb(values);
 }
 
+void call_with_array_repeatedly(int times, void (*cb)(int values[3])) {
+    for (int i = 0; i < times; ++i) {
+        call_with_array(cb);
+    }
+}
+
 /* structs */
 
 int32_t measurement_checksum(measurement_t m) {
@@ -201,6 +207,12 @@ measurement_t make_measurement(int16_t base) {
 
 void call_with_measurement(void (*cb)(measurement_t m)) {
     cb(make_measurement(100));
+}
+
+void call_with_measurement_repeatedly(int times, void (*cb)(measurement_t m)) {
+    for (int i = 0; i < times; ++i) {
+        call_with_measurement(cb);
+    }
 }
 
 int32_t checksum_from_measurement_callback(measurement_t (*cb)(void)) {

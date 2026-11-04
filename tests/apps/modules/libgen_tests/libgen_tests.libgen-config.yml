@@ -147,6 +147,10 @@ libraries:
       call_with_array:
         parameters:
           cb: array_receiver
+      call_with_array_repeatedly:
+        parameters:
+          times: int
+          cb: array_receiver
 
       # structs
       measurement_checksum:
@@ -159,6 +163,10 @@ libraries:
         return_type: measurement
       call_with_measurement:
         parameters:
+          cb: measurement_receiver
+      call_with_measurement_repeatedly:
+        parameters:
+          times: int
           cb: measurement_receiver
       checksum_from_measurement_callback:
         parameters:

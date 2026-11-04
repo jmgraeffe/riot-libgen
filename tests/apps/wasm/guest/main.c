@@ -117,9 +117,23 @@ WASM_EXPORT void guest_array_receiver(int values[3]) {
     }
 }
 
+static int correct_arrays = 0;
+WASM_EXPORT void guest_array_counter(int values[3]) {
+    if (values != NULL && values[0] == 11 && values[1] == 22 && values[2] == 33) {
+        ++correct_arrays;
+    }
+}
+
 static tests_measurement_t received_measurement;
 WASM_EXPORT void guest_measurement_receiver(tests_measurement_t m) {
     received_measurement = m;
+}
+
+static int correct_measurements = 0;
+WASM_EXPORT void guest_measurement_counter(tests_measurement_t m) {
+    if (m.val[0] == 100 && m.val[1] == 101 && m.val[2] == 102 && m.unit == 7 && m.scale == -3) {
+        ++correct_measurements;
+    }
 }
 
 WASM_EXPORT tests_measurement_t* guest_measurement_sender(void) {
@@ -203,11 +217,18 @@ WASM_EXPORT int main(void) {
     CHECK_ALL("function_handles.array_parameter",
               { received_array[0], 11 }, { received_array[1], 22 }, { received_array[2], 33 });
 
+    /* copies passed to function handles must not use up the memory of the guest */
+    tests_call_with_array_repeatedly(1000, WASM_LIBS_FUNCTION_HANDLE("guest_array_counter"));
+    check("function_handles.array_parameter_repeatedly", correct_arrays, 1000);
+
     tests_call_with_measurement(WASM_LIBS_FUNCTION_HANDLE("guest_measurement_receiver"));
     CHECK_ALL("function_handles.struct_parameter",
               { received_measurement.val[0], 100 }, { received_measurement.val[1], 101 },
               { received_measurement.val[2], 102 }, { received_measurement.unit, 7 },
               { received_measurement.scale, -3 });
+
+    tests_call_with_measurement_repeatedly(1000, WASM_LIBS_FUNCTION_HANDLE("guest_measurement_counter"));
+    check("function_handles.struct_parameter_repeatedly", correct_measurements, 1000);
 
     check("function_handles.struct_return",
           tests_checksum_from_measurement_callback(WASM_LIBS_FUNCTION_HANDLE("guest_measurement_sender")), 54321);
