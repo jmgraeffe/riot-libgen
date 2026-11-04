@@ -51,6 +51,7 @@ CASES = {
     'byte_arrays.length_parameter': BOTH,
     'byte_arrays.writable': BOTH,
     'function_handles.int': BOTH,
+    'function_handles.float': BOTH,
     'function_handles.string_parameter': BOTH,
     'function_handles.string_parameter_terminated': BOTH,
     'function_handles.string_parameter_null': BOTH,

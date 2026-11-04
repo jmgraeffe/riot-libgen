@@ -68,6 +68,10 @@ WASM_EXPORT int guest_sub(int a, int b) {
     return a - b;
 }
 
+WASM_EXPORT double guest_mul(float f, double d) {
+    return f * d;
+}
+
 /* strings passed to the guest are only valid during the call, so they need to be copied */
 static char received_string[32];
 WASM_EXPORT void guest_string_receiver(const char* s) {
@@ -172,6 +176,8 @@ WASM_EXPORT int main(void) {
     /* function handles */
 
     check("function_handles.int", tests_apply_int_op(10, 4, WASM_LIBS_FUNCTION_HANDLE("guest_sub")), 6);
+
+    check_double("function_handles.float", tests_apply_float_op(1.5, 4, WASM_LIBS_FUNCTION_HANDLE("guest_mul")), 6);
 
     tests_call_with_string(WASM_LIBS_FUNCTION_HANDLE("guest_string_receiver"));
     check("function_handles.string_parameter", streq(received_string, "hello from host"), true);

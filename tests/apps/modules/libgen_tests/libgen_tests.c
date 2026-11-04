@@ -99,6 +99,10 @@ int apply_int_op(int a, int b, int (*op)(int a, int b)) {
     return op(a, b);
 }
 
+double apply_float_op(float f, double d, double (*op)(float f, double d)) {
+    return op(f, d);
+}
+
 void call_with_string(void (*cb)(const char* s)) {
     cb("hello from host");
 }

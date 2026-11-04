@@ -90,6 +90,12 @@ libraries:
           b: int
           op: int_op
         return_type: int
+      apply_float_op:
+        parameters:
+          f: float
+          d: double
+          op: float_op
+        return_type: double
       call_with_string:
         parameters:
           cb: string_receiver
@@ -169,6 +175,11 @@ libraries:
           a: int
           b: int
         return_type: int
+      float_op:
+        parameters:
+          f: float
+          d: double
+        return_type: double
       string_receiver:
         parameters:
           s: const char*

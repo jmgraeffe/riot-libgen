@@ -50,6 +50,7 @@ void fill_bytes(uint8_t* buf, size_t len);
 
 /* function handles */
 int apply_int_op(int a, int b, int (*op)(int a, int b));
+double apply_float_op(float f, double d, double (*op)(float f, double d));
 void call_with_string(void (*cb)(const char* s));
 size_t call_with_strings(void (*cb)(const char* s));
 void call_with_null_string(void (*cb)(const char* s));

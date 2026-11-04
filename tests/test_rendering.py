@@ -201,7 +201,6 @@ def test_function_handle_with_pointer_handle_parameter(tmp_path, generator):
     assert _called_but_undefined(source, 'pointer_handles_get_or_add') == set()
 
 
-@pytest.mark.xfail(reason='BUG: WASM_f32/WASM_f64 instead of WASM_F32/WASM_F64 for function handle parameters')
 def test_wasm_function_handle_with_float_parameters(tmp_path):
     render('wasm', {'lib': {
         'functions': {'f': {'parameters': {'cb': 'handler'}}},

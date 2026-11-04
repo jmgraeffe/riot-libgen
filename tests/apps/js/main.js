@@ -67,6 +67,11 @@ function js_sub(a, b) {
 }
 check("function_handles.int", tests.apply_int_op(10, 4, "js_sub"), 6);
 
+function js_mul(f, d) {
+    return f * d;
+}
+check("function_handles.float", tests.apply_float_op(1.5, 4, "js_mul"), 6);
+
 var received_string = null;
 function js_string_receiver(s) {
     received_string = s;

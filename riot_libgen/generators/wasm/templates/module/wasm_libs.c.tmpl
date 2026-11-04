@@ -77,10 +77,10 @@ static {{ c.function_handle_return_type(library, handle) }} function_handle_inte
     {{ dest }}.kind = WASM_I64;
     {{ dest }}.of.i64 = (int64_t) {{ param.name }};
         {% elif param.get_wasm_runtime_signature() == 'f' %}
-    {{ dest }}.kind = WASM_f32;
+    {{ dest }}.kind = WASM_F32;
     {{ dest }}.of.f32 = (float) {{ param.name }};
         {% elif param.get_wasm_runtime_signature() == 'F' %}
-    {{ dest }}.kind = WASM_f64;
+    {{ dest }}.kind = WASM_F64;
     {{ dest }}.of.f64 = (double) {{ param.name }};
         {% else %}
             {% raise "library '" ~ library.name ~ "', function handle '" ~ handle.name ~ "', parameter '" ~ param.name ~ "': unsupported type '" ~ param.type ~ "' (Maybe it is a function handle? Function handles as parameters of function handles not supported yet.)" %}
