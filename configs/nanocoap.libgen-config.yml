@@ -1,0 +1,109 @@
+# RIOT's UDP sock API (sys/include/net/sock/udp.h) and nanocoap (sys/include/net/nanocoap.h), exposed without any
+# wrapper library. Both are in one library, as instances (e.g. buffers) can only be passed within a library.
+libraries:
+  net:
+    modules:
+      - nanocoap
+      - sock_udp
+    includes:
+      - "net/sock/udp.h"
+      - "net/nanocoap.h"
+    constants:
+      # address families (enum in net/af.h)
+      af_inet6: 4
+      # SOCK_NO_TIMEOUT (UINT32_MAX)
+      sock_no_timeout: 4294967295
+      # COAP_PORT
+      coap_port: 5683
+      # request methods (COAP_METHOD_*), as returned by coap_get_code_raw()
+      coap_method_get: 1
+      # response codes (COAP_CODE_*)
+      coap_code_content: 69
+      coap_code_method_not_allowed: 133
+      # content formats (COAP_FORMAT_*)
+      coap_format_text: 0
+      # size of the buffers in bytes
+      buffer_size: 128
+    functions:
+      # UDP sock
+      sock_udp_create:
+        parameters:
+          sock: sock_udp*
+          local: const sock_udp_ep*
+          remote: const sock_udp_ep*
+          flags: uint16_t
+        return_type: int
+      sock_udp_close:
+        parameters:
+          sock: sock_udp*
+      # declared with void* data in net/sock/udp.h
+      sock_udp_recv:
+        declare: false
+        parameters:
+          sock: sock_udp*
+          data:
+            type: buffer*
+            length_parameter: max_len
+          max_len: size_t
+          timeout: uint32_t
+          remote: sock_udp_ep*
+        return_type: ssize_t
+      sock_udp_send:
+        declare: false
+        parameters:
+          sock: sock_udp*
+          data:
+            type: const buffer*
+            length_parameter: len
+          len: size_t
+          remote: const sock_udp_ep*
+        return_type: ssize_t
+
+      # nanocoap
+      coap_parse:
+        parameters:
+          pkt: coap_pkt*
+          buf:
+            type: buffer*
+            length_parameter: len
+          len: size_t
+        return_type: ssize_t
+      coap_get_code_raw:
+        parameters:
+          pkt: const coap_pkt*
+        return_type: unsigned
+      coap_reply_simple:
+        parameters:
+          pkt: coap_pkt*
+          code: uint8_t
+          buf:
+            type: buffer*
+            length_parameter: len
+          len: size_t
+          ct: uint16_t
+          payload:
+            type: const void*
+            length_parameter: payload_len
+          payload_len: size_t
+        return_type: ssize_t
+    structs:
+      sock_udp:
+        type: sock_udp_t
+        allocatable: true
+      # the address is not exposed, so it is the unspecified address for new endpoints (e.g. to listen on all
+      # interfaces), and it is kept for received endpoints (e.g. to reply)
+      sock_udp_ep:
+        type: sock_udp_ep_t
+        allocatable: true
+        fields:
+          family: int
+          netif: uint16_t
+          port: uint16_t
+      # points into the buffer that was parsed
+      coap_pkt:
+        type: coap_pkt_t
+        allocatable: true
+    arrays:
+      buffer:
+        type: uint8_t[128]
+        allocatable: true

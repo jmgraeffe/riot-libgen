@@ -36,8 +36,7 @@ EXAMPLE_CONFIGS = {
                             'examples/wasm/playground/wasm_playground.libgen-config.yml'],
         'wasm/saul_libgen': ['examples/wasm/saul_libgen/saul_libgen.libgen-config.yml',
                              'external/math.libgen-config.yml', 'configs/saul_reg.libgen-config.yml'],
-        'wasm/coap_libgen': ['examples/wasm/coap_libgen/coap_libgen.libgen-config.yml',
-                             'external/easycoap/easycoap.libgen-config.yml'],
+        'wasm/coap_libgen': ['configs/nanocoap.libgen-config.yml'],
         'tests/apps/wasm': ['tests/apps/modules/libgen_tests/libgen_tests.libgen-config.yml',
                             'tests/apps/modules/libgen_tests/libgen_tests_wasm.libgen-config.yml',
                             'configs/saul_reg.libgen-config.yml'],
@@ -45,7 +44,7 @@ EXAMPLE_CONFIGS = {
     'js': {
         'js/playground': ['examples/js/playground/js_playground.libgen-config.yml'],
         'js/saul_libgen': ['external/math.libgen-config.yml', 'configs/saul_reg.libgen-config.yml'],
-        'js/coap_libgen': ['external/easycoap/easycoap.libgen-config.yml'],
+        'js/coap_libgen': ['configs/nanocoap.libgen-config.yml'],
         'tests/apps/js': ['tests/apps/modules/libgen_tests/libgen_tests.libgen-config.yml',
                           'tests/apps/modules/libgen_tests/libgen_tests_js.libgen-config.yml',
                           'configs/saul_reg.libgen-config.yml'],

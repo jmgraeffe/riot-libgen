@@ -11,16 +11,12 @@ USEPKG += wamr
 
 USEMODULE += wasm_libs
 
-# Include packages that pull up and auto-init the link layer.
-# NOTE: 6LoWPAN will be included if IEEE802.15.4 devices are present
-USEMODULE += netdev_default
-
-# GNRC
-USEMODULE += auto_init_gnrc_netif
-# Specify the mandatory networking modules
+# GNRC (server and client communicate over the loopback address, so no network device is needed)
 USEMODULE += gnrc_ipv6_default
-# Additional networking modules that can be dropped if not needed
-USEMODULE += gnrc_icmpv6_echo
+USEMODULE += gnrc_sock_udp
+
+# CoAP client in the host application
+USEMODULE += nanocoap_sock
 
 # increase stack size, VM, CoAP, network stack gets pretty big
 CFLAGS += -DTHREAD_STACKSIZE_DEFAULT=8192
