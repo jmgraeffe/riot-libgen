@@ -1,4 +1,5 @@
-# RIOT's SAUL registry (sys/include/saul_reg.h), exposed without any wrapper library.
+# RIOT's SAUL registry (sys/include/saul_reg.h), exposed without any wrapper library. Only the functions and constants
+# used by the SAUL examples are exposed, so that the examples with generated and hand-written bindings are comparable.
 libraries:
   saul:
     modules:
@@ -10,25 +11,7 @@ libraries:
       # device classes (enum saul_class_t in saul.h), e.g. SAUL_SENSE_TEMP = SAUL_CAT_SENSE | SAUL_SENSE_ID_TEMP
       sense_temp: 130
       sense_hum: 131
-      # units (enum in phydat.h)
-      unit_temp_c: 2
-      unit_percent: 27
     functions:
-      reg_find_nth:
-        original_name: saul_reg_find_nth
-        parameters:
-          pos: int
-        return_type: reg
-      reg_find_type:
-        original_name: saul_reg_find_type
-        parameters:
-          type: uint8_t
-        return_type: reg
-      reg_find_name:
-        original_name: saul_reg_find_name
-        parameters:
-          name: const char*
-        return_type: reg
       reg_find_type_and_name:
         original_name: saul_reg_find_type_and_name
         parameters:
