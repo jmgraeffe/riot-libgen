@@ -348,6 +348,24 @@ libraries:
         parameters:
           m: const measurement*
         return_type: int32_t
+      # named arrays
+      buffer_fill:
+        parameters:
+          buf: buffer*
+          value: uint8_t
+      buffer_sum:
+        parameters:
+          buf: const buffer*
+        return_type: int
+      # pointer to an array that is not allocatable: passed as temporary copy
+      samples_sum:
+        parameters:
+          samples: const samples*
+        return_type: int32_t
+      measurements_checksum:
+        parameters:
+          measurements: const measurements*
+        return_type: int32_t
 
     function_handles:
       int_op:
@@ -451,3 +469,17 @@ libraries:
           m: measurement
           weight: double
           count: size_t
+    arrays:
+      # can be created and freed by the runtime
+      buffer:
+        type: uint8_t[4]
+        allocatable: true
+      # not allocatable (shortcut for type), only passed as temporary copy
+      samples: int32_t[3]
+      # array of structs, with custom names for creating and freeing
+      measurements:
+        type: measurement[2]
+        allocatable:
+          new: create_measurements
+          free: destroy_measurements
+          max_entries: 1

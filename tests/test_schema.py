@@ -125,3 +125,17 @@ def test_allocatable_structs():
 @pytest.mark.parametrize('allocatable', ['yes', {'new': 3}, {'max_entries': 0}, {'unknown': 1}])
 def test_allocatable_structs_invalid(allocatable):
     assert errors({'libraries': {'mylib': {'structs': {'aaa': {'type': 'a_t', 'allocatable': allocatable}}}}}) != []
+
+
+def test_arrays():
+    assert errors({'libraries': {'mylib': {'arrays': {
+        'aaa': 'uint8_t[4]',
+        'bbb': {'type': 'int[3]'},
+        'ccc': {'type': 'uint8_t[64]', 'allocatable': {'new': 'create_c', 'free': 'destroy_c', 'max_entries': 3}},
+    }}}}) == []
+
+
+@pytest.mark.parametrize('array', ['uint8_t', 'uint8_t[]', {'allocatable': True}, {'type': 'int[3]', 'unknown': 1},
+                                   {'type': 'int[3]', 'allocatable': {'max_entries': 0}}])
+def test_arrays_invalid(array):
+    assert errors({'libraries': {'mylib': {'arrays': {'aaa': array}}}}) != []

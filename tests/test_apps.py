@@ -108,6 +108,11 @@ CASES = {
     'allocatable.without_init': BOTH,
     'allocatable.opaque_custom_names': BOTH,
     'allocatable.const_pointer_copy': BOTH,
+    'arrays.allocatable': BOTH,
+    'arrays.free': BOTH,
+    'arrays.without_init': BOTH,
+    'arrays.of_structs_custom_names': BOTH,
+    'arrays.const_pointer_copy': BOTH,
     'saul.find': BOTH,
     'saul.read': BOTH,
 }

@@ -398,3 +398,27 @@ int opaque_get(const opaque_t* o) {
 int32_t measurement_checksum_by_pointer(const measurement_t* m) {
     return measurement_checksum(*m);
 }
+
+/* named arrays */
+
+void buffer_fill(uint8_t* buf, uint8_t value) {
+    for (int i = 0; i < 4; ++i) {
+        buf[i] = value;
+    }
+}
+
+int buffer_sum(const uint8_t* buf) {
+    int sum = 0;
+    for (int i = 0; i < 4; ++i) {
+        sum += buf[i];
+    }
+    return sum;
+}
+
+int32_t samples_sum(const int32_t* samples) {
+    return samples[0] + samples[1] + samples[2];
+}
+
+int32_t measurements_checksum(const measurement_t* measurements) {
+    return measurement_checksum(measurements[0]) + measurement_checksum(measurements[1]);
+}

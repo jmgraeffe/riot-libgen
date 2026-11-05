@@ -347,3 +347,85 @@ class TestAllocatableStructs:
         library['structs'] = {'data': {'type': 'data_t', 'allocatable': True}, **library['structs']}
         with pytest.raises(LibGenConfigException):
             load_library(libgen, library)
+
+
+class TestNamedArrays:
+    def test_default(self, libgen):
+        array = load_library(libgen, {'arrays': {'buffer': {'type': 'uint8_t[4]', 'allocatable': True}}}).arrays['buffer']
+        assert array.allocatable
+        assert array.size == 4
+        assert array.element.type == 'uint8_t'
+        assert array.new_function == 'new_buffer'
+        assert array.free_function == 'free_buffer'
+        assert array.max_entries == POINTER_HANDLE_MAX_ENTRIES_DEFAULT
+
+    def test_shortcut(self, libgen):
+        array = load_library(libgen, {'arrays': {'buffer': 'uint8_t[4]'}}).arrays['buffer']
+        assert not array.allocatable
+        assert array.size == 4
+
+    def test_options(self, libgen):
+        array = load_library(libgen, {'arrays': {'buffer': {'type': 'uint8_t[4]', 'allocatable': {
+            'new': 'create_buffer', 'free': 'destroy_buffer', 'max_entries': 3,
+        }}}}).arrays['buffer']
+        assert array.new_function == 'create_buffer'
+        assert array.free_function == 'destroy_buffer'
+        assert array.max_entries == 3
+
+    def test_struct_elements(self, libgen):
+        array = load_library(libgen, {
+            'structs': {'data': {'type': 'data_t'}},
+            'arrays': {'series': 'data[2]'},
+        }).arrays['series']
+        assert array.element.is_struct()
+
+    @pytest.mark.parametrize('type_', ['uint8_t', 'uint8_t[]', 'unknown[4]', 'handler[2]'])
+    def test_invalid_type(self, libgen, type_):
+        with pytest.raises(LibGenConfigException):
+            load_library(libgen, {
+                'function_handles': {'handler': {}},
+                'arrays': {'buffer': type_},
+            })
+
+    def test_name_used_for_struct(self, libgen):
+        with pytest.raises(LibGenConfigException):
+            load_library(libgen, {
+                'structs': {'buffer': {'type': 'buffer_t'}},
+                'arrays': {'buffer': 'uint8_t[4]'},
+            })
+
+    @pytest.mark.parametrize('type_,const', [('buffer*', False), ('const buffer*', True)])
+    def test_pointer_parameter(self, libgen, type_, const):
+        parameter = load_library(libgen, {
+            'functions': {'f': {'parameters': {'b': type_}}},
+            'arrays': {'buffer': {'type': 'uint8_t[4]', 'allocatable': True}},
+        }).functions['f'].parameters['b']
+        assert parameter.is_reference()
+        assert parameter.is_array_reference()
+        assert not parameter.is_struct_reference()
+        assert parameter.referenced_array == 'buffer'
+        assert parameter.is_const_reference() == const
+        assert parameter.is_allocated_reference()
+        assert not parameter.is_array()
+
+    def test_const_pointer_to_array_that_is_not_allocatable(self, libgen):
+        parameter = load_library(libgen, {
+            'functions': {'f': {'parameters': {'b': 'const buffer*'}}},
+            'arrays': {'buffer': 'uint8_t[4]'},
+        }).functions['f'].parameters['b']
+        assert parameter.is_array_reference()
+        assert not parameter.is_allocated_reference()
+
+    def test_pointer_to_array_that_is_not_allocatable_needs_to_be_const(self, libgen):
+        with pytest.raises(LibGenConfigException):
+            load_library(libgen, {
+                'functions': {'f': {'parameters': {'b': 'buffer*'}}},
+                'arrays': {'buffer': 'uint8_t[4]'},
+            })
+
+    def test_allocatables(self, libgen):
+        library = load_library(libgen, {
+            'structs': {'data': {'type': 'data_t', 'allocatable': True}, 'other': {'type': 'other_t'}},
+            'arrays': {'buffer': {'type': 'uint8_t[4]', 'allocatable': True}, 'samples': 'int[3]'},
+        })
+        assert [item.name for item in library.allocatables] == ['data', 'buffer']

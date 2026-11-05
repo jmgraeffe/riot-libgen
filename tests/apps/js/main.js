@@ -431,3 +431,29 @@ check_all("allocatable.opaque_custom_names", [
 
 check("allocatable.const_pointer_copy",
       tests.measurement_checksum_by_pointer({val: [1, 2, 3], unit: 4, scale: 5}), 54321);
+
+// named arrays
+
+var buf = tests.new_buffer([1, 2, 3, 4]);
+var sum_init = tests.buffer_sum(buf);
+tests.buffer_fill(buf, 5);
+check_all("arrays.allocatable", [
+    [buf !== 0, true],
+    [sum_init, 10],
+    [tests.buffer_sum(buf), 20]
+]);
+check_all("arrays.free", [
+    [tests.free_buffer(buf), true],
+    [tests.free_buffer(buf), false]
+]);
+var empty_buf = tests.new_buffer();
+check("arrays.without_init", tests.buffer_sum(empty_buf), 0);
+tests.free_buffer(empty_buf);
+
+var ms = tests.create_measurements([{val: [1, 2, 3], unit: 4, scale: 5}, {val: [1, 1, 1], unit: 1, scale: 1}]);
+check_all("arrays.of_structs_custom_names", [
+    [tests.measurements_checksum(ms), 54321 + 11111],
+    [tests.destroy_measurements(ms), true]
+]);
+
+check("arrays.const_pointer_copy", tests.samples_sum([1, 2, 3]), 6);

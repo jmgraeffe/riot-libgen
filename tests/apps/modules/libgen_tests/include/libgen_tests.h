@@ -163,4 +163,10 @@ void opaque_set(opaque_t* o, int value);
 int opaque_get(const opaque_t* o);
 int32_t measurement_checksum_by_pointer(const measurement_t* m);
 
+/* named arrays */
+void buffer_fill(uint8_t* buf, uint8_t value);
+int buffer_sum(const uint8_t* buf);
+int32_t samples_sum(const int32_t* samples);
+int32_t measurements_checksum(const measurement_t* measurements);
+
 #endif /* LIBGEN_TESTS_H */

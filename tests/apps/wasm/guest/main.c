@@ -490,6 +490,39 @@ WASM_EXPORT int main(void) {
         check("allocatable.const_pointer_copy", tests_measurement_checksum_by_pointer(&m), 54321);
     }
 
+    /* named arrays */
+
+    {
+        uint8_t init[4] = { 1, 2, 3, 4 };
+        int64_t buf = tests_new_buffer(init);
+        int sum_init = tests_buffer_sum(buf);
+        tests_buffer_fill(buf, 5);
+        int sum = tests_buffer_sum(buf);
+        CHECK_ALL("arrays.allocatable", { buf != 0, true }, { sum_init, 10 }, { sum, 20 });
+        int first = tests_free_buffer(buf);
+        int second = tests_free_buffer(buf);
+        CHECK_ALL("arrays.free", { first, true }, { second, false });
+    }
+    {
+        int64_t empty = tests_new_buffer(NULL);
+        check("arrays.without_init", tests_buffer_sum(empty), 0);
+        tests_free_buffer(empty);
+    }
+    {
+        tests_measurement_t init[2] = {
+            { .val = { 1, 2, 3 }, .unit = 4, .scale = 5 },
+            { .val = { 1, 1, 1 }, .unit = 1, .scale = 1 },
+        };
+        int64_t ms = tests_create_measurements(init);
+        int32_t checksum = tests_measurements_checksum(ms);
+        int destroyed = tests_destroy_measurements(ms);
+        CHECK_ALL("arrays.of_structs_custom_names", { checksum, 54321 + 11111 }, { destroyed, true });
+    }
+    {
+        int32_t samples[3] = { 1, 2, 3 };
+        check("arrays.const_pointer_copy", tests_samples_sum(samples), 6);
+    }
+
     /* SAUL registry (configs/saul_reg.libgen-config.yml), with fake devices registered by the host
      * (libgen_tests_saul.c) */
 

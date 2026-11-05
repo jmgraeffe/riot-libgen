@@ -195,6 +195,8 @@ static {{ c.function_handle_return_type(library, handle) }} function_handle_inte
         {% for parameter in function.parameters.values() %}
             {% if parameter.is_allocated_reference() %}
         {{ parameter.name }}_ptr{{ "," if not loop.last }}
+            {% elif parameter.is_array_reference() %}
+        {{ parameter.name }} != NULL ? {{ parameter.name }}_array : NULL{{ "," if not loop.last }}
             {% elif parameter.is_reference() %}
         {{ parameter.name }} != NULL ? &{{ parameter.name }}_struct : NULL{{ "," if not loop.last }}
             {% elif parameter.is_output() %}
@@ -246,32 +248,38 @@ static union {
     .func_ptr = {{ library.name }}_{{ function.name }}_native
 };
 {% endfor %}
-{% for struct in library.structs.values() if struct.allocatable %}
+{% for item in library.allocatables %}
+    {% set type = c.referenced_type(library, item) %}
+    {% set guest_size = item.parameter.guest_size() if item.is_array() else item.guest_size %}
 
-int64_t {{ library.name }}_{{ struct.new_function }}_native(wasm_exec_env_t exec_env, void* init) {
+int64_t {{ library.name }}_{{ item.new_function }}_native(wasm_exec_env_t exec_env, void* init) {
     (void) exec_env;
     if (wasm_module_inst == NULL) {
         core_panic(PANIC_GENERAL_ERROR, "wasm_libs: WASM module instance is not set (use wasm_libs_set_wasm_module_inst)");
     }
 
     {# the instance is zeroed, so fields that are not declared keep their zero values #}
-    {{ struct.type }}* instance = ({{ struct.type }}*) calloc(1, sizeof({{ struct.type }}));
+    {{ type }}* instance = ({{ type }}*) calloc({{ item.size if item.is_array() else 1 }}, sizeof({{ type }}));
     if (instance == NULL) {
         core_panic(PANIC_GENERAL_ERROR, "wasm_libs: could not allocate memory");
     }
-    {% if struct.fields %}
+    {% if item.is_array() or item.fields %}
     if (init != NULL) {
-        if (!wasm_runtime_validate_app_addr(wasm_module_inst, (uintptr_t) init, {{ struct.guest_size }})) {
-            core_panic(PANIC_GENERAL_ERROR, "wasm_libs: function '{{ library.prefix }}{{ struct.new_function }}' was called with a parameter 'init' that does not lie in the WASM memory region");
+        if (!wasm_runtime_validate_app_addr(wasm_module_inst, (uintptr_t) init, {{ guest_size }})) {
+            core_panic(PANIC_GENERAL_ERROR, "wasm_libs: function '{{ library.prefix }}{{ item.new_function }}' was called with a parameter 'init' that does not lie in the WASM memory region");
         }
         const uint8_t* libgen_guest = (const uint8_t*) wasm_runtime_addr_app_to_native(wasm_module_inst, (uintptr_t) init);
-        {{ conversion.struct_to_host(library, struct, 'libgen_guest', '(*instance)')|trim|indent(8) }}
+        {% if item.is_array() %}
+        {{ conversion.to_host(library, item.parameter, 'libgen_guest', 'instance')|trim|indent(8) }}
+        {% else %}
+        {{ conversion.struct_to_host(library, item, 'libgen_guest', '(*instance)')|trim|indent(8) }}
+        {% endif %}
     }
     {% else %}
     {# no fields declared, so there is nothing to initialize #}
     (void) init;
     {% endif %}
-    return allocated_add_{{ library.name }}_{{ struct.name }}(instance);
+    return allocated_add_{{ library.name }}_{{ item.name }}(instance);
 }
 
 // union just to avoid ISO C warning when initializing void* with function pointer
@@ -279,13 +287,13 @@ int64_t {{ library.name }}_{{ struct.new_function }}_native(wasm_exec_env_t exec
 static union {
     void* void_ptr;
     int64_t (*func_ptr)(wasm_exec_env_t, void*);
-} {{ library.name }}_{{ struct.new_function }}_ptr = {
-    .func_ptr = {{ library.name }}_{{ struct.new_function }}_native
+} {{ library.name }}_{{ item.new_function }}_ptr = {
+    .func_ptr = {{ library.name }}_{{ item.new_function }}_native
 };
 
-int32_t {{ library.name }}_{{ struct.free_function }}_native(wasm_exec_env_t exec_env, int64_t instance) {
+int32_t {{ library.name }}_{{ item.free_function }}_native(wasm_exec_env_t exec_env, int64_t instance) {
     (void) exec_env;
-    {{ struct.type }}* instance_ptr = ({{ struct.type }}*) allocated_remove_{{ library.name }}_{{ struct.name }}(instance);
+    {{ type }}* instance_ptr = ({{ type }}*) allocated_remove_{{ library.name }}_{{ item.name }}(instance);
     free(instance_ptr);
     return instance_ptr != NULL;
 }
@@ -295,14 +303,14 @@ int32_t {{ library.name }}_{{ struct.free_function }}_native(wasm_exec_env_t exe
 static union {
     void* void_ptr;
     int32_t (*func_ptr)(wasm_exec_env_t, int64_t);
-} {{ library.name }}_{{ struct.free_function }}_ptr = {
-    .func_ptr = {{ library.name }}_{{ struct.free_function }}_native
+} {{ library.name }}_{{ item.free_function }}_ptr = {
+    .func_ptr = {{ library.name }}_{{ item.free_function }}_native
 };
 {% endfor %}
 {% endfor %}
 {% for library in libraries.values() %}
 
-{% set allocatables = library.structs.values()|selectattr('allocatable')|list %}
+{% set allocatables = library.allocatables %}
 static NativeSymbol native_symbols_{{ library.name }}_library[] = {
     {% for function in library.functions.values() %}
     {
@@ -312,17 +320,17 @@ static NativeSymbol native_symbols_{{ library.name }}_library[] = {
         NULL
     }{{ "," if not loop.last or allocatables }}
     {% endfor %}
-    {% for struct in allocatables %}
+    {% for item in allocatables %}
     {
-        "{{ library.prefix }}{{ struct.new_function }}",
+        "{{ library.prefix }}{{ item.new_function }}",
         NULL, // function pointer, will be set in `wasm_runtime_register_{{ library.name }}_natives()`
-        "(i)I", // int64_t {{ library.prefix }}{{ struct.new_function }}(init)
+        "(i)I", // int64_t {{ library.prefix }}{{ item.new_function }}(init)
         NULL
     },
     {
-        "{{ library.prefix }}{{ struct.free_function }}",
+        "{{ library.prefix }}{{ item.free_function }}",
         NULL, // function pointer, will be set in `wasm_runtime_register_{{ library.name }}_natives()`
-        "(I)i", // int {{ library.prefix }}{{ struct.free_function }}(instance)
+        "(I)i", // int {{ library.prefix }}{{ item.free_function }}(instance)
         NULL
     }{{ "," if not loop.last }}
     {% endfor %}
@@ -335,9 +343,9 @@ int wasm_libs_register_{{ library.name }}_natives(const char* env) {
     {% for function in library.functions.values() %}
     native_symbols_{{ library.name }}_library[{{ loop.index0 }}].func_ptr = {{ library.name }}_{{ function.name }}_ptr.void_ptr;
     {% endfor %}
-    {% for struct in library.structs.values() if struct.allocatable %}
-    native_symbols_{{ library.name }}_library[{{ library.functions|length + 2 * loop.index0 }}].func_ptr = {{ library.name }}_{{ struct.new_function }}_ptr.void_ptr;
-    native_symbols_{{ library.name }}_library[{{ library.functions|length + 2 * loop.index0 + 1 }}].func_ptr = {{ library.name }}_{{ struct.free_function }}_ptr.void_ptr;
+    {% for item in library.allocatables %}
+    native_symbols_{{ library.name }}_library[{{ library.functions|length + 2 * loop.index0 }}].func_ptr = {{ library.name }}_{{ item.new_function }}_ptr.void_ptr;
+    native_symbols_{{ library.name }}_library[{{ library.functions|length + 2 * loop.index0 + 1 }}].func_ptr = {{ library.name }}_{{ item.free_function }}_ptr.void_ptr;
     {% endfor %}
 
     if (!wasm_runtime_register_natives(env, native_symbols_{{ library.name }}_library, num_native_symbols_{{ library.name }}_library)) {

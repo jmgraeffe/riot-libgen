@@ -8,6 +8,7 @@ class Library:
         self.constants = {}
         self.pointer_handles = {}
         self.structs = {}
+        self.arrays = {}
 
         self.name = name
         self.prefix = None
@@ -35,6 +36,16 @@ class Library:
             for name, config in dict_['structs'].items():
                 self.structs[name] = self._factory.create_struct(name, config, self)
 
+        # after structs, as arrays can contain structs
+        if 'arrays' in dict_:
+            for name, config in dict_['arrays'].items():
+                if name in self.structs:
+                    raise LibGenConfigException('name \'{}\' is used for a struct and an array'.format(name))
+                # shortcut for type
+                if isinstance(config, str):
+                    config = {'type': config}
+                self.arrays[name] = self._factory.create_array(name, config, self)
+
         if 'function_handles' in dict_:
             for name, config in dict_['function_handles'].items():
                 self.function_handles[name] = self._factory.create_function_handle(name, config, self)
@@ -61,6 +72,11 @@ class Library:
 
         if 'packages' in dict_:
             self._context.add_packages(dict_['packages'])
+
+    @property
+    def allocatables(self) -> list:
+        """allocatable structs and arrays"""
+        return [item for item in list(self.structs.values()) + list(self.arrays.values()) if item.allocatable]
 
     def get_constant_identifier(self, name: str) -> str:
         if self.prefix is not None:

@@ -3,6 +3,7 @@ from riot_libgen.function import Function
 from riot_libgen.function_handle import FunctionHandle
 from riot_libgen.pointer_handle import PointerHandle
 from riot_libgen.library import Library
+from riot_libgen.named_array import NamedArray
 from riot_libgen.parameter import Parameter
 from riot_libgen.struct import Struct
 
@@ -28,3 +29,6 @@ class Factory:
 
     def create_struct(self, name: str, config: dict, library: Library):
         return Struct(name, config, self, library)
+
+    def create_array(self, name: str, config: dict, library: Library):
+        return NamedArray(name, config, self, library)

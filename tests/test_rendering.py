@@ -407,3 +407,53 @@ def test_js_allocatable_structs(tmp_path):
     source = (tmp_path / 'js_libs.c').read_text()
     names = re.findall(r'jerry_create_string\(\(const jerry_char_t\*\) \("(\w+)"\)\);\s+jerry_value_t property_value_function', source)
     assert names == ['add', 'sum', 'checksum', 'new_accumulator', 'free_accumulator', 'create_opaque', 'destroy_opaque']
+
+
+ARRAYS_LIBRARY = {'lib': {
+    'functions': {
+        'fill': {'parameters': {'buf': 'buffer*', 'value': 'uint8_t'}},
+        'sum': {'parameters': {'buf': 'const buffer*'}, 'return_type': 'int'},
+        'samples_sum': {'parameters': {'s': 'const samples*'}, 'return_type': 'int'},
+        'checksum': {'parameters': {'ms': 'const measurements*'}, 'return_type': 'int'},
+    },
+    'structs': {
+        'measurement': {'type': 'measurement_t', 'fields': {'val': 'int16_t[3]'}},
+    },
+    'arrays': {
+        'buffer': {'type': 'uint8_t[4]', 'allocatable': True},
+        'samples': 'int32_t[3]',
+        'measurements': {'type': 'measurement[2]', 'allocatable': {'new': 'create_measurements', 'free': 'destroy_measurements'}},
+    },
+}}
+
+
+def test_array_pointer_forward_declarations(tmp_path, generator):
+    render(generator, ARRAYS_LIBRARY, tmp_path)
+    header = read(tmp_path, generator, 'include/{g}_libs.h')
+    assert 'void fill(uint8_t* buf, uint8_t value);' in header
+    assert 'int sum(const uint8_t* buf);' in header
+    assert 'int samples_sum(const int32_t* s);' in header
+    assert 'int checksum(const measurement_t* ms);' in header
+
+
+def test_wasm_named_arrays(tmp_path):
+    render('wasm', ARRAYS_LIBRARY, tmp_path)
+    source = (tmp_path / 'wasm_libs.c').read_text()
+    signatures = dict(re.findall(r'"lib_(\w+)",\s*NULL,[^\n]*\n\s*"([^"]*)"', source))
+    assert signatures == {'fill': '(Ii)', 'sum': '(I)i', 'samples_sum': '(i)i', 'checksum': '(I)i',
+                          'new_buffer': '(i)I', 'free_buffer': '(I)i',
+                          'create_measurements': '(i)I', 'destroy_measurements': '(I)i'}
+    header = (tmp_path / 'include' / 'wasm_libs_runtime.h').read_text()
+    assert 'int64_t lib_new_buffer(const uint8_t init[4]);' in header
+    assert 'int lib_free_buffer(int64_t instance);' in header
+    assert 'int64_t lib_create_measurements(const lib_measurement_t init[2]);' in header
+    assert 'void lib_fill(int64_t buf, uint8_t value);' in header
+    assert 'int lib_samples_sum(const int32_t s[3]);' in header
+
+
+def test_js_named_arrays(tmp_path):
+    render('js', ARRAYS_LIBRARY, tmp_path)
+    source = (tmp_path / 'js_libs.c').read_text()
+    names = re.findall(r'jerry_create_string\(\(const jerry_char_t\*\) \("(\w+)"\)\);\s+jerry_value_t property_value_function', source)
+    assert names == ['fill', 'sum', 'samples_sum', 'checksum', 'new_buffer', 'free_buffer',
+                     'create_measurements', 'destroy_measurements']

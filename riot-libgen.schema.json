@@ -179,33 +179,8 @@
 											"examples": ["phydat_t", "struct my_struct"]
 										},
 										"allocatable": {
-											"description": "Whether the runtime can create (and free) instances of the struct, which live on the host until they are freed. Instances are referenced by handles, and can be passed to parameters that are pointers to the struct (e.g. my_struct*). Either a boolean, or an object with options.",
-											"anyOf": [
-												{
-													"type": "boolean"
-												},
-												{
-													"type": "object",
-													"properties": {
-														"new": {
-															"description": "Name of the function for creating instances (default: new_<struct name>).",
-															"type": "string",
-															"pattern": "^[a-z][a-z0-9\\_]+[a-z0-9]$"
-														},
-														"free": {
-															"description": "Name of the function for freeing instances (default: free_<struct name>).",
-															"type": "string",
-															"pattern": "^[a-z][a-z0-9\\_]+[a-z0-9]$"
-														},
-														"max_entries": {
-															"description": "Number of instances that can exist at the same time (default: 10).",
-															"type": "integer",
-															"minimum": 1
-														}
-													},
-													"additionalProperties": false
-												}
-											]
+											"description": "Whether the runtime can create (and free) instances of the struct, which live on the host until they are freed. Instances are referenced by handles, and can be passed to parameters that are pointers to the struct (e.g. my_struct*).",
+											"$ref": "#/$defs/allocatable"
 										},
 										"fields": {
 											"description": "Object whose properties represent the fields of the struct that are exposed. The property name is the name of the field.",
@@ -222,6 +197,34 @@
 									"additionalProperties": false
 								}
 							}
+						},
+						"arrays": {
+							"description": "Object whose properties represent named arrays with homogeneous element type and static size (e.g. buffers). The property name is the name of the array, which can be used for pointer parameters (e.g. my_array* or const my_array*).",
+							"type": "object",
+							"patternProperties": {
+								"^[a-z][a-z0-9\\_]+[a-z0-9]$": {
+									"anyOf": [
+										{
+											"$ref": "#/$defs/array_type"
+										},
+										{
+											"description": "Object whose properties define the array.",
+											"type": "object",
+											"properties": {
+												"type": {
+													"$ref": "#/$defs/array_type"
+												},
+												"allocatable": {
+													"description": "Whether the runtime can create (and free) instances of the array, which live on the host until they are freed. Instances are referenced by handles, and can be passed to parameters that are pointers to the array (e.g. my_array*).",
+													"$ref": "#/$defs/allocatable"
+												}
+											},
+											"required": ["type"],
+											"additionalProperties": false
+										}
+									]
+								}
+							}
 						}
 					},
 					"additionalProperties": false
@@ -232,6 +235,41 @@
 	"required": ["libraries"],
 
 	"$defs": {
+		"array_type": {
+			"description": "String with the element type and the static size of the array. The element type can be a primitive, a pointer handle or a struct.",
+			"type": "string",
+			"pattern": "^\\w+\\[\\d+\\]$",
+			"examples": ["uint8_t[64]", "phydat[2]"]
+		},
+		"allocatable": {
+			"description": "Either a boolean, or an object with options.",
+			"anyOf": [
+				{
+					"type": "boolean"
+				},
+				{
+					"type": "object",
+					"properties": {
+						"new": {
+							"description": "Name of the function for creating instances (default: new_<name>).",
+							"type": "string",
+							"pattern": "^[a-z][a-z0-9\\_]+[a-z0-9]$"
+						},
+						"free": {
+							"description": "Name of the function for freeing instances (default: free_<name>).",
+							"type": "string",
+							"pattern": "^[a-z][a-z0-9\\_]+[a-z0-9]$"
+						},
+						"max_entries": {
+							"description": "Number of instances that can exist at the same time (default: 10).",
+							"type": "integer",
+							"minimum": 1
+						}
+					},
+					"additionalProperties": false
+				}
+			]
+		},
 		"parameter_type": {
 			"anyOf": [
 				{

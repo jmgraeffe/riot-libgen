@@ -1,3 +1,4 @@
+{% import 'templates/c.tmpl' as c %}
 {% import 'generators/wasm/templates/conversion.tmpl' as conversion %}
 
 {% macro struct(library, function, parameter) %}
@@ -109,23 +110,33 @@ if ({{ parameter.name }}_guest != NULL) {
 {% endmacro %}
 
 {% macro allocated_reference(library, function, parameter) %}
-{% set struct = library.structs[parameter.referenced_struct] %}
-{{ struct.type }}* {{ parameter.name }}_ptr = ({{ struct.type }}*) allocated_get_{{ library.name }}_{{ struct.name }}({{ parameter.name }});
+{% set type = c.referenced_type(library, parameter.referenced) %}
+{{ type }}* {{ parameter.name }}_ptr = ({{ type }}*) allocated_get_{{ library.name }}_{{ parameter.referenced.name }}({{ parameter.name }});
 {% endmacro %}
 
 {% macro const_reference(library, function, parameter) %}
-{% set struct = library.structs[parameter.referenced_struct] %}
+{% set referenced = parameter.referenced %}
+{% set guest_size = referenced.parameter.guest_size() if referenced.is_array() else referenced.guest_size %}
 if (wasm_module_inst == NULL) {
     core_panic(PANIC_GENERAL_ERROR, "wasm_libs: WASM module instance is not set (use wasm_libs_set_wasm_module_inst)");
 }
-{# NULL (0) is passed as is, otherwise the struct is converted to a temporary copy on the host #}
+{# NULL (0) is passed as is, otherwise the struct or array is converted to a temporary copy on the host #}
+{% if referenced.is_array() %}
+{{ conversion.host_type(library, referenced.element) }} {{ parameter.name }}_array[{{ referenced.size }}];
+memset({{ parameter.name }}_array, 0, sizeof({{ parameter.name }}_array));
+{% else %}
 {# fields that are not declared keep their zero values #}
-{{ struct.type }} {{ parameter.name }}_struct = { 0 };
+{{ referenced.type }} {{ parameter.name }}_struct = { 0 };
+{% endif %}
 if ({{ parameter.name }} != NULL) {
-    if (!wasm_runtime_validate_app_addr(wasm_module_inst, (uintptr_t) {{ parameter.name }}, {{ struct.guest_size }})) {
-        core_panic(PANIC_GENERAL_ERROR, "wasm_libs: function '{{ library.prefix }}{{ function.name }}' was called with a struct pointer parameter '{{ parameter.name }}' that does not lie in the WASM memory region");
+    if (!wasm_runtime_validate_app_addr(wasm_module_inst, (uintptr_t) {{ parameter.name }}, {{ guest_size }})) {
+        core_panic(PANIC_GENERAL_ERROR, "wasm_libs: function '{{ library.prefix }}{{ function.name }}' was called with a {{ referenced.kind }} pointer parameter '{{ parameter.name }}' that does not lie in the WASM memory region");
     }
     const uint8_t* libgen_guest = (const uint8_t*) wasm_runtime_addr_app_to_native(wasm_module_inst, (uintptr_t) {{ parameter.name }});
-    {{ conversion.struct_to_host(library, struct, 'libgen_guest', parameter.name ~ '_struct')|trim|indent(4) }}
+{% if referenced.is_array() %}
+    {{ conversion.to_host(library, referenced.parameter, 'libgen_guest', parameter.name ~ '_array')|trim|indent(4) }}
+{% else %}
+    {{ conversion.struct_to_host(library, referenced, 'libgen_guest', parameter.name ~ '_struct')|trim|indent(4) }}
+{% endif %}
 }
 {% endmacro %}

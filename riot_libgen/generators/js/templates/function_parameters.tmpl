@@ -75,7 +75,7 @@ for (uint32_t i = 0; i < (uint32_t) ({{ parameter.array_size }}); ++i) {
     {% else %}
         {% raise "library '" ~ library.name ~ "', function '" ~ function.name ~ "', parameter '" ~ parameter.name ~ "': unsupported array element type '" ~ parameter._element_parameter.type ~ "'" %}
     {% endif %}
-    {{ parameter.name }}[i] = {{ parameter.name }}_elem;
+    {{ parameter.name }}[i] = {{ parameter._element_parameter.name }};
     jerry_release_value(value_{{ parameter.name }});
 }
 {% endmacro %}
