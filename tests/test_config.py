@@ -335,10 +335,9 @@ class TestAllocatableStructs:
             load_library(libgen, {'functions': {'f': {'parameters': {'d': 'unknown*'}}}})
 
     @pytest.mark.parametrize('library', [
-        # not supported (yet) for output parameters, function handles, struct fields and return types
+        # not supported (yet) for output parameters, function handles and return types
         {'functions': {'f': {'parameters': {'d': {'type': 'data*', 'direction': 'out'}}}}},
         {'function_handles': {'h': {'parameters': {'d': 'data*'}}}},
-        {'structs': {'other': {'type': 'other_t', 'fields': {'d': 'data*'}}}},
         {'functions': {'f': {'return_type': 'data*'}}},
     ])
     def test_pointer_not_supported(self, libgen, library):
@@ -429,3 +428,45 @@ class TestNamedArrays:
             'arrays': {'buffer': {'type': 'uint8_t[4]', 'allocatable': True}, 'samples': 'int[3]'},
         })
         assert [item.name for item in library.allocatables] == ['data', 'buffer']
+
+
+class TestPointerFields:
+    @pytest.mark.parametrize('type_,const', [('data*', False), ('const data*', True)])
+    def test_pointer_to_allocatable_struct(self, libgen, type_, const):
+        field = load_library(libgen, {'structs': {
+            'data': {'type': 'data_t', 'allocatable': True},
+            'other': {'type': 'other_t', 'fields': {'d': type_}},
+        }}).structs['other'].fields['d']
+        assert field.is_allocated_reference()
+        assert field.referenced_struct == 'data'
+        assert field.is_const_reference() == const
+
+    def test_pointer_to_array_declared_later(self, libgen):
+        field = load_library(libgen, {
+            'structs': {'view': {'type': 'view_t', 'fields': {'data': 'const buffer*'}}},
+            'arrays': {'buffer': {'type': 'uint8_t[4]', 'allocatable': True}},
+        }).structs['view'].fields['data']
+        assert field.is_array_reference()
+        assert field.is_allocated_reference()
+
+    def test_pointer_to_own_struct(self, libgen):
+        field = load_library(libgen, {'structs': {
+            'node': {'type': 'node_t', 'allocatable': True, 'fields': {'value': 'int', 'next': 'node*'}},
+        }}).structs['node'].fields['next']
+        assert field.referenced_struct == 'node'
+
+    @pytest.mark.parametrize('type_', ['data*', 'const data*'])
+    def test_pointer_to_struct_that_is_not_allocatable(self, libgen, type_):
+        # a temporary copy would not outlive the call
+        with pytest.raises(LibGenConfigException):
+            load_library(libgen, {'structs': {
+                'data': {'type': 'data_t'},
+                'other': {'type': 'other_t', 'fields': {'d': type_}},
+            }})
+
+    def test_pointer_to_array_that_is_not_allocatable(self, libgen):
+        with pytest.raises(LibGenConfigException):
+            load_library(libgen, {
+                'structs': {'view': {'type': 'view_t', 'fields': {'data': 'const buffer*'}}},
+                'arrays': {'buffer': 'uint8_t[4]'},
+            })

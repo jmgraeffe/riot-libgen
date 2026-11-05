@@ -2,7 +2,8 @@
  # Instances of allocatable structs and arrays: they are allocated on the host by the runtime (new function), referenced by the
  # runtime through their (1-based) index in a table as handle, and live until the runtime frees them (free function).
  # Handle 0 represents NULL, and freed instances are resolved to NULL as well. Only pointers that were allocated by the
- # new function are stored in the table, so the free function cannot free anything else.
+ # new function are stored in the table, so the free function cannot free anything else. Pointers from the host (e.g. in
+ # struct fields) are only converted to handles if they were allocated by the new function.
  #
  # Needs libs_prefix to be set by the including template (e.g. "wasm_libs").
  #}
@@ -29,6 +30,19 @@ static void* allocated_get_{{ library.name }}_{{ item.name }}(int64_t handle) {
         return NULL;
     }
     return allocated_{{ library.name }}_{{ item.name }}[handle - 1];
+}
+
+/* only used for pointers in struct fields that are passed from the host to the runtime */
+__attribute__((unused)) static int64_t allocated_find_{{ library.name }}_{{ item.name }}(const void* instance) {
+    if (instance == NULL) {
+        return 0;
+    }
+    for (int64_t i = 0; i < {{ item.max_entries }}; ++i) {
+        if (allocated_{{ library.name }}_{{ item.name }}[i] == instance) {
+            return i + 1;
+        }
+    }
+    core_panic(PANIC_GENERAL_ERROR, "{{ libs_prefix }}: pointer is not an instance of {{ item.kind }} '{{ library.name }}.{{ item.name }}' (not allocated by the runtime, or already freed)");
 }
 
 static void* allocated_remove_{{ library.name }}_{{ item.name }}(int64_t handle) {

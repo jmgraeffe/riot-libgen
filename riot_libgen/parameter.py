@@ -68,11 +68,12 @@ class Parameter:
         elif dict_['type'] not in NATIVE_TYPES and dict_['type'] not in self._library.function_handles and dict_['type'] not in self._library.pointer_handles and dict_['type'] not in self._library.structs:
             match = re.match(ARRAY_PATTERN, dict_['type'])
             reference_match = re.match(REFERENCE_PATTERN, dict_['type'])
-            if reference_match and (reference_match.group(2) in self._library.structs or reference_match.group(2) in self._library.arrays):
+            if reference_match and (reference_match.group(2) in self._library.declared_structs or reference_match.group(2) in self._library.declared_arrays):
                 self._reference = reference_match.group(2)
                 self._reference_const = reference_match.group(1) is not None
-                if not self.referenced.allocatable and not self._reference_const:
-                    raise LibGenConfigException('pointer to {} \'{}\' needs to be const for parameter \'{}\', as the {} is not allocatable (it is passed as temporary copy)'.format(self.referenced.kind, self._reference, self.name, self.referenced.kind))
+                # struct fields can point to structs or arrays that are not loaded yet, they are checked later
+                if self._reference in self._library.structs or self._reference in self._library.arrays:
+                    self.check_reference()
             elif match:
                 type_ = match.group(1)
                 if type_ in NATIVE_TYPES or type_ in self._library.function_handles or type_ in self._library.pointer_handles or type_ in self._library.structs:
@@ -105,6 +106,10 @@ class Parameter:
     def is_output(self) -> bool:
         return self.direction == 'out'
 
+    def check_reference(self):
+        if not self.referenced.allocatable and not self._reference_const:
+            raise LibGenConfigException('pointer to {} \'{}\' needs to be const for \'{}\', as the {} is not allocatable (it is passed as temporary copy)'.format(self.referenced.kind, self._reference, self.name, self.referenced.kind))
+
     def is_reference(self) -> bool:
         """pointer to a struct or a named array"""
         return self._reference is not None
@@ -117,10 +122,10 @@ class Parameter:
         return self.is_reference() and self.referenced.allocatable
 
     def is_struct_reference(self) -> bool:
-        return self.is_reference() and self._reference in self._library.structs
+        return self.is_reference() and self._reference in self._library.declared_structs
 
     def is_array_reference(self) -> bool:
-        return self.is_reference() and self._reference in self._library.arrays
+        return self.is_reference() and self._reference in self._library.declared_arrays
 
     @property
     def referenced(self):

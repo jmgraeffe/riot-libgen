@@ -3,7 +3,9 @@
 {% macro struct(library, handle, param, dest) %}
 {{ dest }} = jerry_create_object();
 {% for field in library.structs[param.struct].fields.values() %}
-    {% if field.is_array() %}
+    {% if field.is_reference() %}
+jerry_value_t field_value_{{ field.name }} = jerry_create_number(allocated_find_{{ library.name }}_{{ field.referenced.name }}((const void*) {{ param.name }}.{{ field.name }}));
+    {% elif field.is_array() %}
 {{ field._element_parameter.type }}* {{ param.name }}_{{ field.name }} = {{ param.name }}.{{ field.name }};
         {% set manipulated_field = namespace(name=param.name ~ '_' ~ field.name, _element_parameter=field._element_parameter, array_size=field.array_size) %}
 jerry_value_t {{ array(library, function, manipulated_field, 'field_value_' ~ field.name)|trim }}

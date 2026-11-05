@@ -32,8 +32,15 @@ class Struct(Allocatable):
                 self.fields[name] = self._factory.create_parameter(name, config, self._library)
                 if self.fields[name].is_output():
                     raise LibGenConfigException('struct fields cannot be output parameters (\'{}\' of \'{}\')'.format(name, self.name))
-                if self.fields[name].is_reference():
-                    raise LibGenConfigException('pointers to structs or arrays are not supported as struct fields yet (\'{}\' of \'{}\')'.format(name, self.name))
         self.type = dict_['type']
 
         self._load_allocatable_from_dict(dict_)
+
+    def check_fields(self):
+        """checks that need all structs and arrays to be loaded"""
+        for name, field in self.fields.items():
+            if field.is_reference():
+                field.check_reference()
+                # instances are referenced by handles, a temporary copy would not outlive the call
+                if not field.is_allocated_reference():
+                    raise LibGenConfigException('pointer field \'{}\' of struct \'{}\' needs to point to an allocatable struct or array'.format(name, self.name))

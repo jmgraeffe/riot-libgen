@@ -8,6 +8,7 @@
  # host: lvalue of the value on the host
  # depth: nesting depth, used for unique names of loop variables
  #}
+{% import 'templates/c.tmpl' as c %}
 
 {# C type of a value on the host #}
 {% macro host_type(library, item) %}
@@ -27,7 +28,13 @@
 {% endmacro %}
 
 {% macro to_host(library, item, guest, host, depth=0) %}
-{% if item.is_struct() %}
+{% if item.is_reference() %}
+{
+    int64_t libgen_handle;
+    memcpy(&libgen_handle, {{ guest }}, sizeof(libgen_handle));
+    {{ host }} = ({{ c.referenced_type(library, item.referenced) }}*) allocated_get_{{ library.name }}_{{ item.referenced.name }}(libgen_handle);
+}
+{% elif item.is_struct() %}
 {{ struct_to_host(library, library.structs[item.struct], guest, host, depth)|trim }}
 {% elif item.is_array() %}
 {% set i = 'libgen_i' ~ depth %}
@@ -56,7 +63,12 @@ for (size_t {{ i }} = 0; {{ i }} < {{ item.array_size }}; ++{{ i }}) {
 {% endmacro %}
 
 {% macro to_guest(library, item, guest, host, depth=0) %}
-{% if item.is_struct() %}
+{% if item.is_reference() %}
+{
+    int64_t libgen_handle = allocated_find_{{ library.name }}_{{ item.referenced.name }}((const void*) {{ host }});
+    memcpy({{ guest }}, &libgen_handle, sizeof(libgen_handle));
+}
+{% elif item.is_struct() %}
 {{ struct_to_guest(library, library.structs[item.struct], guest, host, depth)|trim }}
 {% elif item.is_array() %}
 {% set i = 'libgen_i' ~ depth %}

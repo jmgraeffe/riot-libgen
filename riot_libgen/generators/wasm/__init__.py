@@ -279,6 +279,9 @@ class WasmParameter(Parameter):
     def _guest_type(self) -> tuple[str, int]:
         if self.is_pointer_handle():
             return POINTER_HANDLE_TYPE, 8
+        if self.is_allocated_reference():
+            # instances of allocatable structs and arrays are referenced by handles
+            return 'int64_t', 8
         if self._type in GUEST_TYPES:
             return GUEST_TYPES[self._type]
         raise LibGenConfigException(

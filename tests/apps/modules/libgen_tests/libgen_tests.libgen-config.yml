@@ -366,6 +366,24 @@ libraries:
         parameters:
           measurements: const measurements*
         return_type: int32_t
+      # pointer fields
+      scaler_apply:
+        parameters:
+          s: scaler
+          value: int
+      make_scaler:
+        parameters:
+          acc: accumulator*
+          factor: int
+        return_type: scaler
+      view_sum:
+        parameters:
+          v: view
+        return_type: int
+      list_sum:
+        parameters:
+          head: const node*
+        return_type: int
 
     function_handles:
       int_op:
@@ -451,6 +469,24 @@ libraries:
           new: create_opaque
           free: destroy_opaque
           max_entries: 2
+      # pointer fields, referencing instances by handles
+      scaler:
+        type: scaler_t
+        fields:
+          factor: int
+          acc: accumulator*
+      # pointing to an array that is declared later
+      view:
+        type: view_t
+        fields:
+          data: const buffer*
+      # pointing to its own struct
+      node:
+        type: node_t
+        allocatable: true
+        fields:
+          value: int
+          next: node*
       # only some fields of the C struct are exposed
       partial:
         type: partial_t

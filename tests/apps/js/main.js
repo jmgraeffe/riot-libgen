@@ -457,3 +457,26 @@ check_all("arrays.of_structs_custom_names", [
 ]);
 
 check("arrays.const_pointer_copy", tests.samples_sum([1, 2, 3]), 6);
+
+// pointer fields (instances are referenced by handles)
+
+var acc2 = tests.new_accumulator();
+var s = tests.make_scaler(acc2, 3);
+tests.scaler_apply(s, 2);
+tests.scaler_apply({factor: 5, acc: acc2}, 1);
+check_all("pointer_fields.struct", [
+    [s.acc, acc2],
+    [s.factor, 3],
+    [tests.accumulator_sum(acc2), 11]
+]);
+tests.free_accumulator(acc2);
+
+var buf2 = tests.new_buffer([1, 2, 3, 4]);
+check("pointer_fields.array", tests.view_sum({data: buf2}), 10);
+tests.free_buffer(buf2);
+
+var n1 = tests.new_node({value: 1});
+var n2 = tests.new_node({value: 2, next: n1});
+check("pointer_fields.own_struct", tests.list_sum(n2), 3);
+tests.free_node(n2);
+tests.free_node(n1);

@@ -1,3 +1,4 @@
+{% import 'templates/c.tmpl' as c %}
 {# C type of a value on the host #}
 {% macro host_type(library, item) %}
 {% if item.is_struct() %}
@@ -17,7 +18,14 @@ if (!jerry_value_is_object({{ container }})) {
 {% for field in library.structs[parameter.struct].fields.values() %}
 jerry_value_t field_property_name_{{ field.name }} = jerry_create_string((const jerry_char_t*) ("{{ field.name }}"));
 jerry_value_t field_value_{{ field.name }} = jerry_get_property({{ container }}, field_property_name_{{ field.name }});
-    {% if field.is_array() %}
+    {% if field.is_reference() %}
+{# instances are passed by handle, a missing field (undefined) or null means NULL #}
+if (jerry_value_is_number(field_value_{{ field.name }})) {
+    {{ parameter.name }}.{{ field.name }} = ({{ c.referenced_type(library, field.referenced) }}*) allocated_get_{{ library.name }}_{{ field.referenced.name }}((int64_t) jerry_get_number_value(field_value_{{ field.name }}));
+} else if (!jerry_value_is_undefined(field_value_{{ field.name }}) && !jerry_value_is_null(field_value_{{ field.name }})) {
+    core_panic(PANIC_GENERAL_ERROR, "js_libs: library '{{ library.name }}', function '{{ function.name }}', parameter '{{ parameter.name }}': field '{{ field.name }}' is not an instance of {{ field.referenced.kind }} '{{ field.referenced.name }}'");
+}
+    {% elif field.is_array() %}
 {{ array(library, function, field, 'field_value_' ~ field.name)|trim }}
 for (uint32_t i = 0; i < (uint32_t) ({{ field.array_size }}); ++i) {
     {{ parameter.name }}.{{ field.name }}[i] = {{ field.name }}[i];

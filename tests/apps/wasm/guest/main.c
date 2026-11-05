@@ -523,6 +523,35 @@ WASM_EXPORT int main(void) {
         check("arrays.const_pointer_copy", tests_samples_sum(samples), 6);
     }
 
+    /* pointer fields (instances are referenced by handles) */
+
+    {
+        int64_t acc = tests_new_accumulator(NULL);
+        tests_scaler_t s = *tests_make_scaler(acc, 3);
+        tests_scaler_apply(&s, 2);
+        tests_scaler_t other = { .factor = 5, .acc = acc };
+        tests_scaler_apply(&other, 1);
+        int sum = tests_accumulator_sum(acc);
+        CHECK_ALL("pointer_fields.struct", { s.acc == acc, true }, { s.factor, 3 }, { sum, 11 });
+        tests_free_accumulator(acc);
+    }
+    {
+        uint8_t init[4] = { 1, 2, 3, 4 };
+        int64_t buf = tests_new_buffer(init);
+        tests_view_t v = { .data = buf };
+        check("pointer_fields.array", tests_view_sum(&v), 10);
+        tests_free_buffer(buf);
+    }
+    {
+        tests_node_t init1 = { .value = 1, .next = 0 };
+        int64_t n1 = tests_new_node(&init1);
+        tests_node_t init2 = { .value = 2, .next = n1 };
+        int64_t n2 = tests_new_node(&init2);
+        check("pointer_fields.own_struct", tests_list_sum(n2), 3);
+        tests_free_node(n2);
+        tests_free_node(n1);
+    }
+
     /* SAUL registry (configs/saul_reg.libgen-config.yml), with fake devices registered by the host
      * (libgen_tests_saul.c) */
 

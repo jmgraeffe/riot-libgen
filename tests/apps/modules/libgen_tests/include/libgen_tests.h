@@ -55,6 +55,22 @@ typedef struct {
     int value;
 } opaque_t;
 
+/* pointer fields (to allocatable structs and arrays) */
+typedef struct {
+    int factor;
+    accumulator_t* acc;
+} scaler_t;
+
+typedef struct {
+    const uint8_t* data;
+} view_t;
+
+/* allocatable, pointing to its own struct */
+typedef struct node {
+    int value;
+    struct node* next;
+} node_t;
+
 /* nested struct, with fields that are aligned and sized differently in WASM and on 64 bit hosts */
 typedef struct {
     uint8_t tag;
@@ -168,5 +184,11 @@ void buffer_fill(uint8_t* buf, uint8_t value);
 int buffer_sum(const uint8_t* buf);
 int32_t samples_sum(const int32_t* samples);
 int32_t measurements_checksum(const measurement_t* measurements);
+
+/* pointer fields */
+void scaler_apply(scaler_t s, int value);
+scaler_t make_scaler(accumulator_t* acc, int factor);
+int view_sum(view_t v);
+int list_sum(const node_t* head);
 
 #endif /* LIBGEN_TESTS_H */

@@ -1,6 +1,8 @@
 {# type of a value in the WASM application (element type for arrays) #}
 {% macro guest_type(library, item) %}
-{% if item.is_struct() %}
+{% if item.is_allocated_reference() %}
+int64_t
+{%- elif item.is_struct() %}
 {{ library.prefix }}{{ library.structs[item.struct].name }}_t
 {%- elif item.is_function_handle() %}
 wasm_libs_function_handle_t

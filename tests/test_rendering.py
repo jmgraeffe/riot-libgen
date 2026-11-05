@@ -457,3 +457,40 @@ def test_js_named_arrays(tmp_path):
     names = re.findall(r'jerry_create_string\(\(const jerry_char_t\*\) \("(\w+)"\)\);\s+jerry_value_t property_value_function', source)
     assert names == ['fill', 'sum', 'samples_sum', 'checksum', 'new_buffer', 'free_buffer',
                      'create_measurements', 'destroy_measurements']
+
+
+POINTER_FIELDS_LIBRARY = {'lib': {
+    'functions': {
+        'apply': {'parameters': {'s': 'scaler', 'value': 'int'}},
+        'make': {'parameters': {'factor': 'int'}, 'return_type': 'scaler'},
+    },
+    'structs': {
+        'accumulator': {'type': 'accumulator_t', 'allocatable': True},
+        'scaler': {'type': 'scaler_t', 'fields': {'factor': 'int', 'acc': 'accumulator*', 'data': 'const buffer*'}},
+    },
+    'arrays': {
+        'buffer': {'type': 'uint8_t[4]', 'allocatable': True},
+    },
+}}
+
+
+def test_wasm_pointer_fields(tmp_path):
+    render('wasm', POINTER_FIELDS_LIBRARY, tmp_path)
+    header = (tmp_path / 'include' / 'wasm_libs_runtime.h').read_text()
+    # instances are referenced by handles
+    assert '    int64_t acc;' in header
+    assert '    int64_t data;' in header
+    assert '_Static_assert(sizeof(lib_scaler_t) == 24, ' in header
+    assert '_Static_assert(__builtin_offsetof(lib_scaler_t, acc) == 8, ' in header
+    source = (tmp_path / 'wasm_libs.c').read_text()
+    assert 's_struct.acc = (accumulator_t*) allocated_get_lib_accumulator(libgen_handle);' in source
+    assert 's_struct.data = (uint8_t*) allocated_get_lib_buffer(libgen_handle);' in source
+    assert 'allocated_find_lib_accumulator((const void*) libgen_res.acc);' in source
+
+
+def test_js_pointer_fields(tmp_path):
+    render('js', POINTER_FIELDS_LIBRARY, tmp_path)
+    source = (tmp_path / 'js_libs.c').read_text()
+    assert 's.acc = (accumulator_t*) allocated_get_lib_accumulator(' in source
+    assert 's.data = (uint8_t*) allocated_get_lib_buffer(' in source
+    assert 'jerry_create_number(allocated_find_lib_accumulator((const void*) libgen_res.acc));' in source

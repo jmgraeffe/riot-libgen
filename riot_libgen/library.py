@@ -9,6 +9,10 @@ class Library:
         self.pointer_handles = {}
         self.structs = {}
         self.arrays = {}
+        # names of structs and arrays in the config, so that pointers can refer to them before they are loaded (e.g.
+        # struct fields pointing to arrays, or to their own struct)
+        self.declared_structs = set()
+        self.declared_arrays = set()
 
         self.name = name
         self.prefix = None
@@ -32,6 +36,9 @@ class Library:
                     config = {'type': config}
                 self.pointer_handles[name] = self._factory.create_pointer_handle(name, config, self)
 
+        self.declared_structs = set(dict_.get('structs') or {})
+        self.declared_arrays = set(dict_.get('arrays') or {})
+
         if 'structs' in dict_:
             for name, config in dict_['structs'].items():
                 self.structs[name] = self._factory.create_struct(name, config, self)
@@ -45,6 +52,10 @@ class Library:
                 if isinstance(config, str):
                     config = {'type': config}
                 self.arrays[name] = self._factory.create_array(name, config, self)
+
+        # pointers in struct fields can only be checked now that all structs and arrays are loaded
+        for struct in self.structs.values():
+            struct.check_fields()
 
         if 'function_handles' in dict_:
             for name, config in dict_['function_handles'].items():

@@ -422,3 +422,26 @@ int32_t samples_sum(const int32_t* samples) {
 int32_t measurements_checksum(const measurement_t* measurements) {
     return measurement_checksum(measurements[0]) + measurement_checksum(measurements[1]);
 }
+
+/* pointer fields */
+
+void scaler_apply(scaler_t s, int value) {
+    accumulator_add(s.acc, s.factor * value);
+}
+
+scaler_t make_scaler(accumulator_t* acc, int factor) {
+    scaler_t s = { .factor = factor, .acc = acc };
+    return s;
+}
+
+int view_sum(view_t v) {
+    return buffer_sum(v.data);
+}
+
+int list_sum(const node_t* head) {
+    int sum = 0;
+    for (const node_t* n = head; n != NULL; n = n->next) {
+        sum += n->value;
+    }
+    return sum;
+}
