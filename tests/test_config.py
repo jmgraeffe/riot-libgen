@@ -99,6 +99,19 @@ class TestParameters:
         with pytest.raises(LibGenConfigException):
             load_library(libgen, {'functions': {'f': {'parameters': {'data': 'const uint8_t*'}}}})
 
+    @pytest.mark.parametrize('type_,const', [('void*', False), ('const void*', True)])
+    def test_void_pointer_is_byte_array(self, libgen, type_, const):
+        parameter = load_library(libgen, {'functions': {'f': {'parameters': {
+            'data': {'type': type_, 'length_parameter': 'len'},
+            'len': 'size_t',
+        }}}}).functions['f'].parameters['data']
+        assert parameter.is_byte_array()
+        assert parameter.is_const() == const
+
+    def test_void_pointer_needs_length_parameter(self, libgen):
+        with pytest.raises(LibGenConfigException):
+            load_library(libgen, {'functions': {'f': {'parameters': {'data': 'const void*'}}}})
+
     def test_byte_array(self, libgen):
         function = load_library(libgen, {'functions': {'f': {'parameters': {
             'data': {'type': 'uint8_t*', 'length_parameter': 'len'},

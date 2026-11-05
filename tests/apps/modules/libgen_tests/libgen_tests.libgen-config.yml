@@ -266,6 +266,31 @@ libraries:
             direction: out
           len: size_t
         return_type: size_t
+      # void pointers as byte arrays
+      void_bytes_checksum:
+        parameters:
+          data:
+            type: const void*
+            length_parameter: len
+          len: size_t
+        return_type: uint32_t
+      fill_void_bytes:
+        parameters:
+          buf:
+            type: void*
+            length_parameter: len
+          len: size_t
+      read_void_bytes:
+        parameters:
+          buf:
+            type: void*
+            length_parameter: len
+            direction: out
+          len: size_t
+        return_type: size_t
+      call_with_void_bytes:
+        parameters:
+          cb: void_bytes_receiver
 
       # struct conversion
       partial_checksum:
@@ -411,6 +436,12 @@ libraries:
         parameters:
           data:
             type: const uint8_t*
+            length_parameter: len
+          len: size_t
+      void_bytes_receiver:
+        parameters:
+          data:
+            type: const void*
             length_parameter: len
           len: size_t
       void_callback: {}

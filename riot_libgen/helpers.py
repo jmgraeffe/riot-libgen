@@ -84,12 +84,16 @@ NATIVE_TYPES = [
     'void',
     'const char*',
     'const uint8_t*',
-    'uint8_t*'
+    'uint8_t*',
+    'const void*',
+    'void*'
 ]
 
 BYTE_ARRAY_TYPES = [
     'const uint8_t*',
-    'uint8_t*'
+    'uint8_t*',
+    'const void*',
+    'void*'
 ]
 
 # function handles

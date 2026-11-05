@@ -445,3 +445,22 @@ int list_sum(const node_t* head) {
     }
     return sum;
 }
+
+/* void pointers as byte arrays */
+
+uint32_t void_bytes_checksum(const void* data, size_t len) {
+    return bytes_checksum((const uint8_t*) data, len);
+}
+
+void fill_void_bytes(void* buf, size_t len) {
+    fill_bytes((uint8_t*) buf, len);
+}
+
+size_t read_void_bytes(void* buf, size_t len) {
+    return read_bytes((uint8_t*) buf, len);
+}
+
+void call_with_void_bytes(void (*cb)(const void* data, size_t len)) {
+    static const uint8_t data[] = { 4, 5, 6 };
+    cb(data, sizeof(data));
+}

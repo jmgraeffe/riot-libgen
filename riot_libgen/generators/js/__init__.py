@@ -104,7 +104,9 @@ NATIVE_TYPES_MAPPING = {
     'void': JsType.UNDEFINED,
     'const char*': JsType.STRING,
     'const uint8_t*': JsType.BYTE_ARRAY,
-    'uint8_t*': JsType.BYTE_ARRAY
+    'uint8_t*': JsType.BYTE_ARRAY,
+    'const void*': JsType.BYTE_ARRAY,
+    'void*': JsType.BYTE_ARRAY
 }
 
 

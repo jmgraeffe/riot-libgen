@@ -101,6 +101,10 @@ WASM_EXPORT void guest_bytes_receiver(const uint8_t* data, size_t len) {
     }
 }
 
+WASM_EXPORT void guest_void_bytes_receiver(const void* data, size_t len) {
+    guest_bytes_receiver((const uint8_t*) data, len);
+}
+
 static size_t received_length = 0;
 WASM_EXPORT void guest_string_length_receiver(const char* s) {
     while (*s++ != '\0') {
@@ -410,6 +414,23 @@ WASM_EXPORT int main(void) {
         size_t ret = tests_read_bytes(buf, 4);
         CHECK_ALL("outputs.byte_array", { ret, 4 }, { buf[0], 'a' }, { buf[1], 'b' }, { buf[2], 'c' }, { buf[3], 'd' });
     }
+
+    /* void pointers as byte arrays */
+
+    check("void_bytes.content", tests_void_bytes_checksum("abc", 3), 96354);
+    {
+        uint8_t buf[4] = { 0 };
+        tests_fill_void_bytes(buf, 4);
+        CHECK_ALL("void_bytes.writable", { buf[0], 'a' }, { buf[1], 'b' }, { buf[2], 'c' }, { buf[3], 'd' });
+    }
+    {
+        uint8_t buf[4] = { 0 };
+        size_t ret = tests_read_void_bytes(buf, 4);
+        CHECK_ALL("void_bytes.output", { ret, 4 }, { buf[0], 'a' }, { buf[1], 'b' }, { buf[2], 'c' }, { buf[3], 'd' });
+    }
+    tests_call_with_void_bytes(WASM_LIBS_FUNCTION_HANDLE("guest_void_bytes_receiver"));
+    CHECK_ALL("void_bytes.function_handle_parameter",
+              { received_len, 3 }, { received_data[0], 4 }, { received_data[1], 5 }, { received_data[2], 6 });
     /* NULL is passed as NULL, for optional output parameters */
     check("outputs.null", tests_get_count(NULL), 1);
     /* outputs.string: JS only, output strings are not supported by the WASM generator (yet) */

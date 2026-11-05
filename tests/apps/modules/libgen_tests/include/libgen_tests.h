@@ -150,6 +150,12 @@ int find_counter(int index, counter_t** c);
 int read_measurement(int16_t base, measurement_t* m);
 void get_values(int values[3]);
 size_t read_bytes(uint8_t* buf, size_t len);
+
+/* void pointers as byte arrays */
+uint32_t void_bytes_checksum(const void* data, size_t len);
+void fill_void_bytes(void* buf, size_t len);
+size_t read_void_bytes(void* buf, size_t len);
+void call_with_void_bytes(void (*cb)(const void* data, size_t len));
 int get_name(const char** name);
 
 /* SAUL: registers a fake temperature ("fake_temp") and humidity sensor ("fake_hum") */

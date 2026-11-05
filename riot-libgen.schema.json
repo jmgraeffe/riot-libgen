@@ -356,7 +356,9 @@
 			    "void",
 			    "const char*",
 			    "const uint8_t*",
-			    "uint8_t*"
+			    "uint8_t*",
+			    "const void*",
+			    "void*"
 			]
 		}
 	}

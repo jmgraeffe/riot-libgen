@@ -91,6 +91,10 @@ CASES = {
     'outputs.struct': BOTH,
     'outputs.array': BOTH,
     'outputs.byte_array': BOTH,
+    'void_bytes.content': BOTH,
+    'void_bytes.writable': BOTH,
+    'void_bytes.output': BOTH,
+    'void_bytes.function_handle_parameter': BOTH,
     'outputs.null': BOTH,
     'outputs.string': (JS,),  # not supported by the WASM generator (yet)
     'struct_conversion.partial': BOTH,

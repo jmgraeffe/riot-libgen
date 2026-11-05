@@ -308,6 +308,20 @@ check_all("outputs.byte_array", [
     [bytes.value, "abcd"]
 ]);
 
+// void pointers as byte arrays
+check("void_bytes.content", tests.void_bytes_checksum("abc", 3), 96354);
+check("void_bytes.writable", typeof tests.fill_void_bytes("xxxx", 4), "undefined");
+var void_bytes = {};
+check_all("void_bytes.output", [
+    [tests.read_void_bytes(void_bytes, 4), 4],
+    [void_bytes.value, "abcd"]
+]);
+tests.call_with_void_bytes("js_bytes_receiver");
+check_all("void_bytes.function_handle_parameter", [
+    [received_len, 3],
+    [received_data, "\x04\x05\x06"]
+]);
+
 // null is passed as NULL, for optional output parameters
 check("outputs.null", tests.get_count(null), 1);
 

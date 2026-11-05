@@ -105,7 +105,9 @@ NATIVE_TYPES_MAPPING = {
     'void': '',
     'const char*': '$',
     'const uint8_t*': 'i', #TODO this might become variable in the future
-    'uint8_t*': 'i' #TODO this might become variable in the future
+    'uint8_t*': 'i', #TODO this might become variable in the future
+    'const void*': 'i', #TODO this might become variable in the future
+    'void*': 'i' #TODO this might become variable in the future
 }
 
 POINTER_TYPE = 'i' #TODO this might become variable in the future

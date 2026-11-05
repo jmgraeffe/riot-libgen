@@ -494,3 +494,30 @@ def test_js_pointer_fields(tmp_path):
     assert 's.acc = (accumulator_t*) allocated_get_lib_accumulator(' in source
     assert 's.data = (uint8_t*) allocated_get_lib_buffer(' in source
     assert 'jerry_create_number(allocated_find_lib_accumulator((const void*) libgen_res.acc));' in source
+
+
+VOID_POINTER_LIBRARY = {'lib': {
+    'functions': {
+        'send': {'parameters': {'data': {'type': 'const void*', 'length_parameter': 'len'}, 'len': 'size_t'}},
+        'recv': {'parameters': {'buf': {'type': 'void*', 'length_parameter': 'len'}, 'len': 'size_t'},
+                 'return_type': 'ssize_t'},
+    },
+}}
+
+
+def test_void_pointer_forward_declarations(tmp_path, generator):
+    # declarations need to match the host functions exactly, otherwise they conflict with the original headers
+    render(generator, VOID_POINTER_LIBRARY, tmp_path)
+    header = read(tmp_path, generator, 'include/{g}_libs.h')
+    assert 'void send(const void* data, size_t len);' in header
+    assert 'ssize_t recv(void* buf, size_t len);' in header
+
+
+def test_wasm_void_pointers(tmp_path):
+    render('wasm', VOID_POINTER_LIBRARY, tmp_path)
+    source = (tmp_path / 'wasm_libs.c').read_text()
+    signatures = dict(re.findall(r'"lib_(\w+)",\s*NULL,[^\n]*\n\s*"([^"]*)"', source))
+    assert signatures == {'send': '(ii)', 'recv': '(ii)I'}
+    header = (tmp_path / 'include' / 'wasm_libs_runtime.h').read_text()
+    assert 'void lib_send(const void* data, size_t len);' in header
+    assert 'ssize_t lib_recv(void* buf, size_t len);' in header
