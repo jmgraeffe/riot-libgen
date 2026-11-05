@@ -45,6 +45,7 @@ class TestFunctions:
         assert function.original_name == 'f'
         assert function.return_type == 'void'
         assert function.parameters == {}
+        assert function.declare
 
     def test_shortcut_is_return_type(self, libgen):
         function = load_library(libgen, {'functions': {'f': 'int'}}).functions['f']
@@ -62,6 +63,14 @@ class TestFunctions:
         function = load_library(libgen, {'functions': {'f': {'original_name': 'native_f'}}}).functions['f']
         assert function.name == 'f'
         assert function.original_name == 'native_f'
+
+    def test_declare(self, libgen):
+        function = load_library(libgen, {'functions': {'f': {'declare': False}}}).functions['f']
+        assert not function.declare
+
+    def test_declare_invalid(self, libgen):
+        with pytest.raises(LibGenConfigException):
+            load_library(libgen, {'functions': {'f': {'declare': 'no'}}})
 
     def test_parameters_and_return_type(self, libgen):
         function = load_library(libgen, {'functions': {'f': {

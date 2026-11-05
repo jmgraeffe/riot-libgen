@@ -139,3 +139,8 @@ def test_arrays():
                                    {'type': 'int[3]', 'allocatable': {'max_entries': 0}}])
 def test_arrays_invalid(array):
     assert errors({'libraries': {'mylib': {'arrays': {'aaa': array}}}}) != []
+
+
+def test_function_declare():
+    assert errors({'libraries': {'mylib': {'functions': {'aaa': {'declare': False}}}}}) == []
+    assert errors({'libraries': {'mylib': {'functions': {'aaa': {'declare': 'no'}}}}}) != []

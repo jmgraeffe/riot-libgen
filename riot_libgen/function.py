@@ -7,6 +7,9 @@ class Function:
     def __init__(self, name, config: dict, factory, library: Library):
         self.parameters = {}
         self.original_name = name
+        # whether a forward declaration is generated, which is not wanted if the included headers already declare the
+        # function with different but compatible types (e.g. void* instead of uint8_t*, or enums instead of integers)
+        self.declare = True
 
         self.name = name
         self._factory = factory
@@ -37,6 +40,11 @@ class Function:
 
         if 'original_name' in dict_:
             self.original_name = dict_['original_name']
+
+        if 'declare' in dict_:
+            if not isinstance(dict_['declare'], bool):
+                raise LibGenConfigException('declare of function \'{}\' needs to be a boolean'.format(self.name))
+            self.declare = dict_['declare']
 
         if 'return_type' in dict_:
             if dict_['return_type'] not in NATIVE_TYPES and dict_['return_type'] not in self._library.pointer_handles and dict_['return_type'] not in self._library.structs:

@@ -521,3 +521,18 @@ def test_wasm_void_pointers(tmp_path):
     header = (tmp_path / 'include' / 'wasm_libs_runtime.h').read_text()
     assert 'void lib_send(const void* data, size_t len);' in header
     assert 'ssize_t lib_recv(void* buf, size_t len);' in header
+
+
+
+def test_declare(tmp_path, generator):
+    render(generator, {'lib': {'functions': {
+        'recv': {'declare': False, 'parameters': {'buf': 'buffer*'}, 'return_type': 'ssize_t'},
+        'other': {'parameters': {'buf': 'buffer*'}},
+    }, 'arrays': {'buffer': {'type': 'uint8_t[4]', 'allocatable': True}}}}, tmp_path)
+    header = read(tmp_path, generator, 'include/{g}_libs.h')
+    # the included headers declare the function (e.g. as ssize_t recv(void* buf))
+    assert 'recv(' not in header
+    assert 'void other(uint8_t* buf);' in header
+    # it is called anyway
+    source = read(tmp_path, generator, '{g}_libs.c')
+    assert 'ssize_t libgen_res = recv(' in source

@@ -291,6 +291,12 @@ libraries:
       call_with_void_bytes:
         parameters:
           cb: void_bytes_receiver
+      # the generated declaration (const uint8_t* buf) would conflict with the one in libgen_tests.h
+      void_buffer_sum:
+        declare: false
+        parameters:
+          buf: const buffer*
+        return_type: int
 
       # struct conversion
       partial_checksum:

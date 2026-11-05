@@ -487,6 +487,7 @@ tests.free_accumulator(acc2);
 
 var buf2 = tests.new_buffer([1, 2, 3, 4]);
 check("pointer_fields.array", tests.view_sum({data: buf2}), 10);
+check("declare.void_pointer", tests.void_buffer_sum(buf2), 10);
 tests.free_buffer(buf2);
 
 var n1 = tests.new_node({value: 1});

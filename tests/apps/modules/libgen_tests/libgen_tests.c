@@ -464,3 +464,7 @@ void call_with_void_bytes(void (*cb)(const void* data, size_t len)) {
     static const uint8_t data[] = { 4, 5, 6 };
     cb(data, sizeof(data));
 }
+
+int void_buffer_sum(const void* buf) {
+    return buffer_sum((const uint8_t*) buf);
+}

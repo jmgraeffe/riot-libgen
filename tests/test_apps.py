@@ -120,6 +120,7 @@ CASES = {
     'pointer_fields.struct': BOTH,
     'pointer_fields.array': BOTH,
     'pointer_fields.own_struct': BOTH,
+    'declare.void_pointer': BOTH,
     'saul.find': BOTH,
     'saul.read': BOTH,
 }

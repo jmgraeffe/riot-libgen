@@ -9,7 +9,7 @@
 {% endmacro %}
 // forward declarations so that functions are well declared even if defined in user code
 {% for library in libraries.values() %}
-{% for function in library.functions.values() %}
+{% for function in library.functions.values() if function.declare %}
 {{ c.function_return_type(library, function) }} {{ function.original_name }}(
 {%- for parameter in function.parameters.values() %}
 {{ parameter_declaration(library, parameter) }}{{ ", " if not loop.last }}

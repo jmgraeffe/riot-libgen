@@ -156,6 +156,9 @@ uint32_t void_bytes_checksum(const void* data, size_t len);
 void fill_void_bytes(void* buf, size_t len);
 size_t read_void_bytes(void* buf, size_t len);
 void call_with_void_bytes(void (*cb)(const void* data, size_t len));
+
+/* declared as const void*, but passed a buffer (uint8_t[4]), so it cannot be declared by LibGen */
+int void_buffer_sum(const void* buf);
 int get_name(const char** name);
 
 /* SAUL: registers a fake temperature ("fake_temp") and humidity sensor ("fake_hum") */

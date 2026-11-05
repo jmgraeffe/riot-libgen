@@ -561,6 +561,7 @@ WASM_EXPORT int main(void) {
         int64_t buf = tests_new_buffer(init);
         tests_view_t v = { .data = buf };
         check("pointer_fields.array", tests_view_sum(&v), 10);
+        check("declare.void_pointer", tests_void_buffer_sum(buf), 10);
         tests_free_buffer(buf);
     }
     {

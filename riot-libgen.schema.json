@@ -59,6 +59,10 @@
 													"pattern": "^[a-z][a-z0-9\\_]+[a-z0-9]$",
 													"examples": ["printf", "my_function"]
 												},
+												"declare": {
+													"description": "Whether a forward declaration of the C host function is generated (default: true). Set it to false if the included headers already declare the function with types that differ from the generated declaration but are compatible (e.g. void* instead of uint8_t* for a pointer to a named array, or an enum instead of an integer).",
+													"type": "boolean"
+												},
 												"parameters": {
 													"description": "Object whose properties represent the parameters input to a function. The property name is the parameter's name.",
 													"type": "object",
