@@ -536,3 +536,13 @@ def test_declare(tmp_path, generator):
     # it is called anyway
     source = read(tmp_path, generator, '{g}_libs.c')
     assert 'ssize_t libgen_res = recv(' in source
+
+
+def test_array_pointer_length_parameter(tmp_path, generator):
+    render(generator, {'lib': {
+        'functions': {'recv': {'parameters': {'buf': {'type': 'buffer*', 'length_parameter': 'len'}, 'len': 'size_t'}}},
+        'arrays': {'buffer': {'type': 'uint16_t[4]', 'allocatable': True}},
+    }}, tmp_path)
+    source = read(tmp_path, generator, '{g}_libs.c')
+    # the length is given in bytes
+    assert 'if ((size_t) len > sizeof(uint16_t) * 4) {' in source

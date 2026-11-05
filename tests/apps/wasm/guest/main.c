@@ -519,6 +519,9 @@ WASM_EXPORT int main(void) {
         int sum_init = tests_buffer_sum(buf);
         tests_buffer_fill(buf, 5);
         int sum = tests_buffer_sum(buf);
+        tests_buffer_fill_n(buf, 2, 1);
+        int sum_filled = tests_buffer_sum(buf);
+        CHECK_ALL("arrays.length_parameter", { sum, 20 }, { sum_filled, 12 });
         CHECK_ALL("arrays.allocatable", { buf != 0, true }, { sum_init, 10 }, { sum, 20 });
         int first = tests_free_buffer(buf);
         int second = tests_free_buffer(buf);

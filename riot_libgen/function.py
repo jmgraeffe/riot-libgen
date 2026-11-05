@@ -57,6 +57,9 @@ class Function:
                 if isinstance(config, str):
                     config = {'type': config}
                 self.parameters[name] = self._factory.create_parameter(name, config, self._library)
+            for parameter in self.parameters.values():
+                if parameter.is_array_reference() and parameter.length_parameter is not None and parameter.length_parameter not in self.parameters:
+                    raise LibGenConfigException('length parameter \'{}\' of \'{}\' does not exist as parameter of function \'{}\''.format(parameter.length_parameter, parameter.name, self.name))
 
         if 'includes' in dict_:
             self._context.add_includes(dict_['includes'])

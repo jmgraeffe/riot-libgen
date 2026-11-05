@@ -407,6 +407,12 @@ void buffer_fill(uint8_t* buf, uint8_t value) {
     }
 }
 
+void buffer_fill_n(uint8_t* buf, size_t len, uint8_t value) {
+    for (size_t i = 0; i < len; ++i) {
+        buf[i] = value;
+    }
+}
+
 int buffer_sum(const uint8_t* buf) {
     int sum = 0;
     for (int i = 0; i < 4; ++i) {

@@ -388,6 +388,14 @@ libraries:
         parameters:
           buf: const buffer*
         return_type: int
+      # the length is checked against the size of the array
+      buffer_fill_n:
+        parameters:
+          buf:
+            type: buffer*
+            length_parameter: len
+          len: size_t
+          value: uint8_t
       # pointer to an array that is not allocatable: passed as temporary copy
       samples_sum:
         parameters:

@@ -163,6 +163,13 @@ if ((size_t) {{ parameter.length_parameter }} > length_{{ parameter.name }}) {
 }
 
         {% endfor %}
+        {# pointers to named arrays: the length parameter must not exceed the size of the array #}
+        {% for parameter in function.parameters.values() if parameter.is_array_reference() and parameter.length_parameter %}
+if ((size_t) {{ parameter.length_parameter }} > sizeof({{ c.referenced_type(library, parameter.referenced) }}) * {{ parameter.referenced.size }}) {
+    core_panic(PANIC_GENERAL_ERROR, "js_libs: library '{{ library.name }}', function '{{ function.name }}', parameter '{{ parameter.name }}': length parameter '{{ parameter.length_parameter }}' is larger than the array");
+}
+
+        {% endfor %}
         {# byte arrays as output parameters need a buffer with the size given by the length parameter #}
         {% for parameter in function.parameters.values() if parameter.is_byte_array() and parameter.is_output() %}
 {{ tmpl_function_outputs.allocate(library, function, parameter)|trim }}

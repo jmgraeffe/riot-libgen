@@ -191,6 +191,7 @@ int32_t measurement_checksum_by_pointer(const measurement_t* m);
 /* named arrays */
 void buffer_fill(uint8_t* buf, uint8_t value);
 int buffer_sum(const uint8_t* buf);
+void buffer_fill_n(uint8_t* buf, size_t len, uint8_t value);
 int32_t samples_sum(const int32_t* samples);
 int32_t measurements_checksum(const measurement_t* measurements);
 

@@ -451,6 +451,13 @@ check("allocatable.const_pointer_copy",
 var buf = tests.new_buffer([1, 2, 3, 4]);
 var sum_init = tests.buffer_sum(buf);
 tests.buffer_fill(buf, 5);
+var sum_filled = tests.buffer_sum(buf);
+tests.buffer_fill_n(buf, 2, 1);
+check_all("arrays.length_parameter", [
+    [sum_filled, 20],
+    [tests.buffer_sum(buf), 12]
+]);
+tests.buffer_fill(buf, 5);
 check_all("arrays.allocatable", [
     [buf !== 0, true],
     [sum_init, 10],

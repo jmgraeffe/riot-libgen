@@ -117,6 +117,7 @@ CASES = {
     'arrays.without_init': BOTH,
     'arrays.of_structs_custom_names': BOTH,
     'arrays.const_pointer_copy': BOTH,
+    'arrays.length_parameter': BOTH,
     'pointer_fields.struct': BOTH,
     'pointer_fields.array': BOTH,
     'pointer_fields.own_struct': BOTH,

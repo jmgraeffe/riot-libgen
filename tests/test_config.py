@@ -444,6 +444,27 @@ class TestNamedArrays:
                 'arrays': {'buffer': 'uint8_t[4]'},
             })
 
+    def test_length_parameter(self, libgen):
+        parameter = load_library(libgen, {
+            'functions': {'f': {'parameters': {'b': {'type': 'buffer*', 'length_parameter': 'len'}, 'len': 'size_t'}}},
+            'arrays': {'buffer': {'type': 'uint8_t[4]', 'allocatable': True}},
+        }).functions['f'].parameters['b']
+        assert parameter.length_parameter == 'len'
+
+    def test_length_parameter_does_not_exist(self, libgen):
+        with pytest.raises(LibGenConfigException):
+            load_library(libgen, {
+                'functions': {'f': {'parameters': {'b': {'type': 'buffer*', 'length_parameter': 'len'}}}},
+                'arrays': {'buffer': {'type': 'uint8_t[4]', 'allocatable': True}},
+            })
+
+    def test_length_parameter_for_pointer_to_struct(self, libgen):
+        with pytest.raises(LibGenConfigException):
+            load_library(libgen, {
+                'functions': {'f': {'parameters': {'d': {'type': 'data*', 'length_parameter': 'len'}, 'len': 'size_t'}}},
+                'structs': {'data': {'type': 'data_t', 'allocatable': True}},
+            })
+
     def test_allocatables(self, libgen):
         library = load_library(libgen, {
             'structs': {'data': {'type': 'data_t', 'allocatable': True}, 'other': {'type': 'other_t'}},

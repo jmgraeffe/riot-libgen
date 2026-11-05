@@ -91,6 +91,9 @@ class Parameter:
                 raise LibGenConfigException('parameter length of \'{}\' is not a string, so it cannot be a parameter name'.format(self.name))
             #TODO it would be best to also do a check if the specified length parameter actually exists, but that requires doing that after adding all parameters...
             self.length_parameter = dict_['length_parameter']
+            # pointers to named arrays can be passed with a length (in bytes), which is checked against the array size
+            if self.is_reference() and self._reference not in self._library.declared_arrays:
+                raise LibGenConfigException('length parameter is only supported for byte arrays and pointers to named arrays (parameter \'{}\')'.format(self.name))
 
         if 'direction' in dict_:
             if dict_['direction'] not in DIRECTIONS:
