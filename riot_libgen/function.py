@@ -49,6 +49,9 @@ class Function:
         if 'return_type' in dict_:
             if dict_['return_type'] not in NATIVE_TYPES and dict_['return_type'] not in self._library.pointer_handles and dict_['return_type'] not in self._library.structs:
                 raise LibGenConfigException('unknown return type \'{}\' for \'{}\''.format(dict_['return_type'], self.name))
+            # the runtime cannot know how many bytes to copy, and must not get pointers into host memory
+            if dict_['return_type'] in BYTE_ARRAY_TYPES:
+                raise LibGenConfigException('byte arrays are not supported as return type (function \'{}\'), use an output parameter instead'.format(self.name))
             self._return_type = dict_['return_type']
 
         if 'parameters' in dict_:

@@ -64,6 +64,11 @@ class TestFunctions:
         assert function.name == 'f'
         assert function.original_name == 'native_f'
 
+    @pytest.mark.parametrize('type_', ['uint8_t*', 'const uint8_t*', 'void*', 'const void*'])
+    def test_byte_array_return_type(self, libgen, type_):
+        with pytest.raises(LibGenConfigException):
+            load_library(libgen, {'functions': {'f': {'return_type': type_}}})
+
     def test_declare(self, libgen):
         function = load_library(libgen, {'functions': {'f': {'declare': False}}}).functions['f']
         assert not function.declare

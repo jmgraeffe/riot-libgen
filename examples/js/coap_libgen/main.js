@@ -15,7 +15,7 @@ function serve(sock, req, resp, pkt, remote) {
 }
 
 // instances live on the host until they are freed
-var local = net.new_sock_udp_ep({family: net.AF_INET6, netif: 0, port: net.COAP_PORT});
+var local = net.new_sock_udp_ep({family: net.AF_INET6, port: net.COAP_PORT});
 var remote = net.new_sock_udp_ep();
 var sock = net.new_sock_udp();
 var req = net.new_buffer();
