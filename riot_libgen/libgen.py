@@ -2,6 +2,11 @@ from pathlib import Path
 from jinja2 import Environment, FileSystemLoader
 import yaml
 
+try:
+    from yaml import CSafeLoader as SafeLoader  # LibYAML, much faster than the pure Python loader
+except ImportError:
+    from yaml import SafeLoader
+
 from riot_libgen.context import Context
 from riot_libgen.exceptions import LibGenConfigException, RaiseExtension
 from riot_libgen.factory import Factory
@@ -20,7 +25,7 @@ class LibGen:
     def load_config_from_file(self, file_path: str):
         config = None
         with open(file_path, 'r') as stream:
-            config = yaml.safe_load(stream)
+            config = yaml.load(stream, Loader=SafeLoader)
         if config is None:
             raise LibGenConfigException('could not read config file')
 

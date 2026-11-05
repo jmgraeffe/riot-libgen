@@ -44,7 +44,7 @@ if __name__ == '__main__':
 		if args.validate is True:
 			instance = None
 			with open(config, 'r') as file:
-				instance = yaml.safe_load(file)
+				instance = yaml.load(file, Loader=riot_libgen.libgen.SafeLoader)
 			jsonschema.validate(instance=instance, schema=schema)
 			print('validation successful')
 
