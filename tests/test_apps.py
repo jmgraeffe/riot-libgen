@@ -103,6 +103,11 @@ CASES = {
     'struct_conversion.array_of_structs': BOTH,
     'struct_conversion.array_of_size_t': BOTH,
     'struct_conversion.array_of_structs_output': BOTH,
+    'allocatable.struct': BOTH,
+    'allocatable.free': BOTH,
+    'allocatable.without_init': BOTH,
+    'allocatable.opaque_custom_names': BOTH,
+    'allocatable.const_pointer_copy': BOTH,
     'saul.find': BOTH,
     'saul.read': BOTH,
 }

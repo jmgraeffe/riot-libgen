@@ -44,6 +44,17 @@ typedef struct {
     int increment;
 } counter_ref_t;
 
+/* allocatable: only sum is exposed */
+typedef struct {
+    int sum;
+    int count;
+} accumulator_t;
+
+/* allocatable without exposed fields */
+typedef struct {
+    int value;
+} opaque_t;
+
 /* nested struct, with fields that are aligned and sized differently in WASM and on 64 bit hosts */
 typedef struct {
     uint8_t tag;
@@ -141,5 +152,15 @@ int32_t checksum_from_envelope_callback(envelope_t (*cb)(void));
 int sum_partials(partial_t values[2]);
 size_t sum_sizes(size_t values[3]);
 void get_partials(partial_t values[2]);
+
+/* allocatable structs */
+void accumulator_add(accumulator_t* acc, int value);
+int accumulator_sum(const accumulator_t* acc);
+int accumulator_count(const accumulator_t* acc);
+void accumulator_keep(accumulator_t* acc);
+int kept_accumulator_sum(void);
+void opaque_set(opaque_t* o, int value);
+int opaque_get(const opaque_t* o);
+int32_t measurement_checksum_by_pointer(const measurement_t* m);
 
 #endif /* LIBGEN_TESTS_H */

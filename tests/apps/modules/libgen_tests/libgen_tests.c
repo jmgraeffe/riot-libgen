@@ -360,3 +360,41 @@ void get_partials(partial_t values[2]) {
     values[0] = make_partial(1);
     values[1] = make_partial(3);
 }
+
+/* allocatable structs */
+
+void accumulator_add(accumulator_t* acc, int value) {
+    acc->sum += value;
+    acc->count++;
+}
+
+int accumulator_sum(const accumulator_t* acc) {
+    return acc->sum;
+}
+
+int accumulator_count(const accumulator_t* acc) {
+    return acc->count;
+}
+
+/* like RIOT keeping a pointer, e.g. gcoap_register_listener() */
+static accumulator_t* _kept_accumulator = NULL;
+
+void accumulator_keep(accumulator_t* acc) {
+    _kept_accumulator = acc;
+}
+
+int kept_accumulator_sum(void) {
+    return _kept_accumulator != NULL ? _kept_accumulator->sum : -1;
+}
+
+void opaque_set(opaque_t* o, int value) {
+    o->value = value;
+}
+
+int opaque_get(const opaque_t* o) {
+    return o->value;
+}
+
+int32_t measurement_checksum_by_pointer(const measurement_t* m) {
+    return measurement_checksum(*m);
+}

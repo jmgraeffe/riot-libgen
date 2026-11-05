@@ -401,3 +401,33 @@ check_all("struct_conversion.array_of_structs_output", [
     [partials[1].a, 3],
     [partials[1].b, 4]
 ]);
+
+// allocatable structs (living on the host until freed by the runtime)
+
+var acc = tests.new_accumulator({sum: 10});
+tests.accumulator_add(acc, 5);
+tests.accumulator_add(acc, 7);
+tests.accumulator_keep(acc);
+check_all("allocatable.struct", [
+    [acc !== 0, true],
+    [tests.accumulator_sum(acc), 22],
+    [tests.accumulator_count(acc), 2],
+    [tests.kept_accumulator_sum(), 22]
+]);
+check_all("allocatable.free", [
+    [tests.free_accumulator(acc), true],
+    [tests.free_accumulator(acc), false]
+]);
+var empty = tests.new_accumulator();
+check("allocatable.without_init", tests.accumulator_sum(empty), 0);
+tests.free_accumulator(empty);
+
+var o = tests.create_opaque();
+tests.opaque_set(o, 42);
+check_all("allocatable.opaque_custom_names", [
+    [tests.opaque_get(o), 42],
+    [tests.destroy_opaque(o), true]
+]);
+
+check("allocatable.const_pointer_copy",
+      tests.measurement_checksum_by_pointer({val: [1, 2, 3], unit: 4, scale: 5}), 54321);

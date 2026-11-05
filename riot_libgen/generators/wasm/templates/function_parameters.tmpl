@@ -107,3 +107,25 @@ if ({{ parameter.name }}_guest != NULL) {
 }
 {% endif %}
 {% endmacro %}
+
+{% macro allocated_reference(library, function, parameter) %}
+{% set struct = library.structs[parameter.referenced_struct] %}
+{{ struct.type }}* {{ parameter.name }}_ptr = ({{ struct.type }}*) allocated_get_{{ library.name }}_{{ struct.name }}({{ parameter.name }});
+{% endmacro %}
+
+{% macro const_reference(library, function, parameter) %}
+{% set struct = library.structs[parameter.referenced_struct] %}
+if (wasm_module_inst == NULL) {
+    core_panic(PANIC_GENERAL_ERROR, "wasm_libs: WASM module instance is not set (use wasm_libs_set_wasm_module_inst)");
+}
+{# NULL (0) is passed as is, otherwise the struct is converted to a temporary copy on the host #}
+{# fields that are not declared keep their zero values #}
+{{ struct.type }} {{ parameter.name }}_struct = { 0 };
+if ({{ parameter.name }} != NULL) {
+    if (!wasm_runtime_validate_app_addr(wasm_module_inst, (uintptr_t) {{ parameter.name }}, {{ struct.guest_size }})) {
+        core_panic(PANIC_GENERAL_ERROR, "wasm_libs: function '{{ library.prefix }}{{ function.name }}' was called with a struct pointer parameter '{{ parameter.name }}' that does not lie in the WASM memory region");
+    }
+    const uint8_t* libgen_guest = (const uint8_t*) wasm_runtime_addr_app_to_native(wasm_module_inst, (uintptr_t) {{ parameter.name }});
+    {{ conversion.struct_to_host(library, struct, 'libgen_guest', parameter.name ~ '_struct')|trim|indent(4) }}
+}
+{% endmacro %}

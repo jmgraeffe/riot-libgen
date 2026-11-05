@@ -178,6 +178,35 @@
 											"type": "string",
 											"examples": ["phydat_t", "struct my_struct"]
 										},
+										"allocatable": {
+											"description": "Whether the runtime can create (and free) instances of the struct, which live on the host until they are freed. Instances are referenced by handles, and can be passed to parameters that are pointers to the struct (e.g. my_struct*). Either a boolean, or an object with options.",
+											"anyOf": [
+												{
+													"type": "boolean"
+												},
+												{
+													"type": "object",
+													"properties": {
+														"new": {
+															"description": "Name of the function for creating instances (default: new_<struct name>).",
+															"type": "string",
+															"pattern": "^[a-z][a-z0-9\\_]+[a-z0-9]$"
+														},
+														"free": {
+															"description": "Name of the function for freeing instances (default: free_<struct name>).",
+															"type": "string",
+															"pattern": "^[a-z][a-z0-9\\_]+[a-z0-9]$"
+														},
+														"max_entries": {
+															"description": "Number of instances that can exist at the same time (default: 10).",
+															"type": "integer",
+															"minimum": 1
+														}
+													},
+													"additionalProperties": false
+												}
+											]
+										},
 										"fields": {
 											"description": "Object whose properties represent the fields of the struct that are exposed. The property name is the name of the field.",
 											"type": "object",

@@ -44,6 +44,8 @@ class FunctionHandle:
                 if isinstance(config, str):
                     config = {'type': config}
                 self.parameters[name] = self._factory.create_parameter(name, config, self._library)
+                if self.parameters[name].is_reference():
+                    raise LibGenConfigException('pointers to structs are not supported for function handles yet (\'{}\' of \'{}\')'.format(name, self.name))
                 if self.parameters[name].is_output():
                     raise LibGenConfigException('output parameters are not supported for function handles yet (\'{}\' of \'{}\')'.format(name, self.name))
 

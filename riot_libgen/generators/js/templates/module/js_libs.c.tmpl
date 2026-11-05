@@ -15,6 +15,7 @@
 #define JS_LIBS_FUNCTION_HANDLE_MAX_LENGTH (255)
 {% set libs_prefix = 'js_libs' %}
 {% include 'templates/pointer_handles.tmpl' %}
+{% include 'templates/allocatables.tmpl' %}
 
 static jerry_value_t empty_constructor(const jerry_value_t func_val,
                                        const jerry_value_t this_val,
@@ -113,7 +114,17 @@ static jerry_value_t {{ library.name }}_{{ function.name }}_native(
     {% set prepare %}
         {% for parameter in function.parameters.values() %}
             {% set container = 'argv[' ~ loop.index0 ~ ']' %}
-            {% if parameter.is_output() %}
+            {% if parameter.is_allocated_reference() %}
+if (!jerry_value_is_number({{ container }})) {
+    core_panic(PANIC_GENERAL_ERROR, "js_libs: library '{{ library.name }}', function '{{ function.name }}', parameter '{{ parameter.name }}': not an instance of '{{ parameter.referenced_struct }}'");
+}
+{{ c.type_and_name(library, parameter) }} = ({{ library.structs[parameter.referenced_struct].type }}*) allocated_get_{{ library.name }}_{{ parameter.referenced_struct }}((int64_t) jerry_get_number_value({{ container }}));
+
+            {% elif parameter.is_reference() %}
+{# const pointer to a struct that is not allocatable: a temporary copy is passed #}
+{{ tmpl_function_parameters.struct(library, function, namespace(name=parameter.name, struct=parameter.referenced_struct), container)|trim }}
+
+            {% elif parameter.is_output() %}
 {{ tmpl_function_outputs.prepare(library, function, parameter, container)|trim }}
 
             {% elif parameter.is_struct() %}
@@ -166,7 +177,9 @@ if ((size_t) {{ parameter.length_parameter }} > length_{{ parameter.name }}) {
     {% if function.parameters %}
     {{ result }}{{ function.original_name }}(
         {% for parameter in function.parameters.values() %}
-            {% if parameter.is_output() %}
+            {% if parameter.is_reference() and not parameter.is_allocated_reference() %}
+        &{{ parameter.name }}{{ "," if not loop.last }}
+            {% elif parameter.is_output() %}
         {{ tmpl_function_outputs.argument(library, function, parameter)|trim }}{{ "," if not loop.last }}
             {% elif parameter.is_function_handle() %}
         {{ tmpl_function_call.function_handle(library, function, parameter)|trim }}{{ "," if not loop.last }}
@@ -223,6 +236,45 @@ if ((size_t) {{ parameter.length_parameter }} > length_{{ parameter.name }}) {
     {% endif %}
 }
 {% endfor %}
+{% for struct in library.structs.values() if struct.allocatable %}
+
+static jerry_value_t {{ library.name }}_{{ struct.new_function }}_native(
+    const jerry_value_t func_val,
+    const jerry_value_t this_val,
+    const jerry_value_t argv[],
+    const jerry_length_t argc
+) {
+    (void) func_val;
+    (void) this_val;
+
+    {{ struct.type }}* instance = ({{ struct.type }}*) calloc(1, sizeof({{ struct.type }}));
+    if (instance == NULL) {
+        core_panic(PANIC_GENERAL_ERROR, "js_libs: could not allocate memory");
+    }
+    if (argc > 0 && !jerry_value_is_undefined(argv[0]) && !jerry_value_is_null(argv[0])) {
+        {{ tmpl_function_parameters.struct(library, namespace(name=struct.new_function), namespace(name='libgen_init', struct=struct.name), 'argv[0]')|trim|indent(8) }}
+        *instance = libgen_init;
+    }
+    return jerry_create_number(allocated_add_{{ library.name }}_{{ struct.name }}(instance));
+}
+
+static jerry_value_t {{ library.name }}_{{ struct.free_function }}_native(
+    const jerry_value_t func_val,
+    const jerry_value_t this_val,
+    const jerry_value_t argv[],
+    const jerry_length_t argc
+) {
+    (void) func_val;
+    (void) this_val;
+
+    if (argc < 1 || !jerry_value_is_number(argv[0])) {
+        core_panic(PANIC_GENERAL_ERROR, "js_libs: library '{{ library.name }}', function '{{ struct.free_function }}': not an instance of '{{ struct.name }}'");
+    }
+    {{ struct.type }}* instance = ({{ struct.type }}*) allocated_remove_{{ library.name }}_{{ struct.name }}((int64_t) jerry_get_number_value(argv[0]));
+    free(instance);
+    return jerry_create_boolean(instance != NULL);
+}
+{% endfor %}
 {% endfor %}
 {% for library in libraries.values() %}
 
@@ -231,10 +283,14 @@ int js_libs_register_{{ library.name }}_natives(void) {
     jerry_value_t library_object = jerry_construct_object(constructor, NULL, 0);
 
     // export natives and add them to library object
-    {% for function in library.functions.values() %}
+    {% set ns = namespace(natives=library.functions.values()|map(attribute='name')|list) %}
+    {% for struct in library.structs.values() if struct.allocatable %}
+        {% set ns.natives = ns.natives + [struct.new_function, struct.free_function] %}
+    {% endfor %}
+    {% for native in ns.natives %}
     {
-        jerry_value_t property_name_function = jerry_create_string((const jerry_char_t*) ("{{ function.name }}"));
-        jerry_value_t property_value_function = jerry_create_external_function({{ library.name }}_{{ function.name }}_native);
+        jerry_value_t property_name_function = jerry_create_string((const jerry_char_t*) ("{{ native }}"));
+        jerry_value_t property_value_function = jerry_create_external_function({{ library.name }}_{{ native }}_native);
         jerry_value_t res = jerry_set_property(library_object, property_name_function, property_value_function);
         if (jerry_value_is_error(res)) {
             printf("js_libs: could not register natives for library '{{ library.name }}'");

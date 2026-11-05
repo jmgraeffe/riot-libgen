@@ -9,7 +9,11 @@ wasm_libs_function_handle_t
 {%- endif %}
 {% endmacro %}
 {% macro parameter(library, parameter) %}
-{% if parameter.is_struct() %}
+{% if parameter.is_allocated_reference() %}
+int64_t {{ parameter.name }}
+{%- elif parameter.is_reference() %}
+const {{ library.prefix }}{{ parameter.referenced_struct }}_t* {{ parameter.name }}
+{%- elif parameter.is_struct() %}
 {{ guest_type(library, parameter) }}* {{ parameter.name }}
 {%- elif parameter.is_array() %}
 {{ guest_type(library, parameter._element_parameter) }} {{ parameter.name }}[{{ parameter.array_size }}]
@@ -76,5 +80,13 @@ _Static_assert(__builtin_offsetof({{ library.prefix }}{{ struct.name }}_t, {{ fi
 {{ parameter(library, parameter_) }}{{ ", " if not loop.last }}
 {%- endfor %}
 );
+    {% endfor %}
+{% endfor %}
+{% for library in libraries.values() %}
+    {% for struct in library.structs.values() if struct.allocatable %}
+
+{# instances of allocatable structs live on the host and are referenced by handles (0 = NULL) #}
+int64_t {{ library.prefix }}{{ struct.new_function }}(const {{ library.prefix }}{{ struct.name }}_t* init);
+int {{ library.prefix }}{{ struct.free_function }}(int64_t instance);
     {% endfor %}
 {% endfor %}

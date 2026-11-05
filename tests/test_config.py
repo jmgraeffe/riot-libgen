@@ -279,3 +279,71 @@ class TestOutputParameters:
             load_library(libgen, {'structs': {'data': {'type': 'data_t', 'fields': {
                 'a': {'type': 'int', 'direction': 'out'},
             }}}})
+
+
+class TestAllocatableStructs:
+    def test_default(self, libgen):
+        library = load_library(libgen, {'structs': {'data': {'type': 'data_t', 'allocatable': True}}})
+        struct = library.structs['data']
+        assert struct.allocatable
+        assert struct.new_function == 'new_data'
+        assert struct.free_function == 'free_data'
+        assert struct.max_entries == POINTER_HANDLE_MAX_ENTRIES_DEFAULT
+
+    def test_not_allocatable(self, libgen):
+        struct = load_library(libgen, {'structs': {'data': {'type': 'data_t'}}}).structs['data']
+        assert not struct.allocatable
+
+    def test_options(self, libgen):
+        struct = load_library(libgen, {'structs': {'data': {'type': 'data_t', 'allocatable': {
+            'new': 'create_data', 'free': 'destroy_data', 'max_entries': 3,
+        }}}}).structs['data']
+        assert struct.allocatable
+        assert struct.new_function == 'create_data'
+        assert struct.free_function == 'destroy_data'
+        assert struct.max_entries == 3
+
+    @pytest.mark.parametrize('type_,const', [('data*', False), ('const data*', True), ('const data *', True)])
+    def test_pointer_parameter(self, libgen, type_, const):
+        parameter = load_library(libgen, {
+            'functions': {'f': {'parameters': {'d': type_}}},
+            'structs': {'data': {'type': 'data_t', 'allocatable': True}},
+        }).functions['f'].parameters['d']
+        assert parameter.is_reference()
+        assert parameter.referenced_struct == 'data'
+        assert parameter.is_const_reference() == const
+        assert parameter.is_allocated_reference()
+        assert not parameter.is_struct()
+
+    def test_const_pointer_to_struct_that_is_not_allocatable(self, libgen):
+        parameter = load_library(libgen, {
+            'functions': {'f': {'parameters': {'d': 'const data*'}}},
+            'structs': {'data': {'type': 'data_t'}},
+        }).functions['f'].parameters['d']
+        assert parameter.is_reference()
+        assert not parameter.is_allocated_reference()
+
+    def test_pointer_to_struct_that_is_not_allocatable_needs_to_be_const(self, libgen):
+        with pytest.raises(LibGenConfigException):
+            load_library(libgen, {
+                'functions': {'f': {'parameters': {'d': 'data*'}}},
+                'structs': {'data': {'type': 'data_t'}},
+            })
+
+    def test_pointer_to_unknown_struct(self, libgen):
+        with pytest.raises(LibGenConfigException):
+            load_library(libgen, {'functions': {'f': {'parameters': {'d': 'unknown*'}}}})
+
+    @pytest.mark.parametrize('library', [
+        # not supported (yet) for output parameters, function handles, struct fields and return types
+        {'functions': {'f': {'parameters': {'d': {'type': 'data*', 'direction': 'out'}}}}},
+        {'function_handles': {'h': {'parameters': {'d': 'data*'}}}},
+        {'structs': {'other': {'type': 'other_t', 'fields': {'d': 'data*'}}}},
+        {'functions': {'f': {'return_type': 'data*'}}},
+    ])
+    def test_pointer_not_supported(self, libgen, library):
+        library = dict(library)
+        library['structs'] = dict(library.get('structs', {}))
+        library['structs'] = {'data': {'type': 'data_t', 'allocatable': True}, **library['structs']}
+        with pytest.raises(LibGenConfigException):
+            load_library(libgen, library)

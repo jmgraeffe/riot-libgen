@@ -101,3 +101,6 @@ POINTER_HANDLE_MAX_ENTRIES_DEFAULT = 10
 
 # arrays
 ARRAY_PATTERN = r'^(\w+)\[(\d+)\]$'
+
+# pointers to structs (e.g. "data*" or "const data*")
+REFERENCE_PATTERN = r'^(const\s+)?(\w+)\s*\*$'

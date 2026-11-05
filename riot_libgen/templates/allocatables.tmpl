@@ -1,0 +1,42 @@
+{#
+ # Instances of allocatable structs: they are allocated on the host by the runtime (new function), referenced by the
+ # runtime through their (1-based) index in a table as handle, and live until the runtime frees them (free function).
+ # Handle 0 represents NULL, and freed instances are resolved to NULL as well. Only pointers that were allocated by the
+ # new function are stored in the table, so the free function cannot free anything else.
+ #
+ # Needs libs_prefix to be set by the including template (e.g. "wasm_libs").
+ #}
+{% for library in libraries.values() %}
+{% for struct in library.structs.values() if struct.allocatable %}
+
+static void* allocated_{{ library.name }}_{{ struct.name }}[{{ struct.max_entries }}] = { 0 };
+
+static int64_t allocated_add_{{ library.name }}_{{ struct.name }}(void* instance) {
+    for (int64_t i = 0; i < {{ struct.max_entries }}; ++i) {
+        if (allocated_{{ library.name }}_{{ struct.name }}[i] == NULL) {
+            allocated_{{ library.name }}_{{ struct.name }}[i] = instance;
+            return i + 1;
+        }
+    }
+    core_panic(PANIC_GENERAL_ERROR, "{{ libs_prefix }}: no free slot for instances of struct '{{ library.name }}.{{ struct.name }}' (max_entries: {{ struct.max_entries }})");
+}
+
+static void* allocated_get_{{ library.name }}_{{ struct.name }}(int64_t handle) {
+    if (handle < 0 || handle > {{ struct.max_entries }}) {
+        core_panic(PANIC_GENERAL_ERROR, "{{ libs_prefix }}: handle of struct '{{ library.name }}.{{ struct.name }}' is out of bounds (needs to be 0 <= handle <= {{ struct.max_entries }})");
+    }
+    if (handle == 0) {
+        return NULL;
+    }
+    return allocated_{{ library.name }}_{{ struct.name }}[handle - 1];
+}
+
+static void* allocated_remove_{{ library.name }}_{{ struct.name }}(int64_t handle) {
+    void* instance = allocated_get_{{ library.name }}_{{ struct.name }}(handle);
+    if (instance != NULL) {
+        allocated_{{ library.name }}_{{ struct.name }}[handle - 1] = NULL;
+    }
+    return instance;
+}
+{% endfor %}
+{% endfor %}

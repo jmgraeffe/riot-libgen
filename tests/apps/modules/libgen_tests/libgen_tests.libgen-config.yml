@@ -318,6 +318,37 @@ libraries:
             type: partial[2]
             direction: out
 
+      # allocatable structs
+      accumulator_add:
+        parameters:
+          acc: accumulator*
+          value: int
+      accumulator_sum:
+        parameters:
+          acc: const accumulator*
+        return_type: int
+      accumulator_count:
+        parameters:
+          acc: const accumulator*
+        return_type: int
+      accumulator_keep:
+        parameters:
+          acc: accumulator*
+      kept_accumulator_sum: int
+      opaque_set:
+        parameters:
+          o: opaque*
+          value: int
+      opaque_get:
+        parameters:
+          o: const opaque*
+        return_type: int
+      # pointer to a struct that is not allocatable: passed as temporary copy
+      measurement_checksum_by_pointer:
+        parameters:
+          m: const measurement*
+        return_type: int32_t
+
     function_handles:
       int_op:
         parameters:
@@ -389,6 +420,19 @@ libraries:
         fields:
           ok: bool
           code: int16_t
+      # can be created and freed by the runtime, only sum can be set
+      accumulator:
+        type: accumulator_t
+        allocatable: true
+        fields:
+          sum: int
+      # without exposed fields, and with custom names for creating and freeing
+      opaque:
+        type: opaque_t
+        allocatable:
+          new: create_opaque
+          free: destroy_opaque
+          max_entries: 2
       # only some fields of the C struct are exposed
       partial:
         type: partial_t

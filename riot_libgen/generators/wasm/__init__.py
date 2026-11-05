@@ -202,7 +202,13 @@ class WasmFunction(Function):
         # add parameters
         signature = '('
         for parameter in self.parameters.values():
-            if parameter.is_array() or parameter.is_struct():
+            if parameter.is_allocated_reference():
+                # instances of allocatable structs are passed as handles
+                signature += NATIVE_TYPES_MAPPING[POINTER_HANDLE_TYPE]
+            elif parameter.is_reference():
+                # const pointers to other structs are passed as pointer to a copy in the WASM memory
+                signature += POINTER_TYPE
+            elif parameter.is_array() or parameter.is_struct():
                 signature += POINTER_TYPE
             elif parameter.is_output():
                 if parameter.type == STRING_TYPE:

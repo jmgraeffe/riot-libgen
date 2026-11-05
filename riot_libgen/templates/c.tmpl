@@ -11,7 +11,9 @@
 {% macro type_and_name(library, parameter) %}
 {# output parameters are pointers to their type, except for arrays and byte arrays (which are pointers already) #}
 {% set pointer = '*' if parameter.is_output() and not parameter.is_byte_array() else '' %}
-{% if parameter.is_array() %}
+{% if parameter.is_reference() %}
+{{ 'const ' if parameter.is_const_reference() }}{{ library.structs[parameter.referenced_struct].type }}* {{ parameter.name }}
+{%- elif parameter.is_array() %}
 {{ element_type(library, parameter._element_parameter) }} {{ parameter.name }}[{{ parameter.array_size }}]
 {%- elif parameter.is_struct() %}
 {{ library.structs[parameter.struct].type }}{{ pointer }} {{ parameter.name }}

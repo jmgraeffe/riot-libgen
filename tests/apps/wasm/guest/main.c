@@ -457,6 +457,39 @@ WASM_EXPORT int main(void) {
                   { values[0].a, 1 }, { values[0].b, 2 }, { values[1].a, 3 }, { values[1].b, 4 });
     }
 
+    /* allocatable structs (living on the host until freed by the runtime) */
+
+    {
+        tests_accumulator_t init = { .sum = 10 };
+        int64_t acc = tests_new_accumulator(&init);
+        tests_accumulator_add(acc, 5);
+        tests_accumulator_add(acc, 7);
+        tests_accumulator_keep(acc);
+        int sum = tests_accumulator_sum(acc);
+        int count = tests_accumulator_count(acc);
+        int kept = tests_kept_accumulator_sum();
+        CHECK_ALL("allocatable.struct", { acc != 0, true }, { sum, 22 }, { count, 2 }, { kept, 22 });
+        int first = tests_free_accumulator(acc);
+        int second = tests_free_accumulator(acc);
+        CHECK_ALL("allocatable.free", { first, true }, { second, false });
+    }
+    {
+        int64_t empty = tests_new_accumulator(NULL);
+        check("allocatable.without_init", tests_accumulator_sum(empty), 0);
+        tests_free_accumulator(empty);
+    }
+    {
+        int64_t o = tests_create_opaque(NULL);
+        tests_opaque_set(o, 42);
+        int value = tests_opaque_get(o);
+        int destroyed = tests_destroy_opaque(o);
+        CHECK_ALL("allocatable.opaque_custom_names", { value, 42 }, { destroyed, true });
+    }
+    {
+        tests_measurement_t m = { .val = { 1, 2, 3 }, .unit = 4, .scale = 5 };
+        check("allocatable.const_pointer_copy", tests_measurement_checksum_by_pointer(&m), 54321);
+    }
+
     /* SAUL registry (configs/saul_reg.libgen-config.yml), with fake devices registered by the host
      * (libgen_tests_saul.c) */
 

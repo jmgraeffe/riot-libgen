@@ -5,8 +5,11 @@
 {% import 'generators/wasm/templates/function_handle_parameters.tmpl' as tmpl_function_handle_parameters %}
 {% import 'generators/wasm/templates/function_handle_cleanup.tmpl' as tmpl_function_handle_cleanup %}
 {% import 'generators/wasm/templates/function_handle_returns.tmpl' as tmpl_function_handle_returns %}
+{% import 'generators/wasm/templates/conversion.tmpl' as conversion %}
 {% macro native_parameter_type(library, parameter) %}
-{% if parameter.is_array() %}
+{% if parameter.is_allocated_reference() %}
+int64_t
+{%- elif parameter.is_array() or parameter.is_reference() %}
 void*
 {%- elif parameter.is_struct() %}
 {{ library.structs[parameter.struct].type }}*
@@ -27,6 +30,7 @@ uint32_t
 {%- endif %}
 {% endmacro %}
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <panic.h>
 
@@ -37,6 +41,7 @@ uint32_t
 static wasm_module_inst_t wasm_module_inst = NULL;
 {% set libs_prefix = 'wasm_libs' %}
 {% include 'templates/pointer_handles.tmpl' %}
+{% include 'templates/allocatables.tmpl' %}
 {% for library in libraries.values() %}
 {% for handle in library.function_handles.values() %}
 
@@ -147,7 +152,13 @@ static {{ c.function_handle_return_type(library, handle) }} function_handle_inte
     (void) exec_env;
     {% set prepare %}
         {% for parameter in function.parameters.values() %}
-            {% if parameter.is_output() and not parameter.is_array() and not parameter.is_byte_array() %}
+            {% if parameter.is_allocated_reference() %}
+{{ tmpl_function_parameters.allocated_reference(library, function, parameter)|trim }}
+
+            {% elif parameter.is_reference() %}
+{{ tmpl_function_parameters.const_reference(library, function, parameter)|trim }}
+
+            {% elif parameter.is_output() and not parameter.is_array() and not parameter.is_byte_array() %}
 {{ tmpl_function_parameters.output(library, function, parameter)|trim }}
 
             {% elif parameter.is_struct() %}
@@ -182,7 +193,11 @@ static {{ c.function_handle_return_type(library, handle) }} function_handle_inte
     {% if function.parameters %}
     {{ result }}{{ function.original_name }}(
         {% for parameter in function.parameters.values() %}
-            {% if parameter.is_output() %}
+            {% if parameter.is_allocated_reference() %}
+        {{ parameter.name }}_ptr{{ "," if not loop.last }}
+            {% elif parameter.is_reference() %}
+        {{ parameter.name }} != NULL ? &{{ parameter.name }}_struct : NULL{{ "," if not loop.last }}
+            {% elif parameter.is_output() %}
         {{ tmpl_function_call.output(library, function, parameter)|trim }}{{ "," if not loop.last }}
             {% elif parameter.is_struct() %}
         {{ tmpl_function_call.struct(library, function, parameter)|trim }}{{ "," if not loop.last }}
@@ -231,15 +246,83 @@ static union {
     .func_ptr = {{ library.name }}_{{ function.name }}_native
 };
 {% endfor %}
+{% for struct in library.structs.values() if struct.allocatable %}
+
+int64_t {{ library.name }}_{{ struct.new_function }}_native(wasm_exec_env_t exec_env, void* init) {
+    (void) exec_env;
+    if (wasm_module_inst == NULL) {
+        core_panic(PANIC_GENERAL_ERROR, "wasm_libs: WASM module instance is not set (use wasm_libs_set_wasm_module_inst)");
+    }
+
+    {# the instance is zeroed, so fields that are not declared keep their zero values #}
+    {{ struct.type }}* instance = ({{ struct.type }}*) calloc(1, sizeof({{ struct.type }}));
+    if (instance == NULL) {
+        core_panic(PANIC_GENERAL_ERROR, "wasm_libs: could not allocate memory");
+    }
+    {% if struct.fields %}
+    if (init != NULL) {
+        if (!wasm_runtime_validate_app_addr(wasm_module_inst, (uintptr_t) init, {{ struct.guest_size }})) {
+            core_panic(PANIC_GENERAL_ERROR, "wasm_libs: function '{{ library.prefix }}{{ struct.new_function }}' was called with a parameter 'init' that does not lie in the WASM memory region");
+        }
+        const uint8_t* libgen_guest = (const uint8_t*) wasm_runtime_addr_app_to_native(wasm_module_inst, (uintptr_t) init);
+        {{ conversion.struct_to_host(library, struct, 'libgen_guest', '(*instance)')|trim|indent(8) }}
+    }
+    {% else %}
+    {# no fields declared, so there is nothing to initialize #}
+    (void) init;
+    {% endif %}
+    return allocated_add_{{ library.name }}_{{ struct.name }}(instance);
+}
+
+// union just to avoid ISO C warning when initializing void* with function pointer
+// (on some systems, function pointers may be different from data pointers so this might not be universal)
+static union {
+    void* void_ptr;
+    int64_t (*func_ptr)(wasm_exec_env_t, void*);
+} {{ library.name }}_{{ struct.new_function }}_ptr = {
+    .func_ptr = {{ library.name }}_{{ struct.new_function }}_native
+};
+
+int32_t {{ library.name }}_{{ struct.free_function }}_native(wasm_exec_env_t exec_env, int64_t instance) {
+    (void) exec_env;
+    {{ struct.type }}* instance_ptr = ({{ struct.type }}*) allocated_remove_{{ library.name }}_{{ struct.name }}(instance);
+    free(instance_ptr);
+    return instance_ptr != NULL;
+}
+
+// union just to avoid ISO C warning when initializing void* with function pointer
+// (on some systems, function pointers may be different from data pointers so this might not be universal)
+static union {
+    void* void_ptr;
+    int32_t (*func_ptr)(wasm_exec_env_t, int64_t);
+} {{ library.name }}_{{ struct.free_function }}_ptr = {
+    .func_ptr = {{ library.name }}_{{ struct.free_function }}_native
+};
+{% endfor %}
 {% endfor %}
 {% for library in libraries.values() %}
 
+{% set allocatables = library.structs.values()|selectattr('allocatable')|list %}
 static NativeSymbol native_symbols_{{ library.name }}_library[] = {
     {% for function in library.functions.values() %}
     {
         "{{ library.prefix }}{{ function.name }}",
         NULL, // function pointer, will be set in `wasm_runtime_register_{{ library.name }}_natives()`
         "{{ function.get_wasm_runtime_signature() }}", // {{ function.return_type }} {{ library.prefix }}{{ function.name }}({% for parameter in function.parameters.values() %}{{ parameter.name }}{{ ", " if not loop.last }}{% endfor %})
+        NULL
+    }{{ "," if not loop.last or allocatables }}
+    {% endfor %}
+    {% for struct in allocatables %}
+    {
+        "{{ library.prefix }}{{ struct.new_function }}",
+        NULL, // function pointer, will be set in `wasm_runtime_register_{{ library.name }}_natives()`
+        "(i)I", // int64_t {{ library.prefix }}{{ struct.new_function }}(init)
+        NULL
+    },
+    {
+        "{{ library.prefix }}{{ struct.free_function }}",
+        NULL, // function pointer, will be set in `wasm_runtime_register_{{ library.name }}_natives()`
+        "(I)i", // int {{ library.prefix }}{{ struct.free_function }}(instance)
         NULL
     }{{ "," if not loop.last }}
     {% endfor %}
@@ -251,6 +334,10 @@ static int num_native_symbols_{{ library.name }}_library = sizeof(native_symbols
 int wasm_libs_register_{{ library.name }}_natives(const char* env) {
     {% for function in library.functions.values() %}
     native_symbols_{{ library.name }}_library[{{ loop.index0 }}].func_ptr = {{ library.name }}_{{ function.name }}_ptr.void_ptr;
+    {% endfor %}
+    {% for struct in library.structs.values() if struct.allocatable %}
+    native_symbols_{{ library.name }}_library[{{ library.functions|length + 2 * loop.index0 }}].func_ptr = {{ library.name }}_{{ struct.new_function }}_ptr.void_ptr;
+    native_symbols_{{ library.name }}_library[{{ library.functions|length + 2 * loop.index0 + 1 }}].func_ptr = {{ library.name }}_{{ struct.free_function }}_ptr.void_ptr;
     {% endfor %}
 
     if (!wasm_runtime_register_natives(env, native_symbols_{{ library.name }}_library, num_native_symbols_{{ library.name }}_library)) {

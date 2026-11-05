@@ -363,3 +363,47 @@ def test_js_output_strings(tmp_path):
     }}}}}, tmp_path)
     header = (tmp_path / 'include' / 'js_libs.h').read_text()
     assert 'void f(const char** s);' in header
+
+
+ALLOCATABLE_LIBRARY = {'lib': {
+    'functions': {
+        'add': {'parameters': {'acc': 'accumulator*', 'value': 'int'}},
+        'sum': {'parameters': {'acc': 'const accumulator*'}, 'return_type': 'int'},
+        'checksum': {'parameters': {'m': 'const measurement*'}, 'return_type': 'int'},
+    },
+    'structs': {
+        'accumulator': {'type': 'accumulator_t', 'allocatable': True, 'fields': {'sum': 'int'}},
+        'opaque': {'type': 'opaque_t', 'allocatable': {'new': 'create_opaque', 'free': 'destroy_opaque'}},
+        'measurement': {'type': 'measurement_t', 'fields': {'val': 'int16_t[3]'}},
+    },
+}}
+
+
+def test_pointer_forward_declarations(tmp_path, generator):
+    render(generator, ALLOCATABLE_LIBRARY, tmp_path)
+    header = read(tmp_path, generator, 'include/{g}_libs.h')
+    assert 'void add(accumulator_t* acc, int value);' in header
+    assert 'int sum(const accumulator_t* acc);' in header
+    assert 'int checksum(const measurement_t* m);' in header
+
+
+def test_wasm_allocatable_structs(tmp_path):
+    render('wasm', ALLOCATABLE_LIBRARY, tmp_path)
+    source = (tmp_path / 'wasm_libs.c').read_text()
+    signatures = dict(re.findall(r'"lib_(\w+)",\s*NULL,[^\n]*\n\s*"([^"]*)"', source))
+    # instances are passed as handles, pointers to structs that are not allocatable as pointer to a copy
+    assert signatures == {'add': '(Ii)', 'sum': '(I)i', 'checksum': '(i)i', 'new_accumulator': '(i)I',
+                          'free_accumulator': '(I)i', 'create_opaque': '(i)I', 'destroy_opaque': '(I)i'}
+    header = (tmp_path / 'include' / 'wasm_libs_runtime.h').read_text()
+    assert 'int64_t lib_new_accumulator(const lib_accumulator_t* init);' in header
+    assert 'int lib_free_accumulator(int64_t instance);' in header
+    assert 'int64_t lib_create_opaque(const lib_opaque_t* init);' in header
+    assert 'void lib_add(int64_t acc, int value);' in header
+    assert 'int lib_checksum(const lib_measurement_t* m);' in header
+
+
+def test_js_allocatable_structs(tmp_path):
+    render('js', ALLOCATABLE_LIBRARY, tmp_path)
+    source = (tmp_path / 'js_libs.c').read_text()
+    names = re.findall(r'jerry_create_string\(\(const jerry_char_t\*\) \("(\w+)"\)\);\s+jerry_value_t property_value_function', source)
+    assert names == ['add', 'sum', 'checksum', 'new_accumulator', 'free_accumulator', 'create_opaque', 'destroy_opaque']

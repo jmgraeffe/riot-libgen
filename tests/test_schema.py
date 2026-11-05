@@ -113,3 +113,15 @@ def test_parameter_direction_invalid():
     assert errors({'libraries': {'mylib': {'functions': {'my_func': {'parameters': {
         'aaa': {'type': 'int', 'direction': 'up'},
     }}}}}}) != []
+
+
+def test_allocatable_structs():
+    assert errors({'libraries': {'mylib': {'structs': {
+        'aaa': {'type': 'a_t', 'allocatable': True},
+        'bbb': {'type': 'b_t', 'allocatable': {'new': 'create_b', 'free': 'destroy_b', 'max_entries': 3}},
+    }}}}) == []
+
+
+@pytest.mark.parametrize('allocatable', ['yes', {'new': 3}, {'max_entries': 0}, {'unknown': 1}])
+def test_allocatable_structs_invalid(allocatable):
+    assert errors({'libraries': {'mylib': {'structs': {'aaa': {'type': 'a_t', 'allocatable': allocatable}}}}}) != []
